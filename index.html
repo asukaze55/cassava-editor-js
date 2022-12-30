@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width">
+  <meta charset="UTF-8">
+  <meta http-equiv="content-language" content="ja">
+  <title>Cassava Editor JS</title>
+  <link rel="stylesheet" href="cassava.css">
+  <link rel="stylesheet" href="cassava_ui.css">
+</head>
+<body>
+<header>
+<div class="headline">
+  <a href="https://www.asukaze.net/" rel="home">あすかぜ・ねっと</a> ＞
+  <a href="../../">自作ソフト</a> ＞
+  <a href="../">Cassava</a> ＞
+  Cassava JS
+</div>
+<h1>Cassava Editor JS</h1>
+</header>
+<div>
+  <ul class="main-menu">
+    <li class="has-sub-menu">ファイル
+      <ul class="sub-menu">
+        <li onclick="runCommand('New');">新規作成</li>
+        <li><label for="file" style="display: block;">開く...</label></li>
+        <li class="has-sub-menu">文字コード指定再読み込み ▶
+          <ul class="sub-menu">
+            <li onclick="openFile('UTF-8');">UTF-8</li>
+            <li onclick="openFile('Shift_JIS');">Shift-JIS</li>
+          </ul>
+        </li>
+        <li onclick="save();">保存</li>
+      </ul>
+    </li>
+    <li class="has-sub-menu">編集
+      <ul class="sub-menu">
+        <li onclick="runCommand('SelectAll');">すべて選択 (Ctrl+A)</li>
+        <li onclick="runCommand('SelectRow');">行選択 (Shift+Space)</li>
+        <li onclick="runCommand('SelectCol');">列選択 (Ctrl+Space)</li>
+        <li class="has-sub-menu">文字変換 ▶
+          <ul class="sub-menu">
+            <li onclick="runCommand('TransChar0');">英数・記号を半角に変換</li>
+            <li onclick="runCommand('TransChar1');">英数・記号を全角に変換</li>
+            <li onclick="runCommand('TransChar2');">英字を大文字に変換</li>
+            <li onclick="runCommand('TransChar3');">英字を小文字に変換</li>
+            <li onclick="runCommand('TransChar4');">カナを半角に変換</li>
+            <li onclick="runCommand('TransChar5');">カナを全角に変換</li>
+          </ul>
+        </li>
+        <li class="has-sub-menu">連続データ ▶
+          <ul class="sub-menu">
+            <li onclick="runCommand('SequenceS');">連番作成</li>
+            <li onclick="runCommand('SequenceC');">1 行目をコピー</li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li class="has-sub-menu">挿入・削除
+      <ul class="sub-menu">
+        <li onclick="runCommand('InsRow');">行挿入 (Shift+Enter)</li>
+        <li onclick="runCommand('InsCol');">列挿入</li>
+        <li onclick="runCommand('CutRow');">行削除</li>
+        <li onclick="runCommand('CutCol');">列削除</li>
+        <li onclick="runCommand('Enter');">行分割 (Ctrl+Enter)</li>
+        <li onclick="runCommand('ConnectCell');">セル結合 (Ctrl+BkSp)</li>
+        <li class="has-sub-menu">セル挿入 ▶
+          <ul class="sub-menu">
+            <li onclick="runCommand('InsertCellRight');">右向き (Ctrl+Ins)</li>
+            <li onclick="runCommand('InsertCellDown');">下向き (Shift+Ctrl+Ins)</li>
+          </ul>
+        </li>
+        <li class="has-sub-menu">セル削除 ▶
+          <ul class="sub-menu">
+            <li onclick="runCommand('DeleteCellLeft');">左につめる (Ctrl+Del)</li>
+            <li onclick="runCommand('DeleteCellUp');">上につめる (Shift+Ctrl+Del)</li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li class="has-sub-menu">マクロ
+      <ul id="macro-sub-menu" class="sub-menu">
+        <li onclick="editNewMacro();">マクロを追加...</li>
+        <li onclick="runMacro('列数・行数を変更');">列数・行数を変更</li>
+        <li onclick="runMacro('数字→漢字');">数字→漢字</li>
+        <li onclick="runMacro('転置');">転置</li>
+        <li onclick="runMacro('tests/TestAll.cms');">TestAll</li>
+      </ul>
+    </li>
+    <li class="has-sub-menu">ヘルプ
+      <ul class="sub-menu">
+        <li onclick="window.open('https://www.asukaze.net/soft/cassava/bbs/', '_blank');">掲示板</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<div style="display: none;">
+  <input id="file" type="file" onchange="openFile('UTF-8');">
+</div>
+<dialog id="macro-dialog">
+  <div>
+    マクロ名：<input id="macro-name" value="新規マクロ">
+    <button onclick="runEditingMacro();">▶</button>
+  </div>
+  <div>
+    <textarea id="macro-input" rows="10" cols="40"></textarea>
+  </div>
+  <div>
+    <button onclick="addMacro();">追加</button>
+    <button onclick="cancelEditMacro();">キャンセル</button>
+</div>
+</dialog>
+<div>
+  <cassava-grid id="main-grid" width="100%"></cassava-grid>
+</div>
+<script src="cassava_replacer.js"></script>
+<script src="cassava_macro.js"></script>
+<script src="cassava_grid.js"></script>
+<script src="cassava_ui.js"></script>
+<script src="sample_macros.js"></script>
+<script src="test_macros.js"></script>
+</body>
+</html>

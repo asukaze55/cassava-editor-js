@@ -1,0 +1,30 @@
+cassava-grid table {
+  border-collapse: collapse;
+  display: inline-block;
+  max-width: 100%;
+  overflow: auto;
+  white-space: nowrap;
+}
+
+cassava-grid td,
+cassava-grid th {
+  border: 1px solid #ddd;
+  min-width: 32px;
+}
+
+.cassava-fixed-both {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 1;
+}
+
+.cassava-fixed-col {
+  position: sticky;
+  left: 0;
+}
+
+.cassava-fixed-row {
+  position: sticky;
+  top: 0;
+}

@@ -1,0 +1,4 @@
+.hg
+.hgignore
+pack/src
+pack/out
