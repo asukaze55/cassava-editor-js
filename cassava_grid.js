@@ -28,6 +28,15 @@ function increment(value) {
   return value + '1';
 }
 
+class Range {
+  constructor(left, top, right, bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
 class GridData {
   constructor() {
     this.clear();
@@ -53,33 +62,32 @@ class GridData {
     this.maxColCount = 1;
   }
 
-  clearCells(l, t, r, b) {
-    for (let y = t; y <= b; y++) {
+  clearCells(range) {
+    for (let y = range.top; y <= range.bottom; y++) {
       const row = this.data[y - 1];
       if (!row) {
         continue;
       }
-      for (let x = l; x <= r; x++) {
+      for (let x = range.left; x <= range.right; x++) {
         row[x - 1] = '';
       }
     }    
   }
 
-  deleteCellLeft(l, t, r, b) {
-    const cols = r - l + 1;
-    const right = this.right();
-    for (let y = t; y <= b; y++) {
-      for (let x = l; x <= right; x++) {
+  deleteCellLeft(range) {
+    const cols = range.right - range.left + 1;
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = range.left; x <= this.maxColCount; x++) {
         this.setCell(x, y, this.cell(x + cols, y));
       }
     }
   }
 
-  deleteCellUp(l, t, r, b) {
-    const rows = b - t + 1;
+  deleteCellUp(range) {
+    const rows = range.bottom - range.top + 1;
     const bottom = this.bottom();
-    for (let x = l; x <= r; x++) {
-      for (let y = t; y <= bottom; y++) {
+    for (let x = range.left; x <= range.right; x++) {
+      for (let y = range.top; y <= bottom; y++) {
         this.setCell(x, y, this.cell(x, y + rows));
       }
     }    
@@ -100,27 +108,25 @@ class GridData {
     this.data.splice(t - 1, b - t + 1);
   }
 
-  insertCellDown(l, t, r, b) {
-    const rows = b - t + 1;
-    for (let x = l; x <= r; x++) {
-      for (let y = this.bottom() + rows; y > b;
-           y--) {
+  insertCellDown(range) {
+    const rows = range.bottom - range.top + 1;
+    for (let x = range.left; x <= range.right; x++) {
+      for (let y = this.bottom() + rows; y > range.bottom; y--) {
         this.setCell(x, y, this.cell(x, y - rows));
       }
-      for (let y = b; y >= t; y--) {
+      for (let y = range.bottom; y >= range.top; y--) {
         this.setCell(x, y, '');
       }
     }
   }
 
-  insertCellRight(l, t, r, b) {
-    const cols = r - l + 1;
-    for (let y = t; y <= b; y++) {
-      for (let x = this.right() + cols; x > r;
-           x--) {
+  insertCellRight(range) {
+    const cols = range.right - range.left + 1;
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = this.right() + cols; x > range.right; x--) {
         this.setCell(x, y, this.cell(x - cols, y));
       }
-      for (let x = r; x >= l; x--) {
+      for (let x = range.right; x >= range.left; x--) {
         this.setCell(x, y, '');
       }
     }
@@ -147,19 +153,21 @@ class GridData {
     }
   }
 
-  paste(clipText, clipData, l, t, r, b, way) {
+  paste(clipText, clipData, range, way) {
     if (way == 5) {
       this.setCell(this.x, this.y, clipText);
       return;
     }
+    const l = range.left;
+    const t = range.top;
+    const r = range.right;
+    const b = range.bottom;
     const clipCols = clipData.right();
     const clipRows = clipData.bottom();
     if (way == 3) {
-      this.insertCellRight(
-          l, t, l + clipCols - 1, t + clipRows - 1);
+      this.insertCellRight(new Range(l, t, l + clipCols - 1, t + clipRows - 1));
     } else if (way == 4) {
-      this.insertCellDown(
-          l, t, l + clipCols - 1, t + clipRows - 1);
+      this.insertCellDown(new Range(l, t, l + clipCols - 1, t + clipRows - 1));
     }
     const targetCols =
         way <= 0 ? Math.min(clipCols, r - l + 1)
@@ -176,22 +184,17 @@ class GridData {
     }
   }
 
-  replaceAll(str1, str2, ignoreCase, wholeCell,
-             regex, l, t, r, b) {
+  range() {
+    return new Range(1, 1, this.maxColCount, this.data.length);
+  }
+
+  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
     str1 = str1.toString();
     str2 = str2.toString();
-    if (l == null || l < 1) {
-      l = 1;
-    }
-    if (t == null || t < 1) {
-      t = 1;
-    }
-    if (r == null || r > this.maxColCount) {
-      r = this.maxColCount;
-    }
-    if (b == null || b > this.data.length) {
-      b = this.data.length;
-    }
+    const l = Math.max(range.left, 1);
+    const t = Math.max(range.top, 1);
+    const r = Math.min(range.right, this.maxColCount);
+    const b = Math.min(range.bottom, this.data.length);
     const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, regex);
     for (let y = t; y <= b; y++) {
       if (this.data[y - 1] == null) {
@@ -211,27 +214,27 @@ class GridData {
     return this.maxColCount;
   }
 
-  sequenceC(l, t, r, b) {
-    for (let x = l; x <= r; x++) {
-      const value = this.cell(x, t);
-      for (let y = t + 1; y <= b; y++) {
+  sequenceC(range) {
+    for (let x = range.left; x <= range.right; x++) {
+      const value = this.cell(x, range.top);
+      for (let y = range.top + 1; y <= range.bottom; y++) {
         this.setCell(x, y, value);
       }
     }
   }
 
-  sequenceS(l, t, r, b) {
-    for (let x = l; x <= r; x++) {
-      const first = this.cell(x, t);
-      const second = this.cell(x, t + 1);
+  sequenceS(range) {
+    for (let x = range.left; x <= range.right; x++) {
+      const first = this.cell(x, range.top);
+      const second = this.cell(x, range.top + 1);
       if (isNumber(first) && isNumber(second)) {
         const step = second - first;
-        for (let y = t + 2; y <= b; y++) {
+        for (let y = range.top + 2; y <= range.bottom; y++) {
           this.setCell(x, y,
-              (first - 0) + (step * (y - t)));
+              (first - 0) + (step * (y - range.top)));
         }
       } else {
-        for (let y = t + 1; y <= b; y++) {
+        for (let y = range.top + 1; y <= range.bottom; y++) {
           this.setCell(x, y,
               increment(this.cell(x, y - 1)));
         }
@@ -275,13 +278,12 @@ class GridData {
     }
   }
 
-  sort(l, t, r, b, p, dir, num, ignoreCase,
-       zenhan) {
-    const range = [];
-    for (let y = t; y <= b; y++) {
-      range.push(this.data[y - 1].slice(l - 1, r));
+  sort(range, p, dir, num, ignoreCase, zenhan) {
+    const rangeData = [];
+    for (let y = range.top; y <= range.bottom; y++) {
+      rangeData.push(this.data[y - 1].slice(range.left - 1, range.right));
     }
-    range.sort((row1, row2) => {
+    rangeData.sort((row1, row2) => {
       let val1 = row1[p - 1];
       let val2 = row2[p - 1]; 
       if (num) {
@@ -310,23 +312,23 @@ class GridData {
       }
       return 0;
     });
-    for (let y = t; y <= b; y++) {
+    for (let y = range.top; y <= range.bottom; y++) {
       const target = this.data[y - 1];
-      const sorted = range[y - t];
-      for (let x = l; x <= r; x++) {
-        target[x - 1] = sorted[x - l];
+      const sorted = rangeData[y - range.top];
+      for (let x = range.left; x <= range.right; x++) {
+        target[x - 1] = sorted[x - range.left];
       }
     }
   }
 
-  sumAndAvr(l, t, r, b) {
+  sumAndAvr(range) {
     let sum = 0;
     let count = 0;
-    for (let y = t; y <= b; y++) {
+    for (let y = range.top; y <= range.bottom; y++) {
       if (this.data[y - 1] == null) {
         continue;
       }
-      for (let x = l; x <= r; x++) {
+      for (let x = range.left; x <= range.right; x++) {
         const value = this.data[y - 1][x - 1];
         if (value == null || !isNumber(value)) {
           continue;
@@ -381,8 +383,12 @@ class Grid {
     this.y = 1;
   }
 
-  connectCells(l, t, r, b) {
+  connectCells(range) {
     blurActiveElement();
+    const l = range.left;
+    const t = range.top;
+    const r = range.right;
+    const b = range.bottom;
     if (r > l || b > t) {
       let result = '';
       for (let y = t; y <= b; y++) {
@@ -395,7 +401,7 @@ class Grid {
       this.select(l, t, r, b);
     } else if (l > 1) {
       this.gridData.setCell(l - 1, t, this.gridData.cell(l - 1, t) + this.gridData.cell(l, t));
-      this.gridData.deleteCellLeft(l, t, l, t);
+      this.gridData.deleteCellLeft(new Range(l, t, l, t));
       this.moveTo(l - 1, t);
     } else if (t > 1) {
       const right = this.gridData.right();
@@ -678,6 +684,14 @@ class Grid {
     });
   }
 
+  selection() {
+    return new Range(
+        Math.min(this.anchorX, this.x),
+        Math.min(this.anchorY, this.y),
+        Math.max(this.anchorX, this.x),
+        Math.max(this.anchorY, this.y));
+  }
+
   setCell(x, y, value) {
     this.gridData.setCell(x, y, value);
     this.render();
@@ -872,7 +886,7 @@ function gridKeyDown(event, grid) {
       grid.selectAll()
       event.preventDefault();
     } else if (key == 'Backspace') {
-      grid.connectCells(grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom());
+      grid.connectCells(grid.selection());
       event.preventDefault();
     } else if (key == 'Delete') {
       const isEditing = grid.isEditing;
@@ -880,9 +894,9 @@ function gridKeyDown(event, grid) {
         blurActiveElement();
       }
       if (event.shiftKey) {
-        grid.gridData.deleteCellUp(grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom());
+        grid.gridData.deleteCellUp(grid.selection());
       } else {
-        grid.gridData.deleteCellLeft(grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom());
+        grid.gridData.deleteCellLeft(grid.selection());
       }
       grid.render();
       if (isEditing) {
@@ -905,9 +919,9 @@ function gridKeyDown(event, grid) {
         blurActiveElement();
       }
       if (event.shiftKey) {
-        grid.gridData.insertCellDown(grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom());
+        grid.gridData.insertCellDown(grid.selection());
       } else {
-        grid.gridData.insertCellRight(grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom());
+        grid.gridData.insertCellRight(grid.selection());
       }
       grid.render();
       if (isEditing) {
@@ -1193,11 +1207,11 @@ function parseCsv(data, gridData) {
   }
 }
 
-function toCsv(gridData, l, t, r, b) {
+function toCsv(gridData, range) {
   let result = '';
-  for (let y = t; y <= b; y++) {
-    for (let x = l; x <= r; x++) {
-      if (x > l) {
+  for (let y = range.top; y <= range.bottom; y++) {
+    for (let x = range.left; x <= range.right; x++) {
+      if (x > range.left) {
         result += ',';
       }
       const cell = gridData.cell(x, y);
@@ -1228,8 +1242,7 @@ function open(file, encoding, grid) {
 
 function saveAs(fileName, gridData) {
   const blob = new Blob(
-      [toCsv(gridData, 1, 1, gridData.right(),
-             gridData.bottom())],
+      [toCsv(gridData, gridData.range())],
       {type: "text/csv"});
   if (navigator.msSaveOrOpenBlob) {
     navigator.msSaveOrOpenBlob(blob, fileName);
@@ -1266,42 +1279,26 @@ async function runMacro(macro, macroMap, grid) {
       a => gridData.setBottom(a));
   env.set('Col=/0', () => grid.x);
   env.set('Col=/1', a => grid.moveTo(a, grid.y));
-  env.set('ConnectCell/0', () =>
-      grid.connectCells(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()));
+  env.set('ConnectCell/0', () => grid.connectCells(grid.selection()));
   env.set('Copy/0', () => clipText =
-      toCsv(gridData, grid.selLeft(),
-            grid.selTop(), grid.selRight(),
-            grid.selBottom()));
+      toCsv(gridData, grid.selection()));
   env.set('CopyAvr/0', () => clipText =
-      gridData.sumAndAvr(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()).avr.toString());
+      gridData.sumAndAvr(grid.selection()).avr.toString());
   env.set('CopySum/0', () => clipText =
-      gridData.sumAndAvr(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()).sum.toString());
+      gridData.sumAndAvr(grid.selection()).sum.toString());
   env.set('Cut/0', () => {
-    const l = grid.selLeft();
-    const t = grid.selTop();
-    const r = grid.selRight();
-    const b = grid.selBottom();
-    clipText = toCsv(gridData, l, t, r, b);
-    gridData.clearCells(l, t, r, b);
+    const range = grid.selection();
+    clipText = toCsv(gridData, range);
+    gridData.clearCells(range);
   });
   env.set('CutCol/0', () => gridData.deleteCol(
       grid.selLeft(), grid.selRight()));
   env.set('CutRow/0', () => gridData.deleteRow(
       grid.selTop(), grid.selBottom()));
   env.set('DeleteCellLeft/0', () =>
-      gridData.deleteCellLeft(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()));
+      gridData.deleteCellLeft(grid.selection()));
   env.set('DeleteCellUp/0', () =>
-      gridData.deleteCellUp(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()));
+      gridData.deleteCellUp(grid.selection()));
   env.set('DeleteCol/1',
       a => gridData.deleteCol(a, a));
   env.set('DeleteRow/1',
@@ -1323,14 +1320,8 @@ async function runMacro(macro, macroMap, grid) {
       a => inputBoxMultiLine(a, grid));
   env.set('InsCol/0', () => grid.insertCol(grid.selLeft(), grid.selRight(), true));
   env.set('InsRow/0', () => grid.insertRow(grid.selTop(), grid.selBottom(), true));
-  env.set('InsertCellDown/0', () =>
-      gridData.insertCellDown(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()));
-  env.set('InsertCellRight/0', () =>
-      gridData.insertCellRight(grid.selLeft(),
-          grid.selTop(), grid.selRight(),
-          grid.selBottom()));
+  env.set('InsertCellDown/0', () => gridData.insertCellDown(grid.selection()));
+  env.set('InsertCellRight/0', () => gridData.insertCellRight(grid.selection()));
   env.set('InsertCol/1', a => grid.insertCol(a, a, false));
   env.set('InsertCol/2', (a, b) => grid.insertCol(a, b, false));
   env.set('InsertRow/1', a => grid.insertRow(a, a, false));
@@ -1342,16 +1333,17 @@ async function runMacro(macro, macroMap, grid) {
   env.set('Paste/0', () => {
     const clipData = new GridData();
     parseCsv(clipText, clipData);
-    gridData.paste(clipText, clipData, grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom(), -1);
+    gridData.paste(clipText, clipData, grid.selection(), -1);
   });
   env.set('Paste/1', a => {
     const clipData = new GridData();
     parseCsv(clipText, clipData);
-    gridData.paste(clipText, clipData, grid.selLeft(), grid.selTop(), grid.selRight(), grid.selBottom(), a);
+    gridData.paste(clipText, clipData, grid.selection(), a);
   });
   env.set('Refresh/0', () => grid.refresh());
-  env.set('ReplaceAll/+2',
-      (...a) => gridData.replaceAll(...a));
+  env.set('ReplaceAll/2', (a, b) => gridData.replaceAll(a, b, false, false, false, gridData.range()));
+  env.set('ReplaceAll/5', (a, b, c, d, e) => gridData.replaceAll(a, b, c, d, e, gridData.range()));
+  env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => gridData.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
   env.set('Right=/0', () => gridData.right());
   env.set('Right=/1', a => gridData.setRight(a));
   env.set('Row=/0', () => grid.y);
@@ -1385,12 +1377,8 @@ async function runMacro(macro, macroMap, grid) {
   env.set('SelectAll/0', () => grid.selectAll());
   env.set('SelectCol/0', () => grid.selectCol(grid.selLeft(), grid.selRight()));
   env.set('SelectRow/0', () => grid.selectRow(grid.selTop(), grid.selBottom()));
-  env.set('SequenceS/0', () => gridData.sequenceS(
-      grid.selLeft(), grid.selTop(),
-      grid.selRight(), grid.selBottom()));
-  env.set('SequenceC/0', () => gridData.sequenceC(
-      grid.selLeft(), grid.selTop(),
-      grid.selRight(), grid.selBottom()));
+  env.set('SequenceS/0', () => gridData.sequenceS(grid.selection()));
+  env.set('SequenceC/0', () => gridData.sequenceC(grid.selection()));
   env.set('SetColWidth/1', a => {
     grid.colWidths.clear();
     grid.defaultColWidth = a;
@@ -1403,8 +1391,7 @@ async function runMacro(macro, macroMap, grid) {
   });
   env.set('SetRowHeight/2',
       (a, b) => grid.setRowHeight(a, b));
-  env.set('Sort/9', (a, b, c, d, e, f, g, h, i) =>
-      gridData.sort(a, b, c, d, e, f, g, h, i));
+  env.set('Sort/9', (a, b, c, d, e, f, g, h, i) => gridData.sort(new Range(a, b, c, d), e, f, g, h, i));
   env.set('TransChar0/0', () => grid.updateSelectedCells(toHankakuAlphabet));
   env.set('TransChar1/0', () => grid.updateSelectedCells(toZenkakuAlphabet));
   env.set('TransChar2/0',
@@ -1415,8 +1402,7 @@ async function runMacro(macro, macroMap, grid) {
           value => value.toLowerCase()));    
   env.set('TransChar4/0', () => grid.updateSelectedCells(toHankakuKana));
   env.set('TransChar5/0', () => grid.updateSelectedCells(toZenkakuKana));
-  env.set('avr/4', (a, b, c, d) =>
-      gridData.sumAndAvr(a, b, c, d).avr);
+  env.set('avr/4', (a, b, c, d) => gridData.sumAndAvr(new Range(a, b, c, d)).avr);
   env.set('cell/2', (a, b) => {
     const value = gridData.cell(a, b);
     if ((value - 0).toString() == value) {
@@ -1430,8 +1416,7 @@ async function runMacro(macro, macroMap, grid) {
   env.set('moveto/2', (a, b) => grid.moveTo(a, b));
   env.set('random/1',
       a => Math.floor(Math.random() * a));
-  env.set('sum/4', (a, b, c, d) =>
-      gridData.sumAndAvr(a, b, c, d).sum);
+  env.set('sum/4', (a, b, c, d) => gridData.sumAndAvr(new Range(a, b, c, d)).sum);
   env.set('write/1', a => {
     gridData.setCell(grid.x, grid.y, a);
     grid.moveTo(grid.x + 1, grid.y);
