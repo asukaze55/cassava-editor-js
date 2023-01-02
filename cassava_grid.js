@@ -1062,18 +1062,20 @@ function gridMouseMove(event, grid) {
   }
   const x = parseInt(target.dataset.x, 10);
   const y = parseInt(target.dataset.y, 10);
+  const anchorX = event.shiftKey ? grid.anchorX : grid.mouseDownX;
+  const anchorY = event.shiftKey ? grid.anchorY : grid.mouseDownY;
   if (x != grid.x || y != grid.y) {
     if (x == 0 && y == 0) {
       grid.selectAll();
       event.preventDefault();
     } else if (x == 0) {
-      grid.selectRow(grid.mouseDownY, y);
+      grid.selectRow(anchorY, y);
       event.preventDefault();
     } else if (y == 0) {
-      grid.selectCol(grid.mouseDownX, x);
+      grid.selectCol(anchorX, x);
       event.preventDefault();
     } else {
-      grid.select(grid.mouseDownX, grid.mouseDownY, x, y);
+      grid.select(anchorX, anchorY, x, y);
     }
   }
 }
