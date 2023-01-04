@@ -48,9 +48,16 @@ function runCommand(command) {
   grid().runCommand(command);
 }
 
-
 function runMacro(macroName) {
   grid().runMacro(macroMap.get(macroName), macroMap);
+}
+
+function undo() {
+  grid().undo();
+}
+
+function redo() {
+  grid().redo();
 }
 
 function closeMenus() {

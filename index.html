@@ -35,6 +35,8 @@
     </li>
     <li class="has-sub-menu">編集
       <ul class="sub-menu">
+        <li onclick="undo();">元に戻す (Ctrl+Z)</li>
+        <li onclick="redo();">やり直し (Ctrl+Y)</li>
         <li onclick="runCommand('SelectAll');">すべて選択 (Ctrl+A)</li>
         <li onclick="runCommand('SelectRow');">行選択 (Shift+Space)</li>
         <li onclick="runCommand('SelectCol');">列選択 (Ctrl+Space)</li>

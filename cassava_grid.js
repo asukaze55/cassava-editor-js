@@ -71,7 +71,22 @@ class GridData {
       for (let x = range.left; x <= range.right; x++) {
         row[x - 1] = '';
       }
-    }    
+    }
+  }
+
+  copy(range) {
+    const gridData = new GridData();
+    gridData.data = [];
+    gridData.maxColCount = range.right - range.left + 1;
+    for (let y = range.top; y <= range.bottom; y++) {
+      const row = this.data[y - 1];
+      if (row) {
+        gridData.data.push(row.slice(range.left - 1, range.right));
+      } else {
+        gridData.data.push([]);
+      }
+    }
+    return gridData;
   }
 
   deleteCellLeft(range) {
@@ -153,33 +168,20 @@ class GridData {
     }
   }
 
-  paste(clipText, clipData, range, way) {
-    if (way == 5) {
-      this.setCell(this.x, this.y, clipText);
-      return;
+  paste(clipData, range) {
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = range.left; x <= range.right; x++) {
+        this.setCell(x, y, clipData.cell(x - range.left + 1, y - range.top + 1));
+      }
     }
-    const l = range.left;
-    const t = range.top;
-    const r = range.right;
-    const b = range.bottom;
+  }
+
+  pasteRepeat(clipData, range) {
     const clipCols = clipData.right();
     const clipRows = clipData.bottom();
-    if (way == 3) {
-      this.insertCellRight(new Range(l, t, l + clipCols - 1, t + clipRows - 1));
-    } else if (way == 4) {
-      this.insertCellDown(new Range(l, t, l + clipCols - 1, t + clipRows - 1));
-    }
-    const targetCols =
-        way <= 0 ? Math.min(clipCols, r - l + 1)
-                 : way == 1 ? r - l + 1 : clipCols;
-    const targetRows =
-        way <= 0 ? Math.min(clipRows, b - t + 1)
-                 : way == 1 ? b - t + 1 : clipRows;
-    for (let y = 0; y < targetRows ; y++) {
-      for (let x = 0; x < targetCols; x++) {
-        this.setCell(l + x, t + y, clipData.cell(
-            (x % clipCols) + 1,
-            (y % clipRows) + 1));
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = range.left; x <= range.right; x++) {
+        this.setCell(x, y, clipData.cell((x - range.left) % clipCols + 1, (y - range.top) % clipRows + 1));
       }
     }
   }
@@ -191,16 +193,12 @@ class GridData {
   replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
     str1 = str1.toString();
     str2 = str2.toString();
-    const l = Math.max(range.left, 1);
-    const t = Math.max(range.top, 1);
-    const r = Math.min(range.right, this.maxColCount);
-    const b = Math.min(range.bottom, this.data.length);
     const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, regex);
-    for (let y = t; y <= b; y++) {
+    for (let y = range.top; y <= range.bottom; y++) {
       if (this.data[y - 1] == null) {
         continue;
       }
-      for (let x = l; x <= r; x++) {
+      for (let x = range.left; x <= range.right; x++) {
         const value = this.data[y - 1][x - 1];
         if (value == null) {
           continue;
@@ -342,6 +340,314 @@ class GridData {
   }
 }
 
+class BatchUndoAction {
+  constructor(actions, undoRange, redoRange) {
+    this.actions = actions;
+    this.undoRange = undoRange;
+    this.redoRange = redoRange;
+  }
+
+  redo(gridData) {
+    for (const action of this.actions) {
+      action.redo(gridData);
+    }
+  }
+
+  undo(gridData) {
+    for (let i = this.actions.length - 1; i >= 0; i--) {
+      this.actions[i].undo(gridData);
+    }
+  }
+}
+
+class SetCellUndoAction {
+  constructor(x, y, from, to, right, bottom) {
+    this.x = x;
+    this.y = y;
+    this.from = from;
+    this.to = to;
+    this.right = right;
+    this.bottom = bottom;
+    const range = new Range(this.x, this.y, this.x, this.y);
+    this.undoRange = range;
+    this.redoRange = range;
+  }
+
+  redo(gridData) {
+    gridData.setCell(this.x, this.y, this.to);
+  }
+
+  redoRange() {
+    return this.range;
+  }
+
+  undo(gridData) {
+    gridData.setRight(this.right);
+    gridData.setBottom(this.bottom);
+    gridData.setCell(this.x, this.y, this.from);
+  }
+
+  undoRange() {
+    return this.range;
+  }
+}
+
+class UndoAction {
+  constructor(undo, redo, range) {
+    this.undo = undo;
+    this.redo = redo;
+    this.undoRange = range;
+    this.redoRange = range;
+  }
+}
+
+class UndoGrid {
+  constructor(gridData) {
+    this.gridData = gridData;
+    this.redoList = [];
+    this.undoList = [];
+    this.undoGroups = [];
+  }
+
+  bottom() {
+    return this.gridData.bottom();
+  }
+
+  cell(x, y) {
+    return this.gridData.cell(x, y);
+  }
+
+  clear() {
+    this.gridData.clear();
+    this.redoList = [];
+    this.undoList = [];
+    this.undoGroups = [];
+  }
+
+  clearCells(range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.clearCells(range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.clearCells(range),
+        range));
+  }
+
+  deleteCellLeft(range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.deleteCellLeft(range);
+    this.undoList.push(new UndoAction(
+        gridData => {
+          gridData.insertCellRight(range);
+          gridData.paste(deletedData, range);
+        },
+        gridData => gridData.deleteCellLeft(range),
+        range));
+  }
+
+  deleteCellUp(range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.deleteCellUp(range);
+    this.undoList.push(new UndoAction(
+        gridData => {
+          gridData.insertCellDown(range);
+          gridData.paste(deletedData, range);
+        },
+        gridData => gridData.deleteCellUp(range),
+        range));
+  }
+
+  deleteCol(l, r) {
+    const range = new Range(l, 1, r, this.gridData.bottom());
+    const deletedData = this.gridData.copy(range);
+    this.gridData.deleteCol(l, r);
+    this.undoList.push(new UndoAction(
+        gridData => {
+          gridData.insertCol(l, r);
+          gridData.paste(deletedData, range);
+        },
+        gridData => gridData.deleteCol(l, r),
+        range));
+  }
+
+  deleteRow(t, b) {
+    const range = new Range(1, t, this.gridData.right(), b);
+    const deletedData = this.gridData.copy(range);
+    this.gridData.deleteRow(t, b);
+    this.undoList.push(new UndoAction(
+        gridData => {
+          gridData.insertRow(t, b);
+          gridData.paste(deletedData, range);
+        },
+        gridData => gridData.deleteRow(t, b),
+        range));
+  }
+
+  insertCellDown(range) {
+    this.gridData.insertCellDown(range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.deleteCellUp(range),
+        gridData => gridData.insertCellDown(range),
+        range));
+  }
+
+  insertCellRight(range) {
+    this.gridData.insertCellRight(range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.deleteCellLeft(range),
+        gridData => gridData.insertCellRight(range),
+        range));
+  }
+
+  insertCol(l, r) {
+    this.gridData.insertCol(l, r);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.deleteCol(l, r),
+        gridData => gridData.insertCol(l, r),
+        new Range(l, 1, r, this.gridData.bottom())));
+  }
+
+  insertRow(t, b) {
+    this.gridData.insertRow(t, b);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.deleteRow(t, b),
+        gridData => gridData.insertRow(t, b),
+        new Range(1, t, this.gridData.right(), b)));
+  }
+
+  paste(clipData, range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.paste(clipData, range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.paste(clipData, range),
+        range));
+  }
+
+  pasteRepeat(clipData, range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.pasteRepeat(clipData, range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.pasteRepeat(clipData, range),
+        range));
+  }
+
+  pop(undoRange, redoRange) {
+    if (this.undoList.length == 0) {
+      this.undoList = this.undoGroups.pop();
+    } else {
+      const action = new BatchUndoAction(this.undoList, undoRange, redoRange);
+      this.undoList = this.undoGroups.pop();
+      this.undoList.push(action);
+    }
+  }
+
+  push() {
+    this.undoGroups.push(this.undoList);
+    this.undoList = [];
+  }
+
+  range() {
+    return this.gridData.range();
+  }
+
+  redo() {
+    if (this.redoList.length == 0) {
+      return;
+    }
+    const action = this.redoList.pop();
+    this.undoList.push(action);
+    action.redo(this.gridData);
+    return action.redoRange;
+  }
+
+  right() {
+    return this.gridData.right();
+  }
+
+  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range),
+        range));
+  }
+
+  sequenceC(range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.sequenceC(range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.sequenceC(range),
+        range));
+  }
+
+  sequenceS(range) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.sequenceS(range);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.sequenceS(range),
+        range));
+  }
+
+  setBottom(b) {
+    const originalBottom = this.gridData.bottom();
+    if (b < originalBottom) {
+      this.deleteRow(b + 1, originalBottom);
+    } else if (b > originalBottom) {
+      this.insertRow(originalBottom + 1, b);
+    }
+  }
+
+  setCell(x, y, value) {
+    const stringValue = value.toString();
+    const prevAction = this.undoList.at(-1);
+    if (prevAction instanceof SetCellUndoAction && prevAction.x == x && prevAction.y == y) {
+      prevAction.to = stringValue;
+    } else {
+      this.undoList.push(new SetCellUndoAction(x, y,
+          this.gridData.cell(x, y), stringValue,
+          this.gridData.right(), this.gridData.bottom()));
+    }
+    this.gridData.setCell(x, y, stringValue);
+  }
+
+  setRight(r) {
+    const originalRight = this.gridData.right();
+    if (r < originalRight) {
+      this.deleteCol(r + 1, originalRight);
+    } else if (r > originalRight) {
+      this.insertCol(originalRight + 1, r);
+    }
+  }
+
+  sort(range, p, dir, num, ignoreCase, zenhan) {
+    const deletedData = this.gridData.copy(range);
+    this.gridData.sort(range, p, dir, num, ignoreCase, zenhan);
+    this.undoList.push(new UndoAction(
+        gridData => gridData.paste(deletedData, range),
+        gridData => gridData.sort(range, p, dir, num, ignoreCase, zenhan),
+        range));
+  }
+
+  sumAndAvr(range) {
+    return this.gridData.sumAndAvr(range);
+  }
+
+  undo() {
+    if (this.undoList.length == 0) {
+      return;
+    }
+    const action = this.undoList.pop();
+    this.redoList.push(action);
+    action.undo(this.gridData);
+    return action.undoRange;
+  }
+}
+
 let clipText = '';
 
 function blurActiveElement() {
@@ -362,13 +668,26 @@ function sanitize(text) {
 class Grid {
   constructor(element, gridData) {
     this.element = element;
-    this.gridData = gridData;
+    this.undoGrid = new UndoGrid(gridData);
     this.suppressRender = 0;
     this.clear();
   }
 
+  beginMacro() {
+    this.undoGrid.push();
+    this.suppressRender++;
+  }
+
+  bottom() {
+    return this.undoGrid.bottom();
+  }
+
+  cell(x, y) {
+    return this.undoGrid.cell(x, y);
+  }
+
   clear() {
-    this.gridData.clear();
+    this.undoGrid.clear();
     this.isEditing = false;
     this.isMouseDown = false;
     this.mouseDownX = 1;
@@ -383,6 +702,10 @@ class Grid {
     this.y = 1;
   }
 
+  clearCells(range) {
+    this.undoGrid.clearCells(range);
+  }
+
   connectCells(range) {
     blurActiveElement();
     const l = range.left;
@@ -390,33 +713,61 @@ class Grid {
     const r = range.right;
     const b = range.bottom;
     if (r > l || b > t) {
+      this.undoGrid.push();
       let result = '';
       for (let y = t; y <= b; y++) {
         for (let x = l; x <= r; x++) {
-          result += this.gridData.cell(x, y);
-          this.gridData.setCell(x, y, '');
+          result += this.undoGrid.cell(x, y);
+          this.undoGrid.setCell(x, y, '');
         }
       }
-      this.gridData.setCell(l, t, result);
+      this.undoGrid.setCell(l, t, result);
+      this.undoGrid.pop(range, range);
       this.select(l, t, r, b);
     } else if (l > 1) {
-      this.gridData.setCell(l - 1, t, this.gridData.cell(l - 1, t) + this.gridData.cell(l, t));
-      this.gridData.deleteCellLeft(new Range(l, t, l, t));
+      this.undoGrid.push();
+      this.undoGrid.setCell(l - 1, t, this.undoGrid.cell(l - 1, t) + this.undoGrid.cell(l, t));
+      this.undoGrid.deleteCellLeft(new Range(l, t, l, t));
+      this.undoGrid.pop(range, new Range(l - 1, t, l - 1, t));
       this.moveTo(l - 1, t);
     } else if (t > 1) {
-      const right = this.gridData.right();
+      this.undoGrid.push();
+      const right = this.undoGrid.right();
       let ux = right;
-      while(ux > 0 && this.gridData.cell(ux, t - 1) == '') {
+      while(ux > 0 && this.undoGrid.cell(ux, t - 1) == '') {
         ux--;
       }
       for (let x = 1; x <= right; x++) {
-        this.gridData.setCell(x + ux, t - 1, this.gridData.cell(x, t));
+        this.undoGrid.setCell(x + ux, t - 1, this.undoGrid.cell(x, t));
       }
-      this.gridData.deleteRow(t, t);
+      this.undoGrid.deleteRow(t, t);
+      this.undoGrid.pop(range, new Range(ux + 1, t - 1, ux + 1, t - 1));
       this.moveTo(ux + 1, t - 1);
     } else {
       this.moveTo(l, t);
     }
+  }
+
+  deleteCellUp(range) {
+    this.undoGrid.deleteCellUp(range);
+  }
+
+  deleteCellLeft(range) {
+    this.undoGrid.deleteCellLeft(range);
+  }
+
+  deleteCol(l, r) {
+    this.undoGrid.deleteCol(l, r);
+  }
+
+  deleteRow(t, b) {
+    this.undoGrid.deleteRow(t, b);
+  }
+
+  endMacro() {
+    const range = this.selection();
+    this.undoGrid.pop(range, range);
+    this.suppressRender--;
   }
 
   getRowHeight(y) {
@@ -424,8 +775,20 @@ class Grid {
     return rowHeight != null ? rowHeight : this.defaultRowHeight;
   }
 
+  gridData() {
+    return this.undoGrid.gridData;
+  }
+
+  insertCellDown(range) {
+    this.undoGrid.insertCellDown(range);
+  }
+
+  insertCellRight(range) {
+    this.undoGrid.insertCellRight(range);
+  }
+
   insertCol(l, r, move) {
-    this.gridData.insertCol(l, r);
+    this.undoGrid.insertCol(l, r);
     if (move) {
       this.moveTo(l, 1);
     } else {
@@ -439,7 +802,7 @@ class Grid {
   }
 
   insertRow(t, b, move) {
-    this.gridData.insertRow(t, b);
+    this.undoGrid.insertRow(t, b);
     if (move) {
       this.moveTo(1, t);
     } else {
@@ -457,15 +820,17 @@ class Grid {
     const t = this.selTop();
     const l = this.selLeft();
     blurActiveElement();
-    const cellText = this.gridData.cell(l, t);
+    this.undoGrid.push();
+    const cellText = this.undoGrid.cell(l, t);
     const selStart = Math.min(selAnchor, selFocus);
-    this.gridData.insertRow(t + 1, t + 1);
-    this.gridData.setCell(1, t + 1, cellText.substring(selStart));
-    this.gridData.setCell(l, t, cellText.substring(0, selStart))
-    for (let x = l + 1; x <= this.gridData.right(); x++) {
-      this.gridData.setCell(x - l + 1, t + 1, this.gridData.cell(x, t));
-      this.gridData.setCell(x, t, '');
+    this.undoGrid.insertRow(t + 1, t + 1);
+    this.undoGrid.setCell(1, t + 1, cellText.substring(selStart));
+    this.undoGrid.setCell(l, t, cellText.substring(0, selStart))
+    for (let x = l + 1; x <= this.undoGrid.right(); x++) {
+      this.undoGrid.setCell(x - l + 1, t + 1, this.undoGrid.cell(x, t));
+      this.undoGrid.setCell(x, t, '');
     }
+    this.undoGrid.pop(this.selection(), new Range(1, t + 1, this.selRight() - l + 1, t + 1));
     if (isEditing) {
       this.selectText(1, t + 1, selAnchor - selStart, selFocus - selStart);
     } else {
@@ -489,6 +854,56 @@ class Grid {
             childrenCountWithoutBr(cellNode)));
   }
 
+  paste(clipText, clipData, range, way) {
+    const l = range.left;
+    const t = range.top;
+    const r = range.right;
+    const b = range.bottom;
+    const clipCols = clipData.right();
+    const clipRows = clipData.bottom();
+    const targetCols =
+        way <= 0 ? Math.min(clipCols, r - l + 1)
+                 : way == 1 ? r - l + 1 : clipCols;
+    const targetRows =
+        way <= 0 ? Math.min(clipRows, b - t + 1)
+                 : way == 1 ? b - t + 1 : clipRows;
+    const targetRange = new Range(l, t, l + targetCols - 1, t + targetRows - 1);
+    switch (way) {
+      case 1:
+        this.undoGrid.pasteRepeat(clipData, targetRange);
+        return;
+      case 3:
+        this.undoGrid.push();
+        this.undoGrid.insertCellRight(targetRange);
+        this.undoGrid.paste(clipData, targetRange);
+        this.undoGrid.pop(targetRange, targetRange);
+        return;
+      case 4:
+        this.undoGrid.push();
+        this.undoGrid.insertCellDown(targetRange);
+        this.undoGrid.paste(clipData, targetRange);
+        this.undoGrid.pop(targetRange, targetRange);
+        return;
+      case 5:
+        this.undoGrid.setCell(this.x, this.y, clipText);
+        return;
+      default:
+        this.undoGrid.paste(clipData, targetRange);
+        return;
+    }
+  }
+
+  range() {
+    return this.undoGrid.range();
+  }
+
+  redo() {
+    blurActiveElement();
+    const range = this.undoGrid.redo();
+    this.render();
+    this.selectOrMoveTo(range);
+  }
+
   refresh() {
     this.rowHeights.clear();
   }
@@ -497,9 +912,9 @@ class Grid {
     if (this.suppressRender > 0) {
       return;
     }
-    const r = this.gridData.right();
+    const r = this.undoGrid.right();
     const w = Math.max(5, r + 2, this.x + 1, this.anchorX + 1);
-    const b = this.gridData.bottom();
+    const b = this.undoGrid.bottom();
     const h = Math.max(5, b + 2, this.y + 1, this.anchorY + 1);
     let table = this.element.firstElementChild;
     if (!table || table.tagName != 'TABLE') {
@@ -579,11 +994,11 @@ class Grid {
       let html = '';
       if (x == 0 && y == 0) {
       } else if (y == 0) {
-        html = (x <= this.gridData.right()) ? x.toString() : '&nbsp;';
+        html = (x <= this.undoGrid.right()) ? x.toString() : '&nbsp;';
       } else if (x == 0) {
-        html = (y <= this.gridData.bottom()) ? y.toString() : '&nbsp;';
+        html = (y <= this.undoGrid.bottom()) ? y.toString() : '&nbsp;';
       } else if (!isEditing) {
-        html = this.gridData.cell(x, y).split('\n')
+        html = this.undoGrid.cell(x, y).split('\n')
             .map(line => sanitize(line) + '<br>')
             .join('')
       }
@@ -602,6 +1017,14 @@ class Grid {
       cell.style.backgroundColor = '#fff';
       cell.style.color = '#000';
     }
+  }
+
+  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
+    this.undoGrid.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
+  }
+
+  right() {
+    return this.undoGrid.right();
   }
 
   selBottom() {
@@ -637,15 +1060,27 @@ class Grid {
   }
 
   selectAll() {
-    this.select(1, 1, this.gridData.right(), this.gridData.bottom());
+    this.select(1, 1, this.undoGrid.right(), this.undoGrid.bottom());
   }
 
   selectCol(l, r) {
-    this.select(l, 1, r, this.gridData.bottom());
+    this.select(l, 1, r, this.undoGrid.bottom());
+  }
+
+  selectOrMoveTo(range) {
+    if (range) {
+      if (range.left == range.right && range.top == range.bottom) {
+        this.moveTo(range.left, range.top);
+      } else {
+        this.select(range.left, range.top, range.right, range.bottom);
+      }
+    } else {
+      this.element.firstElementChild.focus();
+    }
   }
 
   selectRow(t, b) {
-    this.select(1, t, this.gridData.right(), b);
+    this.select(1, t, this.undoGrid.right(), b);
   }
 
   selectText(x, y, selAnchor, selFocus) {
@@ -692,25 +1127,55 @@ class Grid {
         Math.max(this.anchorY, this.y));
   }
 
+  setBottom(b) {
+    this.undoGrid.setBottom(b);
+  }
+
   setCell(x, y, value) {
-    this.gridData.setCell(x, y, value);
+    this.undoGrid.setCell(x, y, value);
     this.render();
+  }
+
+  setRight(r) {
+    this.undoGrid.setRight(r);
   }
 
   setRowHeight(y, h) {
     this.rowHeights.set(y - 0, h - 0);
   }
 
+  sequenceC(range) {
+    this.undoGrid.sequenceC(range);
+  }
+
+  sequenceS(range) {
+    this.undoGrid.sequenceS(range);
+  }
+
+  sort(range, p, dir, num, ignoreCase, zenhan) {
+    this.undoGrid.sort(range, p, dir, num, ignoreCase, zenhan);
+  }
+
+  sumAndAvr(range) {
+    return this.undoGrid.sumAndAvr(range);
+  }
+
+  undo() {
+    blurActiveElement();
+    const range = this.undoGrid.undo();
+    this.render();
+    this.selectOrMoveTo(range);
+  }
+
   updateSelectedCells(callback) {
-    const l = this.selLeft();
-    const t = this.selTop();
-    const r = this.selRight();
-    const b = this.selBottom();
-    for (let y = t; y <= b; y++) {
-      for (let x = l; x <= r; x++) {
-        this.gridData.setCell(x, y, callback(this.gridData.cell(x, y)));
+    const range = this.selection();
+    this.undoGrid.push();
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = range.left; x <= range.right; x++) {
+        this.undoGrid.setCell(x, y, callback(this.undoGrid.cell(x, y)));
       }
     }
+    this.undoGrid.pop(range, range);
   }
 }
 
@@ -885,6 +1350,12 @@ function gridKeyDown(event, grid) {
     } else if (key == 'a') {
       grid.selectAll()
       event.preventDefault();
+    } else if (key == 'y') {
+      grid.redo();
+      event.preventDefault();
+    } else if (key == 'z') {
+      grid.undo();
+      event.preventDefault();
     } else if (key == 'Backspace') {
       grid.connectCells(grid.selection());
       event.preventDefault();
@@ -894,9 +1365,9 @@ function gridKeyDown(event, grid) {
         blurActiveElement();
       }
       if (event.shiftKey) {
-        grid.gridData.deleteCellUp(grid.selection());
+        grid.deleteCellUp(grid.selection());
       } else {
-        grid.gridData.deleteCellLeft(grid.selection());
+        grid.deleteCellLeft(grid.selection());
       }
       grid.render();
       if (isEditing) {
@@ -919,9 +1390,9 @@ function gridKeyDown(event, grid) {
         blurActiveElement();
       }
       if (event.shiftKey) {
-        grid.gridData.insertCellDown(grid.selection());
+        grid.insertCellDown(grid.selection());
       } else {
-        grid.gridData.insertCellRight(grid.selection());
+        grid.insertCellRight(grid.selection());
       }
       grid.render();
       if (isEditing) {
@@ -1237,7 +1708,7 @@ function open(file, encoding, grid) {
   reader.readAsText(file, encoding || 'UTF-8');
   reader.addEventListener('load', () => {
     grid.clear();
-    parseCsv(reader.result, grid.gridData);
+    parseCsv(reader.result, grid.gridData());
     grid.render();
   });  
 }
@@ -1274,168 +1745,129 @@ function toMacroParam(param) {
 }
 
 async function runMacro(macro, macroMap, grid) {
-  const gridData = grid.gridData;
   const env = new Environment();
-  env.set('Bottom=/0', () => gridData.bottom());
-  env.set('Bottom=/1',
-      a => gridData.setBottom(a));
+  env.set('Bottom=/0', () => grid.bottom());
+  env.set('Bottom=/1', a => grid.setBottom(a));
   env.set('Col=/0', () => grid.x);
   env.set('Col=/1', a => grid.moveTo(a, grid.y));
   env.set('ConnectCell/0', () => grid.connectCells(grid.selection()));
-  env.set('Copy/0', () => clipText =
-      toCsv(gridData, grid.selection()));
-  env.set('CopyAvr/0', () => clipText =
-      gridData.sumAndAvr(grid.selection()).avr.toString());
-  env.set('CopySum/0', () => clipText =
-      gridData.sumAndAvr(grid.selection()).sum.toString());
+  env.set('Copy/0', () => clipText = toCsv(grid.gridData(), grid.selection()));
+  env.set('CopyAvr/0', () => clipText = grid.sumAndAvr(grid.selection()).avr.toString());
+  env.set('CopySum/0', () => clipText = grid.sumAndAvr(grid.selection()).sum.toString());
   env.set('Cut/0', () => {
     const range = grid.selection();
-    clipText = toCsv(gridData, range);
-    gridData.clearCells(range);
+    clipText = toCsv(grid.gridData(), range);
+    grid.clearCells(range);
   });
-  env.set('CutCol/0', () => gridData.deleteCol(
-      grid.selLeft(), grid.selRight()));
-  env.set('CutRow/0', () => gridData.deleteRow(
-      grid.selTop(), grid.selBottom()));
-  env.set('DeleteCellLeft/0', () =>
-      gridData.deleteCellLeft(grid.selection()));
-  env.set('DeleteCellUp/0', () =>
-      gridData.deleteCellUp(grid.selection()));
-  env.set('DeleteCol/1',
-      a => gridData.deleteCol(a, a));
-  env.set('DeleteRow/1',
-      a => gridData.deleteRow(a, a));
-  env.set('Enter/0',
-      () => grid.insertRowAtCursor(0, 0));
+  env.set('CutCol/0', () => grid.deleteCol(grid.selLeft(), grid.selRight()));
+  env.set('CutRow/0', () => grid.deleteRow(grid.selTop(), grid.selBottom()));
+  env.set('DeleteCellLeft/0', () => grid.deleteCellLeft(grid.selection()));
+  env.set('DeleteCellUp/0', () => grid.deleteCellUp(grid.selection()));
+  env.set('DeleteCol/1', a => grid.deleteCol(a, a));
+  env.set('DeleteRow/1', a => grid.deleteRow(a, a));
+  env.set('Enter/0', () => grid.insertRowAtCursor(0, 0));
   env.set('GetColWidth/0', () => grid.defaultColWidth);
   env.set('GetColWidth/1', a => {
     const colWidth = grid.colWidths.get(a - 0);
     return colWidth != null
         ? colWidth : grid.defaultColWidth;
   });
-  env.set('GetRowHeight/0',
-      () => gridData.defaultRowHeight);
+  env.set('GetRowHeight/0', () => grid.defaultRowHeight);
   env.set('GetRowHeight/1', a => grid.getRowHeight(a));
   env.set('InputBox/1', a => prompt(a));
   env.set('InputBox/2', (a, b) => prompt(a, b));
-  env.set('InputBoxMultiLine/1',
-      a => inputBoxMultiLine(a, grid));
+  env.set('InputBoxMultiLine/1', a => inputBoxMultiLine(a, grid));
   env.set('InsCol/0', () => grid.insertCol(grid.selLeft(), grid.selRight(), true));
   env.set('InsRow/0', () => grid.insertRow(grid.selTop(), grid.selBottom(), true));
-  env.set('InsertCellDown/0', () => gridData.insertCellDown(grid.selection()));
-  env.set('InsertCellRight/0', () => gridData.insertCellRight(grid.selection()));
+  env.set('InsertCellDown/0', () => grid.insertCellDown(grid.selection()));
+  env.set('InsertCellRight/0', () => grid.insertCellRight(grid.selection()));
   env.set('InsertCol/1', a => grid.insertCol(a, a, false));
   env.set('InsertCol/2', (a, b) => grid.insertCol(a, b, false));
   env.set('InsertRow/1', a => grid.insertRow(a, a, false));
   env.set('InsertRow/2', (a, b) => grid.insertRow(a, b, false));
   env.set('MessageBox/1', a => alert(a));
   env.set('New/0', () => grid.clear());
-  env.set('NewLine/0', () => gridData.setCell(
-      grid.x, grid.y, '\n'));
+  env.set('NewLine/0', () => grid.setCell(grid.x, grid.y, '\n'));
   env.set('Paste/0', () => {
     const clipData = new GridData();
     parseCsv(clipText, clipData);
-    gridData.paste(clipText, clipData, grid.selection(), -1);
+    grid.paste(clipText, clipData, grid.selection(), -1);
   });
   env.set('Paste/1', a => {
     const clipData = new GridData();
     parseCsv(clipText, clipData);
-    gridData.paste(clipText, clipData, grid.selection(), a);
+    grid.paste(clipText, clipData, grid.selection(), a);
   });
   env.set('Refresh/0', () => grid.refresh());
-  env.set('ReplaceAll/2', (a, b) => gridData.replaceAll(a, b, false, false, false, gridData.range()));
-  env.set('ReplaceAll/5', (a, b, c, d, e) => gridData.replaceAll(a, b, c, d, e, gridData.range()));
-  env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => gridData.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
-  env.set('Right=/0', () => gridData.right());
-  env.set('Right=/1', a => gridData.setRight(a));
+  env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.range()));
+  env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.range()));
+  env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
+  env.set('Right=/0', () => grid.right());
+  env.set('Right=/1', a => grid.setRight(a));
   env.set('Row=/0', () => grid.y);
   env.set('Row=/1', a => grid.moveTo(grid.x, a));
-  env.set('SaveAs/1', a => saveAs(a, gridData));
-  env.set('SelBottom=/0',
-      () => grid.selBottom());
-  env.set('SelBottom=/1', a => grid.select(
-      grid.selLeft(),
-      Math.min(a, grid.selTop()),
-      grid.selRight(), a));
-  env.set('SelLeft=/0',
-      () => grid.selLeft());
-  env.set('SelLeft=/1', a => grid.select(
-      a, grid.selTop(),
-      Math.max(a, grid.selRight()),
-      grid.selBottom()));
-  env.set('SelRight=/0',
-      () => grid.selRight());
-  env.set('SelRight=/1', a => grid.select(
-      Math.min(a, grid.selLeft()),
-      grid.selTop(),
-      a, grid.selBottom()));
+  env.set('SaveAs/1', a => saveAs(a, grid.gridData()));
+  env.set('SelBottom=/0', () => grid.selBottom());
+  env.set('SelBottom=/1', a => grid.select(grid.selLeft(), Math.min(a, grid.selTop()), grid.selRight(), a));
+  env.set('SelLeft=/0', () => grid.selLeft());
+  env.set('SelLeft=/1', a => grid.select(a, grid.selTop(), Math.max(a, grid.selRight()), grid.selBottom()));
+  env.set('SelRight=/0', () => grid.selRight());
+  env.set('SelRight=/1', a => grid.select(Math.min(a, grid.selLeft()), grid.selTop(), a, grid.selBottom()));
   env.set('SelTop=/0', () => grid.selTop());
-  env.set('SelTop=/1', a => grid.select(
-      grid.selLeft(), a,
-      grid.selRight(),
-      Math.max(a, grid.selBottom())));
-  env.set('Select/4',
-      (a, b, c, d) => grid.select(a, b, c, d));
+  env.set('SelTop=/1', a => grid.select(grid.selLeft(), a, grid.selRight(), Math.max(a, grid.selBottom())));
+  env.set('Select/4', (a, b, c, d) => grid.select(a, b, c, d));
   env.set('SelectAll/0', () => grid.selectAll());
   env.set('SelectCol/0', () => grid.selectCol(grid.selLeft(), grid.selRight()));
   env.set('SelectRow/0', () => grid.selectRow(grid.selTop(), grid.selBottom()));
-  env.set('SequenceS/0', () => gridData.sequenceS(grid.selection()));
-  env.set('SequenceC/0', () => gridData.sequenceC(grid.selection()));
+  env.set('SequenceC/0', () => grid.sequenceC(grid.selection()));
+  env.set('SequenceS/0', () => grid.sequenceS(grid.selection()));
   env.set('SetColWidth/1', a => {
     grid.colWidths.clear();
     grid.defaultColWidth = a;
   });
-  env.set('SetColWidth/2', (a, b) =>
-      grid.colWidths.set(a - 0, b - 0));
+  env.set('SetColWidth/2', (a, b) => grid.colWidths.set(a - 0, b - 0));
   env.set('SetRowHeight/1', a => {
     grid.rowHeights.clear();
     grid.defaultRowHeight = a;
   });
-  env.set('SetRowHeight/2',
-      (a, b) => grid.setRowHeight(a, b));
-  env.set('Sort/9', (a, b, c, d, e, f, g, h, i) => gridData.sort(new Range(a, b, c, d), e, f, g, h, i));
+  env.set('SetRowHeight/2', (a, b) => grid.setRowHeight(a, b));
+  env.set('Sort/9', (a, b, c, d, e, f, g, h, i) => grid.sort(new Range(a, b, c, d), e, f, g, h, i));
   env.set('TransChar0/0', () => grid.updateSelectedCells(toHankakuAlphabet));
   env.set('TransChar1/0', () => grid.updateSelectedCells(toZenkakuAlphabet));
-  env.set('TransChar2/0',
-      () => grid.updateSelectedCells(
-          value => value.toUpperCase()));
-  env.set('TransChar3/0',
-      () => grid.updateSelectedCells(
-          value => value.toLowerCase()));    
+  env.set('TransChar2/0', () => grid.updateSelectedCells(value => value.toUpperCase()));
+  env.set('TransChar3/0', () => grid.updateSelectedCells(value => value.toLowerCase()));    
   env.set('TransChar4/0', () => grid.updateSelectedCells(toHankakuKana));
   env.set('TransChar5/0', () => grid.updateSelectedCells(toZenkakuKana));
-  env.set('avr/4', (a, b, c, d) => gridData.sumAndAvr(new Range(a, b, c, d)).avr);
+  env.set('avr/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).avr);
   env.set('cell/2', (a, b) => {
-    const value = gridData.cell(a, b);
+    const value = grid.cell(a, b);
     if ((value - 0).toString() == value) {
       return value - 0;
     }
     return value;
   });
-  env.set('cell=/3',
-      (a, b, c) => gridData.setCell(a, b, c));
+  env.set('cell=/3', (a, b, c) => grid.setCell(a, b, c));
   env.set('move/2', (a, b) => grid.moveTo(grid.x + a, grid.y + b));
   env.set('moveto/2', (a, b) => grid.moveTo(a, b));
-  env.set('random/1',
-      a => Math.floor(Math.random() * a));
-  env.set('sum/4', (a, b, c, d) => gridData.sumAndAvr(new Range(a, b, c, d)).sum);
+  env.set('random/1', a => Math.floor(Math.random() * a));
+  env.set('sum/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).sum);
   env.set('write/1', a => {
-    gridData.setCell(grid.x, grid.y, a);
+    grid.setCell(grid.x, grid.y, a);
     grid.moveTo(grid.x + 1, grid.y);
   });
   env.set('writeln/1', a => {
-    gridData.setCell(grid.x, grid.y, a);
+    grid.setCell(grid.x, grid.y, a);
     grid.moveTo(1, grid.y + 1);
   });
   if (macro) {
-    grid.suppressRender++;
+    grid.beginMacro();
     try {
       await run(macro, env, macroMap);
     } catch(e) {
       alert(e);
       throw e;
     } finally {
-      grid.suppressRender--;
+      grid.endMacro();
     }
   }
   grid.render();
@@ -1457,6 +1889,7 @@ function init() {
         {passive: true});
     element.addEventListener('touchend', event => gridTouchMove(event, grid));
     element.open = (file, encoding) => open(file, encoding, grid);
+    element.redo = () => grid.redo();
     element.runCommand = (command, ...args) =>
         runMacro(command + '('
                  + args.map(toMacroParam).join(',')
@@ -1464,6 +1897,7 @@ function init() {
                  macroMap, grid);
     element.runMacro = (macro, macroMap) =>
         runMacro(macro, macroMap, grid);
+    element.undo = () => grid.undo();
     grid.render();
   }
 }
