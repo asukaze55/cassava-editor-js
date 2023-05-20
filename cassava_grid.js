@@ -535,10 +535,10 @@ class UndoGrid {
 
   pop(undoRange, redoRange) {
     if (this.undoList.length == 0) {
-      this.undoList = this.undoGroups.pop();
+      this.undoList = this.undoGroups.pop() || [];
     } else {
       const action = new BatchUndoAction(this.undoList, undoRange, redoRange);
-      this.undoList = this.undoGroups.pop();
+      this.undoList = this.undoGroups.pop() || [];
       this.undoList.push(action);
     }
   }
