@@ -1881,7 +1881,7 @@ async function runMacro(macro, grid) {
 const onReadyCallbacks = [];
 const gridElements = [];
 
-function init() {
+function initGrid() {
   for (const element of document
       .getElementsByTagName('cassava-grid')) {
     const grid = new Grid(element, new GridData());
@@ -1897,6 +1897,7 @@ function init() {
         {passive: true});
     element.addEventListener('touchend', event => gridTouchMove(event, grid));
     element.addMacro = (macroName, macroText) => grid.addMacro(macroName, macroText);
+    element.getMacroNames = () => grid.macroMap.keys();
     element.open = (file, encoding) => open(file, encoding, grid);
     element.redo = () => grid.redo();
     element.runCommand = (command, ...args) =>
@@ -1926,13 +1927,11 @@ function onReady(callback) {
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
 net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.init = init;
 net.asukaze.cassava.onReady = onReady;
 
-window.addEventListener('DOMContentLoaded', init);
-
 // #ifdef MODULE
-// export { init, onReady };
+// export { initGrid, onReady };
 // #else
+net.asukaze.cassava.initGrid = initGrid;
 })();
 // #endif

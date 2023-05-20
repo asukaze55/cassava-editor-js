@@ -28,3 +28,41 @@ cassava-grid th {
   position: sticky;
   top: 0;
 }
+
+cassava-menu > ul {
+  border-bottom: 1px solid #000;
+  margin: 0;
+  padding: 0;
+}
+
+cassava-menu > ul > li {
+  border: 0;
+  cursor: default;
+  display: inline-block;
+  list-style: none;
+  margin: 4px 8px;
+  position: relative;
+  vertical-align: top;
+}
+
+.cassava-sub-menu {
+  margin: 5px 0;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.cassava-sub-menu li {
+  background: #fff;
+  border: 1px solid #000;
+  cursor: default;
+  list-style: none;
+  margin: -1px 0 0 0;
+  padding: 8px;
+} 
+
+.cassava-dialog {
+  margin-top: 8px;
+  z-index: 3;
+}

@@ -1051,7 +1051,7 @@ new StringTest().test(assert);
 assert.showResult();
 `);
 
-grid.addMacro('tests/TestAll.cms', `
+grid.addMacro('TestAll', `
 import { TestSuite } from "lib/TestSuite.cms";
 import { ArrayTest } from "tests/ArrayTest.cms";
 import { FunctionsTest } from "tests/FunctionsTest.cms";
