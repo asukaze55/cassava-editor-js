@@ -669,8 +669,13 @@ class Grid {
   constructor(element, gridData) {
     this.element = element;
     this.undoGrid = new UndoGrid(gridData);
+    this.macroMap = new Map();
     this.suppressRender = 0;
     this.clear();
+  }
+
+  addMacro(macroName, macroText) {
+    this.macroMap.set(macroName, macroText);
   }
 
   beginMacro() {
@@ -1744,7 +1749,7 @@ function toMacroParam(param) {
   }
 }
 
-async function runMacro(macro, macroMap, grid) {
+async function runMacro(macro, grid) {
   const env = new Environment();
   env.set('Bottom=/0', () => grid.bottom());
   env.set('Bottom=/1', a => grid.setBottom(a));
@@ -1862,7 +1867,7 @@ async function runMacro(macro, macroMap, grid) {
   if (macro) {
     grid.beginMacro();
     try {
-      await run(macro, env, macroMap);
+      await run(macro, env, grid.macroMap);
     } catch(e) {
       alert(e);
       throw e;
@@ -1872,6 +1877,9 @@ async function runMacro(macro, macroMap, grid) {
   }
   grid.render();
 }
+
+const onReadyCallbacks = [];
+const gridElements = [];
 
 function init() {
   for (const element of document
@@ -1888,29 +1896,43 @@ function init() {
         event => gridTouchMove(event, grid),
         {passive: true});
     element.addEventListener('touchend', event => gridTouchMove(event, grid));
+    element.addMacro = (macroName, macroText) => grid.addMacro(macroName, macroText);
     element.open = (file, encoding) => open(file, encoding, grid);
     element.redo = () => grid.redo();
     element.runCommand = (command, ...args) =>
         runMacro(command + '('
                  + args.map(toMacroParam).join(',')
                  + ')',
-                 macroMap, grid);
-    element.runMacro = (macro, macroMap) =>
-        runMacro(macro, macroMap, grid);
+                 grid);
+    element.runNamedMacro = macroName => runMacro(grid.macroMap.get(macroName), grid);
+    element.runMacro = macro => runMacro(macro, grid);
     element.undo = () => grid.undo();
     grid.render();
+
+    for (const callback of onReadyCallbacks) {
+      callback(element);
+    }
+    gridElements.push(element);
   }
+}
+
+function onReady(callback) {
+  for (const element of gridElements) {
+    callback(element);
+  }
+  onReadyCallbacks.push(callback);
 }
 
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
 net.asukaze.cassava = net.asukaze.cassava || {};
 net.asukaze.cassava.init = init;
+net.asukaze.cassava.onReady = onReady;
 
 window.addEventListener('DOMContentLoaded', init);
 
 // #ifdef MODULE
-// export { init };
+// export { init, onReady };
 // #else
 })();
 // #endif

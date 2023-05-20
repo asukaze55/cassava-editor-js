@@ -1,4 +1,5 @@
-macroMap.set('tests/ArrayTest.cms', `
+net.asukaze.cassava.onReady(grid => {
+grid.addMacro('tests/ArrayTest.cms', `
 import { Array, split, arrayOf, arrayFrom } from "lib/Array.cms";
 import { Assert } from "lib/Assert.cms";
 
@@ -193,7 +194,7 @@ new ArrayTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/FunctionsTest.cms', `
+grid.addMacro('tests/FunctionsTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class FunctionsTest {
@@ -421,7 +422,7 @@ new FunctionsTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/LambdaTest.cms', `
+grid.addMacro('tests/LambdaTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class Sample {
@@ -516,7 +517,7 @@ new LambdaTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/MenuTest.cms', `
+grid.addMacro('tests/MenuTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class MenuTest {
@@ -725,7 +726,7 @@ new MenuTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/ObjectTest.cms', `
+grid.addMacro('tests/ObjectTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class ObjectTest {
@@ -758,7 +759,7 @@ new ObjectTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/OperatorsTest.cms', `
+grid.addMacro('tests/OperatorsTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class OperatorsTest {
@@ -861,7 +862,7 @@ new OperatorsTest().test(assert);
 assert.showResult(); 
 `);
 
-macroMap.set('tests/SpecialVarsTest.cms', `
+grid.addMacro('tests/SpecialVarsTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class SpecialVarsTest {
@@ -930,7 +931,7 @@ new SpecialVarsTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/StringTest.cms', `
+grid.addMacro('tests/StringTest.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class StringTest {
@@ -1050,7 +1051,7 @@ new StringTest().test(assert);
 assert.showResult();
 `);
 
-macroMap.set('tests/TestAll.cms', `
+grid.addMacro('tests/TestAll.cms', `
 import { TestSuite } from "lib/TestSuite.cms";
 import { ArrayTest } from "tests/ArrayTest.cms";
 import { FunctionsTest } from "tests/FunctionsTest.cms";
@@ -1074,3 +1075,4 @@ testSuite.run(new StringTest());
 
 testSuite.showResult();
 `);
+});

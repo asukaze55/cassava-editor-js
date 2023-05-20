@@ -1,4 +1,5 @@
-macroMap.set('lib/Array.cms', `
+net.asukaze.cassava.onReady(grid => {
+grid.addMacro('lib/Array.cms', `
 class Array {
   constructor() {
     this.length = 0;
@@ -193,7 +194,7 @@ function arrayOf(...args) {
 }
 `);
 
-macroMap.set('lib/Assert.cms', `
+grid.addMacro('lib/Assert.cms', `
 class That {
   constructor(assert, actual) {
     this.assert = assert;
@@ -278,7 +279,7 @@ class Assert {
 }
 `);
 
-macroMap.set('lib/TestSuite.cms', `
+grid.addMacro('lib/TestSuite.cms', `
 import { Assert } from "lib/Assert.cms";
 
 class TestSuite {
@@ -308,12 +309,12 @@ class TestSuite {
 }
 `);
 
-macroMap.set('列数・行数を変更', `
+grid.addMacro('列数・行数を変更', `
 Right = int(InputBox("列数を入力してください。", Right));
 Bottom = int(InputBox("行数を入力してください。", Bottom));
 `);
 
-macroMap.set('数字→漢字', `
+grid.addMacro('数字→漢字', `
 ﻿B = Bottom;
 
 x = InputBox("変換する列を指定してください。", x);
@@ -344,7 +345,7 @@ for(y=1; y<=B; y++){
 }
 `);
 
-macroMap.set('転置', `
+grid.addMacro('転置', `
 w = Right;
 h = Bottom;
 size = max(w, h);
@@ -358,3 +359,4 @@ for (y = 1; y <= size; y++) {
 Right = h;
 Bottom = w;
 `);
+});

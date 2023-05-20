@@ -1,5 +1,3 @@
-const macroMap = new Map();
-
 function grid() {
   return document.getElementById('main-grid');
 }
@@ -28,7 +26,7 @@ function addMacro() {
       document.getElementById('macro-name').value;
   const macroText =
       document.getElementById('macro-input').value;
-  macroMap.set(macroName, macroText);
+  grid().addMacro(macroName, macroText);
   const newItem = document.createElement('li');
   newItem.append(macroName)
   newItem.addEventListener(
@@ -41,7 +39,7 @@ function addMacro() {
 function runEditingMacro() {
   const macroText =
       document.getElementById('macro-input').value;
-  grid().runMacro(macroText, macroMap);
+  grid().runMacro(macroText);
 }
 
 function runCommand(command) {
@@ -49,7 +47,7 @@ function runCommand(command) {
 }
 
 function runMacro(macroName) {
-  grid().runMacro(macroMap.get(macroName), macroMap);
+  grid().runNamedMacro(macroName);
 }
 
 function undo() {
