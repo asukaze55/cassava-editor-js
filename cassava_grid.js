@@ -13,7 +13,7 @@ const toZenkakuKana = net.asukaze.cassava.toZenkakuKana;
 // #endif
 
 function isNumber(value) {
-  return value != '' && !isNaN(value - 0);
+  return value != '' && !isNaN(Number(value));
 }
 
 function increment(value) {
@@ -226,10 +226,9 @@ class GridData {
       const first = this.cell(x, range.top);
       const second = this.cell(x, range.top + 1);
       if (isNumber(first) && isNumber(second)) {
-        const step = second - first;
+        const step = Number(second) - Number(first);
         for (let y = range.top + 2; y <= range.bottom; y++) {
-          this.setCell(x, y,
-              (first - 0) + (step * (y - range.top)));
+          this.setCell(x, y, Number(first) + (step * (y - range.top)));
         }
       } else {
         for (let y = range.top + 1; y <= range.bottom; y++) {
@@ -292,7 +291,7 @@ class GridData {
         } else if (!isNum1 && isNum2) {
           return 1;
         } else if (isNum1 && isNum2) {
-          return val1 - val2
+          return Number(val1) - Number(val2)
         }
       }
       if (zenhan) {
@@ -331,7 +330,7 @@ class GridData {
         if (value == null || !isNumber(value)) {
           continue;
         }
-        sum += value - 0;
+        sum += Number(value);
         count++;
       }
     }
@@ -377,18 +376,10 @@ class SetCellUndoAction {
     gridData.setCell(this.x, this.y, this.to);
   }
 
-  redoRange() {
-    return this.range;
-  }
-
   undo(gridData) {
     gridData.setRight(this.right);
     gridData.setBottom(this.bottom);
     gridData.setCell(this.x, this.y, this.from);
-  }
-
-  undoRange() {
-    return this.range;
   }
 }
 
@@ -651,7 +642,7 @@ class UndoGrid {
 let clipText = '';
 
 function blurActiveElement() {
-  document.activeElement.blur();
+  /** @type {HTMLElement} */(document.activeElement).blur();
 }
 
 function sanitize(text) {
@@ -968,8 +959,8 @@ class Grid {
         } else {
           cell = document.createElement(
               (x == 0 || y == 0) ? 'th' : 'td');
-          cell.dataset.x = x;
-          cell.dataset.y = y;            
+          cell.dataset.x = String(x);
+          cell.dataset.y = String(y);            
           if (x == 0 && y == 0) {
             cell.className = 'cassava-fixed-both';
           } else if (y == 0) {
@@ -1722,8 +1713,8 @@ function saveAs(fileName, gridData) {
   const blob = new Blob(
       [toCsv(gridData, gridData.range())],
       {type: "text/csv"});
-  if (navigator.msSaveOrOpenBlob) {
-    navigator.msSaveOrOpenBlob(blob, fileName);
+  if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
+    /** @type {any} */(navigator).msSaveOrOpenBlob(blob, fileName);
     return false;
   }
   const url = URL.createObjectURL(blob);
@@ -1878,12 +1869,45 @@ async function runMacro(macro, grid) {
   grid.render();
 }
 
+class CassavaGridElement extends HTMLElement {
+  /**
+   * @param {string} macroName 
+   * @param {string} macroText 
+   */
+  addMacro(macroName, macroText) {}
+
+  /** @returns IterableIterator<string> */
+  getMacroNames() {}
+
+  /**
+   * @param {Blob} file 
+   * @param {string?} encoding 
+   */
+  open(file, encoding) {}
+
+  redo() {}
+
+  /**
+   * @param {string} command 
+   * @param  {...any} args 
+   */
+  runCommand(command, ...args) {}
+
+  /** @param {string} macroName */
+  runNamedMacro(macroName) {}
+
+  /** @param {string} macro */
+  runMacro(macro) {}
+
+  undo() {}
+}
+
 const onReadyCallbacks = [];
 const gridElements = [];
 
 function initGrid() {
-  for (const element of document
-      .getElementsByTagName('cassava-grid')) {
+  for (const element of /** @type {HTMLCollectionOf<CassavaGridElement>} */(
+      document.getElementsByTagName('cassava-grid'))) {
     const grid = new Grid(element, new GridData());
     element.addEventListener('focusin', event => gridFocusIn(event, grid));
     element.addEventListener('focusout', event => gridFocusOut(event, grid));
@@ -1924,13 +1948,13 @@ function onReady(callback) {
   onReadyCallbacks.push(callback);
 }
 
-window.net = window.net || {};
+window.net = /** @type {any} */(window.net || {});
 net.asukaze = net.asukaze || {};
 net.asukaze.cassava = net.asukaze.cassava || {};
 net.asukaze.cassava.onReady = onReady;
 
 // #ifdef MODULE
-// export { initGrid, onReady };
+// export { CassavaGridElement, initGrid, onReady };
 // #else
 net.asukaze.cassava.initGrid = initGrid;
 })();

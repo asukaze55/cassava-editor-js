@@ -386,6 +386,8 @@ class Node {
     this.precedence = precedence;
     this.runner = runner;
     this.assigner = assigner;
+    this.name = null;
+    this.varArgs = false;
   }
 
   add(node) {

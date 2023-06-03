@@ -8,7 +8,7 @@ function stringForReplace(replaceText, match) {
     const nextChar = replaceText[i + 1];
     if (replaceText[i] == '$' && nextChar >= '0'
         && nextChar <= '9') {
-      const group = nextChar - 0;
+      const group = parseInt(nextChar, 10);
       if (group < match.length - 2) {
         result += match[group];
         i++;
@@ -50,7 +50,7 @@ function createReplacer(findText, replaceText,
             p[0] ? stringForReplace(replaceText, p)
                  : '');
   } else if (wholeCell && ignoreCase) {
-    const lowerFindText = findTexttoLowerCase();
+    const lowerFindText = findText.toLowerCase();
     return value =>
         (value.toLowerCase() == lowerFindText)
             ? replaceText : value;

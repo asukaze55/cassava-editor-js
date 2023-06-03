@@ -1,5 +1,5 @@
 // #ifdef MODULE
-// import { initGrid } from './cassava_grid';
+// import { CassavaGridElement, initGrid } from './cassava_grid';
 // #else
 (() => {
 const initGrid = net.asukaze.cassava.initGrid;
@@ -48,7 +48,7 @@ function menuItems(items) {
 function closeMenus() {
   for (const subMenu of
       document.getElementsByClassName('cassava-sub-menu')) {
-    subMenu.style.display = 'none';
+    /** @type {HTMLElement} */(subMenu).style.display = 'none';
   }
 }
 
@@ -87,7 +87,8 @@ function init() {
   initGrid();
 
   for (const element of document.getElementsByTagName('cassava-menu')) {
-    const grid = document.getElementById(element.getAttribute('for'));
+    const grid = /** @type {CassavaGridElement} */(
+        document.getElementById(element.getAttribute('for')));
 
     const fileInput = createElement('input', {
       style: 'display: none;',
