@@ -105,7 +105,7 @@ class GridData {
       for (let y = range.top; y <= bottom; y++) {
         this.setCell(x, y, this.cell(x, y + rows));
       }
-    }    
+    }
   }
 
   deleteCol(l, r) {
@@ -282,7 +282,7 @@ class GridData {
     }
     rangeData.sort((row1, row2) => {
       let val1 = row1[p - 1];
-      let val2 = row2[p - 1]; 
+      let val2 = row2[p - 1];
       if (num) {
         const isNum1 = isNumber(val1);
         const isNum2 = isNumber(val2);
@@ -339,6 +339,18 @@ class GridData {
   }
 }
 
+class Action {
+  /** @type {Range} */
+  redoRange;
+  /** @type {Range} */
+  undoRange;
+  /** @param {GridData} gridData */
+  redo(gridData) {}
+  /** @param {GridData} gridData */
+  undo(gridData) {}
+}
+
+/** @extends {Action} */
 class BatchUndoAction {
   constructor(actions, undoRange, redoRange) {
     this.actions = actions;
@@ -359,6 +371,7 @@ class BatchUndoAction {
   }
 }
 
+/** @extends {Action} */
 class SetCellUndoAction {
   constructor(x, y, from, to, right, bottom) {
     this.x = x;
@@ -383,6 +396,7 @@ class SetCellUndoAction {
   }
 }
 
+/** @extends {Action} */
 class UndoAction {
   constructor(undo, redo, range) {
     this.undo = undo;
@@ -417,8 +431,7 @@ class UndoGrid {
 
   clearCells(range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.clearCells(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.clearCells(range),
         range));
@@ -426,8 +439,7 @@ class UndoGrid {
 
   deleteCellLeft(range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.deleteCellLeft(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => {
           gridData.insertCellRight(range);
           gridData.paste(deletedData, range);
@@ -438,8 +450,7 @@ class UndoGrid {
 
   deleteCellUp(range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.deleteCellUp(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => {
           gridData.insertCellDown(range);
           gridData.paste(deletedData, range);
@@ -451,8 +462,7 @@ class UndoGrid {
   deleteCol(l, r) {
     const range = new Range(l, 1, r, this.gridData.bottom());
     const deletedData = this.gridData.copy(range);
-    this.gridData.deleteCol(l, r);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => {
           gridData.insertCol(l, r);
           gridData.paste(deletedData, range);
@@ -464,8 +474,7 @@ class UndoGrid {
   deleteRow(t, b) {
     const range = new Range(1, t, this.gridData.right(), b);
     const deletedData = this.gridData.copy(range);
-    this.gridData.deleteRow(t, b);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => {
           gridData.insertRow(t, b);
           gridData.paste(deletedData, range);
@@ -474,33 +483,36 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Action} action */
+  do(action) {
+    action.redo(this.gridData);
+    this.undoList.push(action);
+    this.redoList = [];
+  }
+
   insertCellDown(range) {
-    this.gridData.insertCellDown(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.deleteCellUp(range),
         gridData => gridData.insertCellDown(range),
         range));
   }
 
   insertCellRight(range) {
-    this.gridData.insertCellRight(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.deleteCellLeft(range),
         gridData => gridData.insertCellRight(range),
         range));
   }
 
   insertCol(l, r) {
-    this.gridData.insertCol(l, r);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.deleteCol(l, r),
         gridData => gridData.insertCol(l, r),
         new Range(l, 1, r, this.gridData.bottom())));
   }
 
   insertRow(t, b) {
-    this.gridData.insertRow(t, b);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.deleteRow(t, b),
         gridData => gridData.insertRow(t, b),
         new Range(1, t, this.gridData.right(), b)));
@@ -508,8 +520,7 @@ class UndoGrid {
 
   paste(clipData, range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.paste(clipData, range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.paste(clipData, range),
         range));
@@ -517,8 +528,7 @@ class UndoGrid {
 
   pasteRepeat(clipData, range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.pasteRepeat(clipData, range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.pasteRepeat(clipData, range),
         range));
@@ -553,23 +563,21 @@ class UndoGrid {
     return action.redoRange;
   }
 
-  right() {
-    return this.gridData.right();
-  }
-
   replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range),
         range));
   }
 
+  right() {
+    return this.gridData.right();
+  }
+
   sequenceC(range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.sequenceC(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.sequenceC(range),
         range));
@@ -577,8 +585,7 @@ class UndoGrid {
 
   sequenceS(range) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.sequenceS(range);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.sequenceS(range),
         range));
@@ -598,12 +605,12 @@ class UndoGrid {
     const prevAction = this.undoList.at(-1);
     if (prevAction instanceof SetCellUndoAction && prevAction.x == x && prevAction.y == y) {
       prevAction.to = stringValue;
+      this.gridData.setCell(x, y, stringValue);
     } else {
-      this.undoList.push(new SetCellUndoAction(x, y,
+      this.do(new SetCellUndoAction(x, y,
           this.gridData.cell(x, y), stringValue,
           this.gridData.right(), this.gridData.bottom()));
     }
-    this.gridData.setCell(x, y, stringValue);
   }
 
   setRight(r) {
@@ -617,8 +624,7 @@ class UndoGrid {
 
   sort(range, p, dir, num, ignoreCase, zenhan) {
     const deletedData = this.gridData.copy(range);
-    this.gridData.sort(range, p, dir, num, ignoreCase, zenhan);
-    this.undoList.push(new UndoAction(
+    this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
         gridData => gridData.sort(range, p, dir, num, ignoreCase, zenhan),
         range));
@@ -960,7 +966,7 @@ class Grid {
           cell = document.createElement(
               (x == 0 || y == 0) ? 'th' : 'td');
           cell.dataset.x = String(x);
-          cell.dataset.y = String(y);            
+          cell.dataset.y = String(y);
           if (x == 0 && y == 0) {
             cell.className = 'cassava-fixed-both';
           } else if (y == 0) {
@@ -1627,7 +1633,7 @@ function inputBoxMultiLine(message, element) {
     });
     cancel.addEventListener('click', () => {
       dialog.close();
-      element.removeChild(dialog);    
+      element.removeChild(dialog);
       reject('Cancelled.');
     });
     dialog.showModal();
@@ -1706,7 +1712,7 @@ function open(file, encoding, grid) {
     grid.clear();
     parseCsv(reader.result, grid.gridData());
     grid.render();
-  });  
+  });
 }
 
 function saveAs(fileName, gridData) {
@@ -1831,7 +1837,7 @@ async function runMacro(macro, grid) {
   env.set('TransChar0/0', () => grid.updateSelectedCells(toHankakuAlphabet));
   env.set('TransChar1/0', () => grid.updateSelectedCells(toZenkakuAlphabet));
   env.set('TransChar2/0', () => grid.updateSelectedCells(value => value.toUpperCase()));
-  env.set('TransChar3/0', () => grid.updateSelectedCells(value => value.toLowerCase()));    
+  env.set('TransChar3/0', () => grid.updateSelectedCells(value => value.toLowerCase()));
   env.set('TransChar4/0', () => grid.updateSelectedCells(toHankakuKana));
   env.set('TransChar5/0', () => grid.updateSelectedCells(toZenkakuKana));
   env.set('avr/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).avr);
@@ -1871,8 +1877,8 @@ async function runMacro(macro, grid) {
 
 class CassavaGridElement extends HTMLElement {
   /**
-   * @param {string} macroName 
-   * @param {string} macroText 
+   * @param {string} macroName
+   * @param {string} macroText
    */
   addMacro(macroName, macroText) {}
 
@@ -1880,16 +1886,16 @@ class CassavaGridElement extends HTMLElement {
   getMacroNames() {}
 
   /**
-   * @param {Blob} file 
-   * @param {string?} encoding 
+   * @param {Blob} file
+   * @param {string?} encoding
    */
   open(file, encoding) {}
 
   redo() {}
 
   /**
-   * @param {string} command 
-   * @param  {...any} args 
+   * @param {string} command
+   * @param  {...any} args
    */
   runCommand(command, ...args) {}
 
