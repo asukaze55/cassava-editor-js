@@ -876,9 +876,11 @@ function gridKeyDown(event, grid) {
     }
     event.preventDefault();
   } else if (key == 'F2') {
-    const offset = childrenCountWithoutBr(cellNode);
-    setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
-    event.preventDefault();
+    if (cellNode != null) {
+      const offset = childrenCountWithoutBr(cellNode);
+      setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
+      event.preventDefault();
+    }
   }
 }
 
