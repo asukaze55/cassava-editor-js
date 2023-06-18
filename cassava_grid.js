@@ -279,7 +279,7 @@ class Grid {
     blurActiveElement();
     const range = this.undoGrid.redo();
     this.render();
-    this.selectOrMoveTo(range);
+    this.select(range.left, range.top, range.right, range.bottom);
   }
 
   refresh() {
@@ -425,11 +425,13 @@ class Grid {
     if (x1 == this.anchorX && x2 == this.anchorY && x2 == this.x && y2 == this.y) {
       return;
     }
-    if (x1 != x2 || y1 != y2) {
-      blurActiveElement();
-      this.element.firstElementChild.focus();
-      this.isEditing = false;
+    if (x1 == x2 && y1 == y2) {
+      this.moveTo(x1, y1);
+      return;
     }
+    blurActiveElement();
+    this.element.firstElementChild.focus();
+    this.isEditing = false;
     this.anchorX = x1;
     this.anchorY = y1;
     this.x = x2;
@@ -443,18 +445,6 @@ class Grid {
 
   selectCol(l, r) {
     this.select(l, 1, r, this.undoGrid.bottom());
-  }
-
-  selectOrMoveTo(range) {
-    if (range) {
-      if (range.left == range.right && range.top == range.bottom) {
-        this.moveTo(range.left, range.top);
-      } else {
-        this.select(range.left, range.top, range.right, range.bottom);
-      }
-    } else {
-      this.element.firstElementChild.focus();
-    }
   }
 
   selectRow(t, b) {
@@ -542,7 +532,7 @@ class Grid {
     blurActiveElement();
     const range = this.undoGrid.undo();
     this.render();
-    this.selectOrMoveTo(range);
+    this.select(range.left, range.top, range.right, range.bottom);
   }
 
   updateSelectedCells(callback) {
@@ -789,9 +779,9 @@ function gridKeyDown(event, grid) {
     }
   }
 
-  if (key != "ArrowDown" && key != "ArrowLeft"
-      && key != "ArrowRight" && key != "ArrowUp"
-      && key != "Enter") {
+  if (key != 'ArrowDown' && key != 'ArrowLeft'
+      && key != 'ArrowRight' && key != 'ArrowUp'
+      && key != 'Enter' && key != 'F2') {
     return;
   }
   const selection = window.getSelection();
@@ -885,6 +875,10 @@ function gridKeyDown(event, grid) {
       grid.moveTo(x, y);
     }
     event.preventDefault();
+  } else if (key == 'F2') {
+    const offset = childrenCountWithoutBr(cellNode);
+    setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
+    event.preventDefault();
   }
 }
 
@@ -925,6 +919,7 @@ function gridMouseMove(event, grid) {
       event.preventDefault();
     } else {
       grid.select(anchorX, anchorY, x, y);
+      event.preventDefault();
     }
   }
 }
