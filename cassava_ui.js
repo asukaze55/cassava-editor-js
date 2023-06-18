@@ -99,8 +99,8 @@ function init() {
       closeMenus();
     });
 
-    const macroNameInput = createElement('input', {value: '新規マクロ'});
-    const macroTextarea = createElement('textarea', {cols: 40, rows: 10});
+    const macroNameInput = createElement('input', {name: 'macro-name', value: '新規マクロ'});
+    const macroTextarea = createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
     const macroDialog = createElement('dialog', {className: 'cassava-dialog'}, [
       div('マクロ名：', macroNameInput, ' ',
           button('▶', () => grid.runMacro(macroTextarea.value))),
