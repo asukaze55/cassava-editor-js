@@ -44,7 +44,11 @@ class Grid {
   }
 
   addMacro(macroName, macroText) {
-    this.macroMap.set(macroName, macroText);
+    if (macroText == '') {
+      this.macroMap.delete(macroName);
+    } else {
+      this.macroMap.set(macroName, macroText);
+    }
   }
 
   beginMacro() {
