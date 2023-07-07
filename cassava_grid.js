@@ -977,7 +977,10 @@ function gridTouchMove(event, grid) {
   }
 }
 
-/** @param {string} message */
+/**
+ * @param {string} message
+ * @returns {Promise<string>}
+ */
 function inputBoxMultiLine(message) {
   return new Promise((resolve, reject) => {
     const textarea = createElement('textarea');
