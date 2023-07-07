@@ -975,7 +975,11 @@ function gridTouchMove(event, grid) {
   }
 }
 
-function inputBoxMultiLine(message, element) {
+/**
+ * @param {string} message
+ * @returns {Promise<string>}
+ */
+function inputBoxMultiLine(message) {
   return new Promise((resolve, reject) => {
     const dialog = document.createElement('dialog');
     const divMessage =
@@ -997,16 +1001,16 @@ function inputBoxMultiLine(message, element) {
     divButtons.append(ok, cancel);
     dialog.append(
         divMessage, divTextarea, divButtons);
-    element.append(dialog);
+    document.body.append(dialog);
 
     ok.addEventListener('click', () => {
       dialog.close();
-      element.removeChild(dialog);
+      document.body.removeChild(dialog);
       resolve(textarea.value);
     });
     cancel.addEventListener('click', () => {
       dialog.close();
-      element.removeChild(dialog);
+      document.body.removeChild(dialog);
       reject('Cancelled.');
     });
     dialog.showModal();
@@ -1119,6 +1123,10 @@ function toMacroParam(param) {
   }
 }
 
+/**
+ * @param {string} macro 
+ * @param {Grid} grid 
+ */
 async function runMacro(macro, grid) {
   const env = new Environment();
   env.set('Bottom=/0', () => grid.bottom());
@@ -1151,7 +1159,7 @@ async function runMacro(macro, grid) {
   env.set('GetRowHeight/1', a => grid.getRowHeight(a));
   env.set('InputBox/1', a => prompt(a));
   env.set('InputBox/2', (a, b) => prompt(a, b));
-  env.set('InputBoxMultiLine/1', a => inputBoxMultiLine(a, grid));
+  env.set('InputBoxMultiLine/1', a => inputBoxMultiLine(a));
   env.set('InsCol/0', () => grid.insertCol(grid.selLeft(), grid.selRight(), true));
   env.set('InsRow/0', () => grid.insertRow(grid.selTop(), grid.selBottom(), true));
   env.set('InsertCellDown/0', () => grid.insertCellDown(grid.selection()));
