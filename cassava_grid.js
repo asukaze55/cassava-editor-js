@@ -2,6 +2,7 @@
 // import { Environment, run } from './cassava_macro.js';
 // import { GridData, Range, isNumber } from './cassava_grid_data.js';
 // import { UndoGrid } from './cassava_undo_grid.js';
+// import { button, createElement, dialog, div } from './cassava_dom.js'
 // import { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } from './cassava_replacer.js';
 // #else
 (() => {
@@ -9,6 +10,10 @@ const Environment = net.asukaze.cassava.macro.Environment;
 const GridData = net.asukaze.cassava.GridData;
 const Range = net.asukaze.cassava.Range;
 const UndoGrid = net.asukaze.cassava.UndoGrid;
+const button = net.asukaze.cassava.dom.button;
+const createElement = net.asukaze.cassava.dom.createElement;
+const dialog = net.asukaze.cassava.dom.dialog;
+const div = net.asukaze.cassava.dom.div;
 const isNumber = net.asukaze.cassava.isNumber;
 const run = net.asukaze.cassava.macro.run;
 const toHankakuAlphabet = net.asukaze.cassava.toHankakuAlphabet;
@@ -296,8 +301,7 @@ class Grid {
     const h = Math.max(5, b + 2, this.y + 1, this.anchorY + 1);
     let table = this.element.firstElementChild;
     if (!table || table.tagName != 'TABLE') {
-      table = document.createElement('table');
-      table.setAttribute('tabindex', '-1');
+      table = createElement('table', {tabindex: '-1'});
       this.element.innerHTML = '';
       this.element.appendChild(table);
       table.style.maxHeight =
@@ -339,8 +343,7 @@ class Grid {
         if (x < row.cells.length) {
           cell = row.cells[x];
         } else {
-          cell = document.createElement(
-              (x == 0 || y == 0) ? 'th' : 'td');
+          cell = createElement((x == 0 || y == 0) ? 'th' : 'td');
           cell.dataset.x = String(x);
           cell.dataset.y = String(y);
           if (x == 0 && y == 0) {
@@ -842,7 +845,7 @@ function gridKeyDown(event, grid) {
       if (focusNode == cellNode) {
         const focusOffset = selection.focusOffset;
         cellNode.insertBefore(
-            document.createElement('br'),
+            createElement('br'),
             cellNode.childNodes[focusOffset]);
         selection.setBaseAndExtent(
             cellNode, focusOffset + 1, cellNode,
@@ -854,14 +857,13 @@ function gridKeyDown(event, grid) {
                     0, selection.focusOffset)),
             focusNode);
         cellNode.insertBefore(
-           document.createElement('br'), focusNode);
+            createElement('br'), focusNode);
         focusNode.textContent =
            focusNode.textContent.substring(
                selection.focusOffset);
         if (focusNode.textContent == ''
             && focusNode.nextSibling == null) {
-          cellNode.appendChild(
-              document.createElement('br'));
+          cellNode.appendChild(createElement('br'));
         }
       }
       grid.setCell(x, y, parseCellInput(cellNode));
@@ -975,45 +977,26 @@ function gridTouchMove(event, grid) {
   }
 }
 
-/**
- * @param {string} message
- * @returns {Promise<string>}
- */
+/** @param {string} message */
 function inputBoxMultiLine(message) {
   return new Promise((resolve, reject) => {
-    const dialog = document.createElement('dialog');
-    const divMessage =
-        document.createElement('div');
-    divMessage.append(message);
-    const divTextarea =
-        document.createElement('div');
-    const textarea =
-        document.createElement('textarea');
-    divTextarea.append(textarea);
-    const divButtons =
-        document.createElement('div');
-    const ok = document.createElement('button');
-    ok.value = 'ok';
-    ok.append('OK');
-    const cancel = document.createElement('button');
-    cancel.value = 'cancel';
-    cancel.append('Cancel');
-    divButtons.append(ok, cancel);
-    dialog.append(
-        divMessage, divTextarea, divButtons);
-    document.body.append(dialog);
-
-    ok.addEventListener('click', () => {
-      dialog.close();
-      document.body.removeChild(dialog);
-      resolve(textarea.value);
-    });
-    cancel.addEventListener('click', () => {
-      dialog.close();
-      document.body.removeChild(dialog);
-      reject('Cancelled.');
-    });
-    dialog.showModal();
+    const textarea = createElement('textarea');
+    const inputBox = dialog([
+      div(message),
+      div(textarea),
+      div(button('OK', () => {
+            inputBox.close();
+            document.body.removeChild(inputBox);
+            resolve(textarea.value);
+          }),
+          button('Cancel', () => {
+            inputBox.close();
+            document.body.removeChild(inputBox);
+            reject('Cancelled.');
+          }))
+    ]);
+    document.body.append(inputBox);
+    inputBox.showModal();
   });
 }
 
@@ -1101,10 +1084,11 @@ function saveAs(fileName, gridData) {
     return false;
   }
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = createElement("a", {
+    download: fileName,
+    href: url
+  });
   document.body.appendChild(a);
-  a.download = fileName;
-  a.href = url;
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 10000);
@@ -1124,8 +1108,8 @@ function toMacroParam(param) {
 }
 
 /**
- * @param {string} macro 
- * @param {Grid} grid 
+ * @param {string} macro
+ * @param {Grid} grid
  */
 async function runMacro(macro, grid) {
   const env = new Environment();

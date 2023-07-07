@@ -1,8 +1,10 @@
 while (<STDIN>) {
-  if (/cassava_replacer.js/ || /cassava_macro.js/ || /cassava_grid_data.js/ || /cassava_undo_grid.js/ || /cassava_ui.js/) {
+  if (/cassava_grid.js/) {
+    s/cassava_grid.js/$ARGV[0]/;
+    print;
+  } elsif (/cassava_.*\.js/) {
     # pass
   } else {
-    s/cassava_grid.js/$ARGV[0]/;
     print;
   }
 }
