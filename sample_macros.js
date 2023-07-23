@@ -39,8 +39,8 @@ class Array {
     return this.indexOf(searchElement) >= 0;
   }
 
-  indexOf(searchElement) {
-    for (i = 0; i < this.length; i++) {
+  indexOf(searchElement, fromIndex = 0) {
+    for (i = fromIndex; i < this.length; i++) {
       if (this[i] == searchElement) {
         return i;
       }
@@ -59,8 +59,8 @@ class Array {
     return result;
   }
 
-  lastIndexOf(searchElement) {
-    for (i = this.length - 1; i >= 0; i--) {
+  lastIndexOf(searchElement, fromIndex = this.length - 1) {
+    for (i = fromIndex; i >= 0; i--) {
       if (this[i] == searchElement) {
         return i;
       }
@@ -315,7 +315,7 @@ Bottom = int(InputBox("行数を入力してください。", Bottom));
 `);
 
 grid.addMacro('数字→漢字', `
-﻿B = Bottom;
+B = Bottom;
 
 x = InputBox("変換する列を指定してください。", x);
 

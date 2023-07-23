@@ -137,6 +137,11 @@ class Environment {
     }
   }
 
+  /**
+   * @param {string} name
+   * @param {any} value
+   * @param {''|'const'|'let'|'var'=} type
+   */
   set(name, value, type) {
     if (this.functions.has(name + '=/1')) {
       this.functions.get(name + '=/1')(value);
@@ -271,21 +276,37 @@ function tokenize(data) {
 }
 
 class FunctionValue {
-  constructor(paramNames, varArgs, bodyNode,
-              envMap) {
-    this.paramNames = paramNames;
-    this.varArgs = varArgs;
+  /**
+   * @param {Array<Node>} paramNodes
+   * @param {BlockNode|Node} bodyNode
+   * @param {Map<String, any>=} envMap
+   */
+  constructor(paramNodes, bodyNode, envMap) {
+    this.paramNames = paramNodes.map(p => (p.left || p).name);
+    this.defaultValues = paramNodes.map(p => p.right);
+    this.varArgs = paramNodes.length > 0 && paramNodes.at(-1).varArgs;
     this.bodyNode = bodyNode;
     this.envMap = envMap || new Map(); 
   }
 
+  /**
+   * @param {string} name
+   * @param {string} fileName
+   * @returns {string}
+   */
   id(name, fileName) {
-    const arity = this.paramNames.length
-        - (this.varArgs ?  1 : 0);
-    return functionId(name, arity, this.varArgs,
-                      fileName);
+    let arity = this.paramNames.length - (this.varArgs ?  1 : 0);
+    while (arity > 0 && this.defaultValues[arity - 1] != null) {
+      arity--;
+    }
+    return functionId(name, arity, this.varArgs, fileName);
   }
 
+  /**
+   * @param {Array<any>} params
+   * @param {Environment} env
+   * @returns {Promise<any>}
+   */
   async run(params, env) {
     const newEnv = new Environment(env);
     if (newEnv.loop <= 0) {
@@ -295,19 +316,22 @@ class FunctionValue {
     for (const [name, value] of this.envMap) {
       newEnv.set(name, value);
     }
-    for (let i = 0; i < this.paramNames.length;
-         i++) {
-      if (this.varArgs
-          && i == this.paramNames.length - 1) {
+    for (let i = 0; i < this.paramNames.length; i++) {
+      if (this.varArgs && i == this.paramNames.length - 1) {
         const array = new ObjectValue();
-        array.set('length', params.length - i);
-        for (let j = 0; j < params.length - i;
-             j++) {
+        const length = Math.max(params.length - i, 0);
+        array.set('length', length);
+        for (let j = 0; j < length; j++) {
           array.set(j, params[i + j]);
         }
         newEnv.set(this.paramNames[i], array);
-      } else {
+      } else if (params.length > i) {
         newEnv.set(this.paramNames[i], params[i]);
+      } else if (this.defaultValues[i] == null) {
+        throw 'Not enough parameters to call function.';
+      } else {
+        newEnv.set(this.paramNames[i],
+            await this.defaultValues[i].run(newEnv));
       }
     }
     const value = await this.bodyNode.run(newEnv);
@@ -480,7 +504,13 @@ function valueNode(value) {
   return new Node(100, () => value);
 }
 
-function variableNode(name, type) {
+/**
+ * @param {string} name
+ * @param {''|'const'|'let'|'var'=} type
+ * @param {boolean=} varArgs
+ * @returns {Node}
+ */
+function variableNode(name, type, varArgs) {
   const node = new Node(
       100,
       (left, right, env, arity, fileName,
@@ -496,7 +526,7 @@ function variableNode(name, type) {
       (value, left, right, env) =>
           env.set(name, value, type));
   node.name = name;
-  node.varArgs = false;
+  node.varArgs = !!varArgs;
   return node;
 }
 
@@ -604,33 +634,6 @@ class TreeBuilder {
       throw 'Expected ' + expected + ' but got: '
             + token;
     }
-  }
-
-  buildFunctionValue() {
-    const paramNames = [];
-    let varArgs = false;
-    while (this.tokens.length > 0) {
-      let name = this.tokens.shift();
-      if (name == ')') {
-        break;
-      } else if (name == '...') {
-        varArgs = true;
-        name = this.tokens.shift();
-        paramNames.push(name);
-        this.shiftExpected(')');
-        break;
-      }
-      paramNames.push(name);
-      const next = this.tokens.shift();
-      if (next == ')') {
-        break;
-      } else if (next != ',') {
-        throw 'Expected ) or , but got: ' + next;
-      }
-    }
-    const bodyNode = this.buildTree(';');
-    return new FunctionValue(paramNames, varArgs,
-                             bodyNode);
   }
 
   buildFunctionCallNode() {
@@ -754,6 +757,7 @@ class TreeBuilder {
         });
   }
 
+  /** @returns {Node} */
   buildObjectNode() {
     const members = new Map(); 
     while (this.tokens.length > 0) {
@@ -770,8 +774,10 @@ class TreeBuilder {
       if (token == ':') {
         members.set(name, this.buildTree(','));
       } else if (token == '(') {
+        const paramNodes = this.buildTree(')').children;
+        const bodyNode = this.buildTree(';');
         members.set(name,
-            valueNode(this.buildFunctionValue()));
+            valueNode(new FunctionValue(paramNodes, bodyNode)));
         if (this.tokens[0] == ',') {
           this.tokens.shift();
         }
@@ -790,6 +796,7 @@ class TreeBuilder {
         });
   }
 
+  /** @returns {FunctionValue} */
   buildClassValue() {
     const objectNode = this.buildObjectNode();
     const constructorNode = new Node(
@@ -808,8 +815,8 @@ class TreeBuilder {
           }
           return obj;
         });
-    return new FunctionValue(['$p'],
-        /* varArgs= */ true, constructorNode);
+    const paramsNode = variableNode('$p', '', /* varArgs= */ true);
+    return new FunctionValue([paramsNode], constructorNode);
   }
 
   readImport() {
@@ -835,6 +842,10 @@ class TreeBuilder {
     this.dependencies.push(fileName);
   }
 
+  /**
+   * @param {string} endToken 
+   * @returns {BlockNode}
+   */
   buildTree(endToken) {
     const root = new BlockNode();
     const stack = new NodeStack(root);
@@ -967,7 +978,9 @@ class TreeBuilder {
       } else if (token == 'function') {
         const name = this.tokens.shift();
         this.shiftExpected('(');
-        const func = this.buildFunctionValue();
+        const paramNodes = this.buildTree(')').children;
+        const bodyNode = this.buildTree(';');
+        const func = new FunctionValue(paramNodes, bodyNode);
         this.globalEnv.set(
             func.id(name, this.fileName), func);
         stack.pushAll();
@@ -1197,29 +1210,16 @@ class TreeBuilder {
               return value;
             }));
       } else if (token == '=>') {
-        const node =
-            new Node(2, async (l, r, env) => {
-              const paramNodes = l.children || [l];
-              return new FunctionValue(
-                    paramNodes.map(c => c.name),
-                    paramNodes.length > 0
-                        && paramNodes.at(-1)
-                            .varArgs,
-                    r,
-                    new Map(env.variables));
-           });
+        const node = new Node(2, async (l, r, env) =>
+            new FunctionValue(l.children || [l], r, new Map(env.variables)));
         stack.push(node);
         if (this.tokens[0] == '{') {
           this.tokens.shift();
           node.right = this.buildTree('}');
           node.freeze();
         }
-      } else if (token == '...' && endToken == ')'
-                 && this.tokens[1] == ')') {
-        const node =
-            variableNode(this.tokens.shift());
-        node.varArgs = true;
-        stack.push(node);
+      } else if (token == '...' && endToken == ')' && this.tokens[1] == ')') {
+        stack.push(variableNode(this.tokens.shift(), '', /* varArgs= */ true));
       } else if (token == ';' || token == ',') {
         if (endToken == token) {
           break;
