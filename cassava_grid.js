@@ -2,8 +2,8 @@
 // import { Environment, run } from './cassava_macro.js';
 // import { GridData, Range, isNumber } from './cassava_grid_data.js';
 // import { UndoGrid } from './cassava_undo_grid.js';
-// import { button, createElement, dialog, div } from './cassava_dom.js'
-// import { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } from './cassava_replacer.js';
+// import { button, createElement, dialog, div, label } from './cassava_dom.js'
+// import { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } from './cassava_replacer.js';
 // #else
 (() => {
 const Environment = net.asukaze.cassava.macro.Environment;
@@ -12,9 +12,11 @@ const Range = net.asukaze.cassava.Range;
 const UndoGrid = net.asukaze.cassava.UndoGrid;
 const button = net.asukaze.cassava.dom.button;
 const createElement = net.asukaze.cassava.dom.createElement;
+const createFinder = net.asukaze.cassava.createFinder;
 const dialog = net.asukaze.cassava.dom.dialog;
 const div = net.asukaze.cassava.dom.div;
 const isNumber = net.asukaze.cassava.isNumber;
+const label = net.asukaze.cassava.dom.label;
 const run = net.asukaze.cassava.macro.run;
 const toHankakuAlphabet = net.asukaze.cassava.toHankakuAlphabet;
 const toHankakuKana = net.asukaze.cassava.toHankakuKana;
@@ -39,11 +41,105 @@ function sanitize(text) {
              .replaceAll(' ', '&nbsp;');
 }
 
+class FindDialog {
+  /** @param {Grid} grid */
+  constructor(grid) {
+    const findTextInput = createElement('input');
+    const replaceInput = createElement('input');
+    const respectCaseInput =
+        createElement('input', {checked: true, type: 'checkbox'});
+    const wholeCellInput = createElement('input', {type: 'checkbox'});
+    const isRegexInput = createElement('input', {type: 'checkbox'});
+    const isUpwardInput = createElement('input', {
+      name: 'cassava-find-direction',
+      type: 'radio'
+    });
+    const isDownwardInput = createElement('input', {
+      checked: true,
+      name: 'cassava-find-direction',
+      type: 'radio'
+    });
+    const buttonAttributes = {style: 'margin-bottom: 4px; width: 100%;'};
+    this.element = dialog([
+      createElement('div', {style: 'display: flex; margin-bottom: 8px'}, [
+        createElement('span', {style: 'flex-grow: 1'}, ['検索・置換']),
+        createElement('span', {
+          onclick: () => this.element.close(),
+          style: 'cursor: pointer; text-align: end;'
+        }, ['×'])
+      ]),
+      createElement('div', {style: 'display: flex;'}, [
+        div(div(createElement('fieldset', {}, [
+              div(label('検索する文字列：', findTextInput)),
+              div(label('置換後の文字列：', replaceInput)),
+              div(label(respectCaseInput, '大文字と小文字を区別')),
+              div(label(wholeCellInput, 'セル内容が完全に同一であるものを検索')),
+              div(label(isRegexInput, '正規表現検索')),
+            ])),
+            div(createElement('fieldset', {}, [
+              createElement('legend', {}, ['検索方向']),
+              label(isUpwardInput, '左・上へ'),
+              label(isDownwardInput, '右・下へ')
+            ]))),
+        createElement('div', {style: 'margin-left: 16px;'}, [
+          div(button('先頭から検索', () => {
+            if (isUpwardInput.checked) {
+              grid.moveTo(grid.right(), grid.bottom());
+            } else {
+              grid.moveTo(1, 1);
+            }
+            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            grid.render();
+          }, buttonAttributes)),
+          div(button('次を検索', () => {
+            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            grid.render();
+          }, buttonAttributes)),
+          div(button('置換して次に', () => {
+            grid.replaceAll(
+                findTextInput.value,
+                replaceInput.value,
+                !(respectCaseInput.checked),
+                wholeCellInput.checked,
+                isRegexInput.checked,
+                new Range(grid.x, grid.y, grid.x, grid.y));
+            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            grid.render();
+          }, buttonAttributes)),
+          div(button('すべて置換', () => {
+            grid.replaceAll(
+                findTextInput.value,
+                replaceInput.value,
+                !(respectCaseInput.checked),
+                wholeCellInput.checked,
+                isRegexInput.checked,
+                grid.range());
+            grid.render();
+          }, buttonAttributes)),
+          div(button('キャンセル', () => this.element.close(), buttonAttributes))
+        ])
+      ])
+    ]);
+
+    this.findText = () => findTextInput.value;
+    this.ignoreCase = () => !(respectCaseInput.checked);
+    this.wholeCell = () => wholeCellInput.checked;
+    this.isRegex = () => isRegexInput.checked;
+  }
+
+  show() {
+    this.element.show();
+    this.element.style.top = (window.innerHeight
+        - this.element.getBoundingClientRect().height) / 2 + 'px';
+  }
+}
+
 class Grid {
   constructor(element, gridData) {
     this.element = element;
     this.undoGrid = new UndoGrid(gridData);
     this.macroMap = new Map();
+    this.findDialog = new FindDialog(this);
     this.suppressRender = 0;
     this.clear();
   }
@@ -163,6 +259,30 @@ class Grid {
     const range = this.selection();
     this.undoGrid.pop(range, range);
     this.suppressRender--;
+  }
+
+  /** @param {number} step */
+  findNext(step) {
+    const finder = createFinder(
+        this.findDialog.findText(),
+        this.findDialog.ignoreCase(),
+        this.findDialog.wholeCell(),
+        this.findDialog.isRegex());
+    let x = this.x + step;
+    let y = this.y;
+    const right = this.right();
+    const bottom = this.bottom();
+    while (y >= 1 && y <= bottom) {
+      while (x >= 1 && x <= right) {
+        if (finder(this.cell(x, y))) {
+          this.moveTo(x, y);
+          return;
+        }
+        x += step;
+      }
+      y += step;
+      x = step > 0 ? 1 : right;
+    }
   }
 
   getRowHeight(y) {
@@ -579,7 +699,7 @@ class Grid {
     }
     const table = createElement('table', {tabindex: '-1'});
     this.element.innerHTML = '';
-    this.element.appendChild(table);
+    this.element.append(table, this.findDialog.element);
     table.style.maxHeight =
         this.element.getAttribute('max-height')
         || (window.innerHeight - 8
@@ -772,6 +892,10 @@ function containsLastPosition(selection, cellNode) {
           selection.anchorOffset, cellNode);
 }
 
+/**
+ * @param {KeyboardEvent} event
+ * @param {Grid} grid
+ */
 function gridKeyDown(event, grid) {
   const key = event.key;
   if (event.ctrlKey) {
@@ -1196,6 +1320,9 @@ async function runMacro(macro, grid) {
   env.set('DeleteCol/1', a => grid.deleteCol(a, a));
   env.set('DeleteRow/1', a => grid.deleteRow(a, a));
   env.set('Enter/0', () => grid.insertRowAtCursor(0, 0));
+  env.set('Find/0', () => grid.findDialog.show());
+  env.set('FindBack/0', () => grid.findNext(-1));
+  env.set('FindNext/0', () => grid.findNext(1));
   env.set('GetColWidth/0', () => grid.defaultColWidth);
   env.set('GetColWidth/1', a => {
     const colWidth = grid.colWidths.get(a - 0);
@@ -1343,17 +1470,18 @@ function initGrid() {
   for (const element of /** @type {HTMLCollectionOf<CassavaGridElement>} */(
       document.getElementsByTagName('cassava-grid'))) {
     const grid = new Grid(element, new GridData());
-    element.addEventListener('focusin', event => gridFocusIn(event, grid));
-    element.addEventListener('focusout', event => gridFocusOut(event, grid));
-    element.addEventListener('keydown', event => gridKeyDown(event, grid));
-    element.addEventListener('mousedown', event => gridMouseDown(event, grid));
-    element.addEventListener('mousemove', event => gridMouseMove(event, grid));
-    element.addEventListener('mouseup', event => gridMouseUp(event, grid));
-    element.addEventListener('input', event => gridInput(event, grid));
-    element.addEventListener('touchmove',
+    const table = grid.table();
+    table.addEventListener('focusin', event => gridFocusIn(event, grid));
+    table.addEventListener('focusout', event => gridFocusOut(event, grid));
+    table.addEventListener('keydown', event => gridKeyDown(event, grid));
+    table.addEventListener('mousedown', event => gridMouseDown(event, grid));
+    table.addEventListener('mousemove', event => gridMouseMove(event, grid));
+    table.addEventListener('mouseup', event => gridMouseUp(event, grid));
+    table.addEventListener('input', event => gridInput(event, grid));
+    table.addEventListener('touchmove',
         event => gridTouchMove(event, grid),
         {passive: true});
-    element.addEventListener('touchend', event => gridTouchMove(event, grid));
+    table.addEventListener('touchend', event => gridTouchMove(event, grid));
     element.addMacro = (macroName, macroText) => grid.addMacro(macroName, macroText);
     element.getMacroNames = () => grid.macroMap.keys();
     element.open = (file, encoding) => open(file, encoding, grid);

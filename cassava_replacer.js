@@ -39,9 +39,44 @@ function stringForReplace(replaceText, match) {
   return result;
 }
 
-function createReplacer(findText, replaceText,
-    ignoreCase, wholeCell, regex) {
-  if (regex) {
+/**
+ * @param {string} findText
+ * @param {boolean} ignoreCase
+ * @param {boolean} wholeCell
+ * @param {boolean} isRegex
+ * @returns {(value: string) => boolean}
+ */
+function createFinder(findText, ignoreCase, wholeCell, isRegex) {
+  if (isRegex) {
+    const regexp = new RegExp(
+        wholeCell ? '^' + findText + '$' : findText,
+        ignoreCase ? 'is' : 's');
+    return value => value.search(regexp) >= 0;
+  } else if (wholeCell && ignoreCase) {
+    const lowerFindText = findText.toLowerCase();
+    return value =>
+        (value.toLowerCase() == lowerFindText);
+  } else if (wholeCell) {
+    return value => (value == findText);
+  } else if (ignoreCase) {
+    const lowerFindText = findText.toLowerCase();
+    return value =>
+        value.toLowerCase().includes(lowerFindText);
+  } else {
+    return value => value.includes(findText);
+  }
+}
+
+/**
+ * @param {string} findText
+ * @param {string} replaceText
+ * @param {boolean} ignoreCase
+ * @param {boolean} wholeCell
+ * @param {boolean} isRegex
+ * @returns {(value: string) => string}
+ */
+function createReplacer(findText, replaceText, ignoreCase, wholeCell, isRegex) {
+  if (isRegex) {
     const regexp = new RegExp(
         wholeCell ? '^' + findText + '$' : findText,
         ignoreCase ? 'gis' : 'gs');
@@ -49,14 +84,9 @@ function createReplacer(findText, replaceText,
         value.replaceAll(regexp, (...p) =>
             p[0] ? stringForReplace(replaceText, p)
                  : '');
-  } else if (wholeCell && ignoreCase) {
-    const lowerFindText = findText.toLowerCase();
-    return value =>
-        (value.toLowerCase() == lowerFindText)
-            ? replaceText : value;
   } else if (wholeCell) {
-    return value =>
-        (value == findText) ? replaceText : value;
+    const finder = createFinder(findText, ignoreCase, wholeCell, isRegex);
+    return value => finder(value) ? replaceText : value;
   } else if (ignoreCase) {
     const lowerFindText = findText.toLowerCase();
     return value => {
@@ -73,10 +103,10 @@ function createReplacer(findText, replaceText,
             value.substring(index, p) + replaceText;
         index = p + lowerFindText.length;
       }
-   }
- } else {
-   return value =>
-       value.replaceAll(findText, replaceText);
+    }
+  } else {
+    return value =>
+        value.replaceAll(findText, replaceText);
   }
 }
 
@@ -296,11 +326,12 @@ function toZenkakuKana(value) {
 }
 
 // #ifdef MODULE
-// export { createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana };
+// export { createFinder, createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana };
 // #else
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
 net.asukaze.cassava = net.asukaze.cassava || {};
+net.asukaze.cassava.createFinder = createFinder;
 net.asukaze.cassava.createReplacer = createReplacer;
 net.asukaze.cassava.toHankakuAlphabet =
     toHankakuAlphabet;

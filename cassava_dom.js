@@ -33,12 +33,21 @@ function div(...children) {
 /**
  * @param {Node|string} content
  * @param {(this: HTMLButtonElement, event: MouseEvent) => any} onclick
+ * @param {{}=} attributes
  * @returns {HTMLButtonElement}
  */
-function button(content, onclick) {
-  const element = createElement('button', {}, [content]);
+function button(content, onclick, attributes) {
+  const element = createElement('button', attributes, [content]);
   element.addEventListener('click', onclick);
   return element;
+}
+
+/**
+ * @param  {...(Node|string)} children
+ * @returns {HTMLLabelElement}
+ */
+function label(...children) {
+  return createElement('label', {}, children);
 }
 
 /**
@@ -107,7 +116,7 @@ function dialog(children) {
 }
 
 // #ifdef MODULE
-// export { button, createElement, dialog, div };
+// export { button, createElement, dialog, div, label };
 // #else
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
@@ -117,5 +126,6 @@ net.asukaze.cassava.dom.button = button;
 net.asukaze.cassava.dom.createElement = createElement;
 net.asukaze.cassava.dom.dialog = dialog;
 net.asukaze.cassava.dom.div = div;
+net.asukaze.cassava.dom.label = label;
 })();
 // #endif

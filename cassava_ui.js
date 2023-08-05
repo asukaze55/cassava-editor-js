@@ -144,6 +144,11 @@ function init() {
           ['上につめる (Shift+Ctrl+Del)', () => grid.runCommand('DeleteCellUp')]
         ]]
       ]],
+      ['検索', toggleSubMenu, [
+        ['検索・置換...', () => grid.runCommand('Find')],
+        ['次を検索', () => grid.runCommand('FindNext')],
+        ['前を検索', () => grid.runCommand('FindBack')],
+      ]],
       ['マクロ', event => toggleMacroMenu(event, grid, [
         ['マクロを追加...', () => macroDialog.show()]
       ]), []],
