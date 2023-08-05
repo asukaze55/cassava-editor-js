@@ -964,6 +964,12 @@ function gridKeyDown(event, grid) {
         event.preventDefault();
       }
       return;
+    case 'f':
+      if (event.ctrlKey) {
+        grid.findPanel.show();
+        event.preventDefault();
+      }
+      return;
     case 'y':
       if (event.ctrlKey) {
         grid.redo();
@@ -1096,6 +1102,14 @@ function gridKeyDown(event, grid) {
         setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
         event.preventDefault();
       }
+      return;
+    case 'F3':
+      if (event.shiftKey) {
+        grid.findNext(-1);
+      } else {
+        grid.findNext(1);
+      }
+      event.preventDefault();
       return;
     case 'Insert':
       if (event.ctrlKey) {

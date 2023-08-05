@@ -145,10 +145,10 @@ function init() {
         ]]
       ]],
       ['検索', toggleSubMenu, [
-        ['簡易検索...', () => grid.runCommand('QuickFind')],
+        ['簡易検索... (Ctrl+F)', () => grid.runCommand('QuickFind')],
         ['検索・置換...', () => grid.runCommand('Find')],
-        ['次を検索', () => grid.runCommand('FindNext')],
-        ['前を検索', () => grid.runCommand('FindBack')],
+        ['次を検索 (F3)', () => grid.runCommand('FindNext')],
+        ['前を検索 (Shift+F3)', () => grid.runCommand('FindBack')],
       ]],
       ['マクロ', event => toggleMacroMenu(event, grid, [
         ['マクロを追加...', () => macroDialog.show()]
