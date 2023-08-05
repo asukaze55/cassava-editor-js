@@ -133,7 +133,8 @@ class FindDialog {
   show() {
     this.element.show();
     this.element.style.top = (window.innerHeight
-        - this.element.getBoundingClientRect().height) / 2 + 'px';
+        - this.element.getBoundingClientRect().height) / 2
+        + window.scrollY + 'px';
   }
 }
 
