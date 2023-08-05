@@ -122,6 +122,9 @@ class FindDialog {
     ]);
 
     this.findText = () => findTextInput.value;
+    this.setFindText = value => {
+      findTextInput.value = value;
+    };
     this.ignoreCase = () => !(respectCaseInput.checked);
     this.wholeCell = () => wholeCellInput.checked;
     this.isRegex = () => isRegexInput.checked;
@@ -134,12 +137,50 @@ class FindDialog {
   }
 }
 
+class FindPanel {
+  /** @param {Grid} grid */
+  constructor(grid) {
+    const updateFindText = () => {
+      grid.findDialog.setFindText(findTextInput.value);
+    }
+    const findTextInput = createElement('input', {onchange: updateFindText});
+    const buttonAttributes = {style: 'margin: 4px 0 4px 4px;'};
+    this.element = createElement('div', {style: 'display: none;'}, [
+      createElement('span', {
+        onclick: () => {
+          this.element.style.display = 'none';
+          grid.render();
+        },
+        style: 'cursor: pointer; padding: 8px;'
+      }, ['×']),
+      '検索：',
+      findTextInput,
+      button('⇩ 次', () => {
+        updateFindText();
+        grid.findNext(1);
+      }, buttonAttributes),
+      button('⇧ 前', () => {
+        updateFindText();
+        grid.findNext(-1);
+      }, buttonAttributes),
+      button('オプション', () => grid.findDialog.show(), buttonAttributes)
+    ]);
+
+    this.show = () => {
+      findTextInput.value = grid.findDialog.findText();
+      this.element.style.display = '';
+      findTextInput.focus();
+    }
+  }
+}
+
 class Grid {
   constructor(element, gridData) {
     this.element = element;
     this.undoGrid = new UndoGrid(gridData);
     this.macroMap = new Map();
     this.findDialog = new FindDialog(this);
+    this.findPanel = new FindPanel(this);
     this.suppressRender = 0;
     this.clear();
   }
@@ -437,6 +478,11 @@ class Grid {
       return;
     }
     const table = this.table();
+    table.style.maxHeight = this.element.getAttribute('max-height')
+        || (window.innerHeight - 16
+            - this.findPanel.element.getBoundingClientRect().height
+            - table.getBoundingClientRect().top) + 'px';
+    table.style.width = this.element.getAttribute('width');
     const bottom = Math.max(4, this.undoGrid.bottom() + 1, this.y, this.anchorY);
     while (table.rows.length > bottom - this.renderedTop + 2) {
       table.deleteRow(-1);
@@ -699,14 +745,7 @@ class Grid {
     }
     const table = createElement('table', {tabindex: '-1'});
     this.element.innerHTML = '';
-    this.element.append(table, this.findDialog.element);
-    table.style.maxHeight =
-        this.element.getAttribute('max-height')
-        || (window.innerHeight - 8
-            - this.element.getBoundingClientRect().top)
-            + 'px';
-    table.style.width =
-        this.element.getAttribute('width');
+    this.element.append(table, this.findPanel.element, this.findDialog.element);
     table.addEventListener('scroll', () => this.render());
     return table;
   }
@@ -1355,6 +1394,7 @@ async function runMacro(macro, grid) {
     parseCsv(clipText, clipData);
     grid.paste(clipText, clipData, grid.selection(), a);
   });
+  env.set('QuickFind/0', () => grid.findPanel.show());
   env.set('Refresh/0', () => grid.refresh());
   env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.range()));
   env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.range()));

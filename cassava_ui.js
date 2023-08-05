@@ -145,6 +145,7 @@ function init() {
         ]]
       ]],
       ['検索', toggleSubMenu, [
+        ['簡易検索...', () => grid.runCommand('QuickFind')],
         ['検索・置換...', () => grid.runCommand('Find')],
         ['次を検索', () => grid.runCommand('FindNext')],
         ['前を検索', () => grid.runCommand('FindBack')],
