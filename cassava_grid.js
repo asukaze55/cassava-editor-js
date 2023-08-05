@@ -69,6 +69,16 @@ class Grid {
     return this.undoGrid.cell(x, y);
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {HTMLTableCellElement}
+   */
+  cellNode(x, y) {
+    const i = (y == 0) ? 0 : y - this.renderedTop + 1;
+    return this.table().rows[i].cells[x];
+  }
+
   clear() {
     this.undoGrid.clear();
     this.isEditing = false;
@@ -83,6 +93,8 @@ class Grid {
     this.anchorY = 1;
     this.x = 1;
     this.y = 1;
+    this.renderedTop = 1;
+    this.renderedBottom = 0;
   }
 
   clearCells(range) {
@@ -221,16 +233,25 @@ class Grid {
     }
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   */
   moveTo(x, y) {
     this.anchorX = x;
     this.anchorY = y;
     this.x = x;
     this.y = y;
+    if (y < this.renderedTop || y > this.renderedBottom) {
+      this.renderedTop = y;
+      this.renderedBottom = 0;
+      this.table().innerHTML = '';
+    }
     if (this.suppressRender > 0) {
       return;
     }
     this.render();
-    const cellNode = this.element.firstElementChild.rows[y].cells[x];
+    const cellNode = this.cellNode(x, y);
     cellNode.focus();
     setTimeout(() => window.getSelection()
         .setBaseAndExtent(cellNode, 0, cellNode,
@@ -295,34 +316,21 @@ class Grid {
     if (this.suppressRender > 0) {
       return;
     }
-    const r = this.undoGrid.right();
-    const w = Math.max(5, r + 2, this.x + 1, this.anchorX + 1);
-    const b = this.undoGrid.bottom();
-    const h = Math.max(5, b + 2, this.y + 1, this.anchorY + 1);
-    let table = this.element.firstElementChild;
-    if (!table || table.tagName != 'TABLE') {
-      table = createElement('table', {tabindex: '-1'});
-      this.element.innerHTML = '';
-      this.element.appendChild(table);
-      table.style.maxHeight =
-          this.element.getAttribute('max-height')
-          || (window.innerHeight - 8
-              - this.element.getBoundingClientRect().top)
-             + 'px';
-      table.style.width =
-          this.element.getAttribute('width');
-      table.addEventListener('scroll', () => this.render());
-    }
-    while (table.rows.length > h) {
+    const table = this.table();
+    const bottom = Math.max(4, this.undoGrid.bottom() + 1, this.y, this.anchorY);
+    while (table.rows.length > bottom - this.renderedTop + 2) {
       table.deleteRow(-1);
     }
-    const tableTop =
-        table.getBoundingClientRect().top;
-    for (let y = 0; y < h; y++) {
-      const row = (y < table.rows.length)
-          ? table.rows[y] : table.insertRow();
-      if (row.getBoundingClientRect().top - tableTop
-          > screen.height * 2) {
+    const headerRow = (table.rows.length > 0) ? table.rows[0] : table.insertRow();
+    const right = Math.max(4, this.undoGrid.right() + 1, this.x, this.anchorX);
+    this.renderRow(headerRow, 0, right);
+    const tableTop = table.getBoundingClientRect().top;
+    this.renderedBottom = bottom;
+    for (let y = this.renderedTop; y <= bottom; y++) {
+      const i = y - this.renderedTop + 1;
+      const row = (i < table.rows.length) ? table.rows[i] : table.insertRow();
+      if (row.getBoundingClientRect().top - tableTop > screen.height * 2) {
+        this.renderedBottom = y - 1;
         break;
       }
       const rowHeight = this.getRowHeight(y);
@@ -331,37 +339,63 @@ class Grid {
       } else {
         row.style.display = '';
       }
-      if (row.getBoundingClientRect().bottom
-          < tableTop) {
+      if (row.getBoundingClientRect().bottom < tableTop) {
         continue;
       }
-      while (row.cells.length > w) {
-        row.deleteCell(-1);
+      this.renderRow(row, y, right);
+    }
+    if (table.rows[1].getBoundingClientRect().bottom > tableTop) {
+      const count = Math.min(10, this.renderedTop - 1);
+      let prerenderedHeight = 0;
+      for (let i = 1; i <= count; i++) {
+        const row = table.insertRow(1);
+        this.renderRow(row, this.renderedTop - i, right);
+        prerenderedHeight += row.getBoundingClientRect().height;
       }
-      for (let x = 0; x < w; x++) {
-        let cell;
-        if (x < row.cells.length) {
-          cell = row.cells[x];
-        } else {
-          cell = createElement((x == 0 || y == 0) ? 'th' : 'td');
-          cell.dataset.x = String(x);
-          cell.dataset.y = String(y);
-          if (x == 0 && y == 0) {
-            cell.className = 'cassava-fixed-both';
-          } else if (y == 0) {
-            cell.className = 'cassava-fixed-row';
-          } else if (x == 0) {
-            cell.className = 'cassava-fixed-col';
-          } else {
-            cell.contentEditable = 'true';
-          }
-          row.appendChild(cell);
-        }
-        this.renderCell(cell, x, y);
+      this.renderedTop -= count;
+      if (table.scrollTop == 0) {
+        table.scrollTop = prerenderedHeight;
       }
     }
   }
 
+  /**
+   * @param {HTMLTableRowElement} row
+   * @param {number} y
+   * @param {number} right
+   */
+  renderRow(row, y, right) {
+    while (row.cells.length > right + 1) {
+      row.deleteCell(-1);
+    }
+    for (let x = 0; x <= right; x++) {
+      let cell;
+      if (x < row.cells.length) {
+        cell = row.cells[x];
+      } else {
+        cell = createElement((x == 0 || y == 0) ? 'th' : 'td');
+        cell.dataset.x = String(x);
+        if (x == 0 && y == 0) {
+          cell.className = 'cassava-fixed-both';
+        } else if (y == 0) {
+          cell.className = 'cassava-fixed-row';
+        } else if (x == 0) {
+          cell.className = 'cassava-fixed-col';
+        } else {
+          cell.contentEditable = 'true';
+        }
+        row.appendChild(cell);
+      }
+      cell.dataset.y = String(y);
+      this.renderCell(cell, x, y);
+    }
+  }
+
+  /**
+   * @param {HTMLTableCellElement} cell
+   * @param {number} x
+   * @param {number} y
+   */
   renderCell(cell, x, y) {
     const isFixed = x == 0 || y == 0;
     const isSelected = x >= this.selLeft()
@@ -433,7 +467,7 @@ class Grid {
       return;
     }
     blurActiveElement();
-    this.element.firstElementChild.focus();
+    this.table().focus();
     this.isEditing = false;
     this.anchorX = x1;
     this.anchorY = y1;
@@ -454,13 +488,19 @@ class Grid {
     this.select(1, t, this.undoGrid.right(), b);
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} selAnchor
+   * @param {number} selFocus
+   */
   selectText(x, y, selAnchor, selFocus) {
     this.anchorX = x;
     this.anchorY = y;
     this.x = x;
     this.y = y;
     this.render();
-    const cellNode = this.element.firstElementChild.rows[y].cells[x];
+    const cellNode = this.cellNode(x, y);
     cellNode.focus();
     setTimeout(() => {
       let anchorNode = null;
@@ -529,6 +569,26 @@ class Grid {
 
   sumAndAvr(range) {
     return this.undoGrid.sumAndAvr(range);
+  }
+
+  /** @returns {HTMLTableElement} */
+  table() {
+    const existingElement = this.element.firstElementChild;
+    if (existingElement && existingElement.tagName == 'TABLE') {
+      return existingElement;
+    }
+    const table = createElement('table', {tabindex: '-1'});
+    this.element.innerHTML = '';
+    this.element.appendChild(table);
+    table.style.maxHeight =
+        this.element.getAttribute('max-height')
+        || (window.innerHeight - 8
+            - this.element.getBoundingClientRect().top)
+            + 'px';
+    table.style.width =
+        this.element.getAttribute('width');
+    table.addEventListener('scroll', () => this.render());
+    return table;
   }
 
   undo() {
