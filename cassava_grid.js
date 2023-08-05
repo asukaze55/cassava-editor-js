@@ -936,80 +936,6 @@ function containsLastPosition(selection, cellNode) {
  * @param {Grid} grid
  */
 function gridKeyDown(event, grid) {
-  const key = event.key;
-  if (event.ctrlKey) {
-    if (key == ' ') {
-      grid.selectCol(grid.selLeft(), grid.selRight());
-      event.preventDefault();
-    } else if (key == 'a') {
-      grid.selectAll()
-      event.preventDefault();
-    } else if (key == 'y') {
-      grid.redo();
-      event.preventDefault();
-    } else if (key == 'z') {
-      grid.undo();
-      event.preventDefault();
-    } else if (key == 'Backspace') {
-      grid.connectCells(grid.selection());
-      event.preventDefault();
-    } else if (key == 'Delete') {
-      const isEditing = grid.isEditing;
-      if (isEditing) {
-        blurActiveElement();
-      }
-      if (event.shiftKey) {
-        grid.deleteCellUp(grid.selection());
-      } else {
-        grid.deleteCellLeft(grid.selection());
-      }
-      grid.render();
-      if (isEditing) {
-        grid.moveTo(grid.selLeft(), grid.selTop());
-      }
-      event.preventDefault();
-    } else if (key == 'Enter') {
-      if (grid.isEditing) {
-        const selection = window.getSelection();
-        const p1 = getInCellOffset(selection.anchorNode, selection.anchorOffset);
-        const p2 = getInCellOffset(selection.focusNode, selection.focusOffset);
-        grid.insertRowAtCursor(p1, p2);
-      } else {
-        grid.insertRowAtCursor(0, 0);
-      }
-      event.preventDefault();
-    } else if (key == 'Insert') {
-      const isEditing = grid.isEditing;
-      if (isEditing) {
-        blurActiveElement();
-      }
-      if (event.shiftKey) {
-        grid.insertCellDown(grid.selection());
-      } else {
-        grid.insertCellRight(grid.selection());
-      }
-      grid.render();
-      if (isEditing) {
-        grid.moveTo(grid.selLeft(), grid.selTop());
-      }
-      event.preventDefault();
-    }
-    return;
-  } else if (event.shiftKey) {
-    if (key == ' ') {
-      grid.selectRow(grid.selTop(), grid.selBottom());
-      event.preventDefault();
-    } else if (key == 'Enter') {
-      grid.insertRow(grid.selTop(), grid.selBottom(), true);
-      event.preventDefault();
-    }
-  }
-
-  if (key != 'ArrowDown' && key != 'ArrowLeft'
-      && key != 'ArrowRight' && key != 'ArrowUp'
-      && key != 'Enter' && key != 'F2') {
-    return;
-  }
   const selection = window.getSelection();
   let cellNode = grid.isEditing ? getCellNode(selection.focusNode) : null;
   let x = grid.x;
@@ -1022,90 +948,173 @@ function gridKeyDown(event, grid) {
     y = cellNode.dataset.y - 0;
   }
 
-  if (key == "ArrowDown") {
-    if (cellNode == null || containsLastLine(selection, cellNode)) {
-      if (event.shiftKey) {
-        grid.select(grid.anchorX, grid.anchorY, x, y + 1);
-      } else {
-        grid.moveTo(x, y + 1);
+  switch (event.key) {
+    case ' ':
+      if (event.ctrlKey) {
+        grid.selectCol(grid.selLeft(), grid.selRight());
+        event.preventDefault();
+      } else if (event.shiftKey) {
+        grid.selectRow(grid.selTop(), grid.selBottom());
+        event.preventDefault();
       }
-      event.preventDefault();
-    }
-  } else if (key == "ArrowLeft") {
-    if (x > 1 && (cellNode == null || containsFirstPosition(selection, cellNode))) {
-      if (event.shiftKey) {
-        grid.select(grid.anchorX, grid.anchorY, x - 1, y);
-      } else {
-        grid.moveTo(x - 1, y);
+      return;
+    case 'a':
+      if (event.ctrlKey) {
+        grid.selectAll()
+        event.preventDefault();
       }
-      event.preventDefault();
-    }
-  } else if (key == "ArrowRight") {
-    if (cellNode == null || containsLastPosition(selection, cellNode)) {
-      if (event.shiftKey) {
-        grid.select(grid.anchorX, grid.anchorY, x + 1, y);
-      } else {
-        grid.moveTo(x + 1, y);
+      return;
+    case 'y':
+      if (event.ctrlKey) {
+        grid.redo();
+        event.preventDefault();
       }
-      event.preventDefault();
-    }
-  } else if (key == "ArrowUp") {
-    if (y > 1 && (cellNode == null || containsFirstLine(selection, cellNode))) {
-      if (event.shiftKey) {
-        grid.select(grid.anchorX, grid.anchorY, x, y - 1);
-      } else {
-        grid.moveTo(x, y - 1);
+      return;
+    case 'z':
+      if (event.ctrlKey) {
+        grid.undo();
+        event.preventDefault();
       }
-      event.preventDefault();
-    }
-  } else if (key == "Enter") {
-    if (event.altKey) {
-      if (cellNode == null) {
-        return;
-      }
-      selection.deleteFromDocument();
-      const focusNode = selection.focusNode;
-      if (focusNode == cellNode) {
-        const focusOffset = selection.focusOffset;
-        cellNode.insertBefore(
-            createElement('br'),
-            cellNode.childNodes[focusOffset]);
-        selection.setBaseAndExtent(
-            cellNode, focusOffset + 1, cellNode,
-            focusOffset + 1);
-      } else {
-        cellNode.insertBefore(
-            document.createTextNode(
-                focusNode.textContent.substring(
-                    0, selection.focusOffset)),
-            focusNode);
-        cellNode.insertBefore(
-            createElement('br'), focusNode);
-        focusNode.textContent =
-           focusNode.textContent.substring(
-               selection.focusOffset);
-        if (focusNode.textContent == ''
-            && focusNode.nextSibling == null) {
-          cellNode.appendChild(createElement('br'));
+      return;
+    case 'ArrowDown':
+      if (cellNode == null || containsLastLine(selection, cellNode)) {
+        if (event.shiftKey) {
+          grid.select(grid.anchorX, grid.anchorY, x, y + 1);
+        } else {
+          grid.moveTo(x, y + 1);
         }
+        event.preventDefault();
       }
-      grid.setCell(x, y, parseCellInput(cellNode));
-    } else if (cellNode != null
-        && containsFirstPosition(selection,
-                                 cellNode)
-        && containsLastPosition(selection,
-                                cellNode)) {
-      selection.collapseToEnd();
-    } else {
-      grid.moveTo(x, y);
-    }
-    event.preventDefault();
-  } else if (key == 'F2') {
-    if (cellNode != null) {
-      const offset = childrenCountWithoutBr(cellNode);
-      setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
+      return;
+    case 'ArrowLeft':
+      if (x > 1 && (cellNode == null
+                    || containsFirstPosition(selection, cellNode))) {
+        if (event.shiftKey) {
+          grid.select(grid.anchorX, grid.anchorY, x - 1, y);
+        } else {
+          grid.moveTo(x - 1, y);
+        }
+        event.preventDefault();
+      }
+      return;
+    case 'ArrowRight':
+      if (cellNode == null || containsLastPosition(selection, cellNode)) {
+        if (event.shiftKey) {
+          grid.select(grid.anchorX, grid.anchorY, x + 1, y);
+        } else {
+          grid.moveTo(x + 1, y);
+        }
+        event.preventDefault();
+      }
+      return;
+    case 'ArrowUp':
+      if (y > 1 && (cellNode == null
+                    || containsFirstLine(selection, cellNode))) {
+        if (event.shiftKey) {
+          grid.select(grid.anchorX, grid.anchorY, x, y - 1);
+        } else {
+          grid.moveTo(x, y - 1);
+        }
+        event.preventDefault();
+      }
+      return;
+    case 'Backspace':
+      if (event.ctrlKey) {
+        grid.connectCells(selection);
+        event.preventDefault();
+      }
+      return;
+    case 'Delete':
+      if (event.ctrlKey) {
+        const isEditing = grid.isEditing;
+        if (isEditing) {
+          blurActiveElement();
+        }
+        if (event.shiftKey) {
+          grid.deleteCellUp(selection);
+        } else {
+          grid.deleteCellLeft(selection);
+        }
+        grid.render();
+        if (isEditing) {
+          grid.moveTo(grid.selLeft(), grid.selTop());
+        }
+        event.preventDefault();
+      }
+      return;
+    case 'Enter':
+      if (event.ctrlKey) {
+        if (grid.isEditing) {
+          const windowSelection = window.getSelection();
+          const p1 = getInCellOffset(
+              windowSelection.anchorNode, windowSelection.anchorOffset);
+          const p2 = getInCellOffset(
+              windowSelection.focusNode, windowSelection.focusOffset);
+          grid.insertRowAtCursor(p1, p2);
+        } else {
+          grid.insertRowAtCursor(0, 0);
+        }
+      } else if (event.shiftKey) {
+        grid.insertRow(grid.selTop(), grid.selBottom(), true);
+      } else if (event.altKey) {
+        if (cellNode == null) {
+          return;
+        }
+        selection.deleteFromDocument();
+        const focusNode = selection.focusNode;
+        if (focusNode == cellNode) {
+          const focusOffset = selection.focusOffset;
+          cellNode.insertBefore(
+              createElement('br'), cellNode.childNodes[focusOffset]);
+          selection.setBaseAndExtent(
+              cellNode, focusOffset + 1, cellNode, focusOffset + 1);
+        } else {
+          cellNode.insertBefore(
+              document.createTextNode(
+                  focusNode.textContent.substring(0, selection.focusOffset)),
+              focusNode);
+          cellNode.insertBefore(createElement('br'), focusNode);
+          focusNode.textContent =
+              focusNode.textContent.substring(selection.focusOffset);
+          if (focusNode.textContent == '' && focusNode.nextSibling == null) {
+            cellNode.appendChild(createElement('br'));
+          }
+        }
+        grid.setCell(x, y, parseCellInput(cellNode));
+      } else if (cellNode != null
+                 && containsFirstPosition(selection, cellNode)
+                 && containsLastPosition(selection, cellNode)) {
+        selection.collapseToEnd();
+      } else {
+        grid.moveTo(x, y);
+      }
       event.preventDefault();
-    }
+      return;
+    case 'F2':
+      if (cellNode != null) {
+        const offset = childrenCountWithoutBr(cellNode);
+        setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
+        event.preventDefault();
+      }
+      return;
+    case 'Insert':
+      if (event.ctrlKey) {
+        const isEditing = grid.isEditing;
+        if (isEditing) {
+          blurActiveElement();
+        }
+        if (event.shiftKey) {
+          grid.insertCellDown(selection);
+        } else {
+          grid.insertCellRight(selection);
+        }
+        grid.render();
+        if (isEditing) {
+          grid.moveTo(grid.selLeft(), grid.selTop());
+        }
+        event.preventDefault();
+      }
+      return;
   }
 }
 
