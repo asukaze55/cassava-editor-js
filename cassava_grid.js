@@ -744,7 +744,7 @@ class Grid {
     if (existingElement && existingElement.tagName == 'TABLE') {
       return existingElement;
     }
-    const table = createElement('table', {tabindex: '-1'});
+    const table = createElement('table', {tabIndex: -1});
     this.element.innerHTML = '';
     this.element.append(table, this.findPanel.element, this.findDialog.element);
     table.addEventListener('scroll', () => this.render());
