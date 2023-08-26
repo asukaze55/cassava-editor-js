@@ -981,10 +981,34 @@ function gridKeyDown(event, grid) {
         event.preventDefault();
       }
       return;
+    case 'c':
+      if (event.ctrlKey) {
+        if (!grid.isEditing) {
+          copy(grid, /* cut= */ false);
+          event.preventDefault();
+        }
+      }
+      return;
     case 'f':
       if (event.ctrlKey) {
         grid.findPanel.show();
         event.preventDefault();
+      }
+      return;
+    case 'v':
+      if (event.ctrlKey) {
+        if (!grid.isEditing) {
+          paste(grid, -1);
+          event.preventDefault();
+        }
+      }
+      return;
+    case 'x':
+      if (event.ctrlKey) {
+        if (!grid.isEditing) {
+          copy(grid, /* cut= */ true);
+          event.preventDefault();
+        }
       }
       return;
     case 'y':
@@ -1432,6 +1456,19 @@ function showPasteDialog(grid, clipText, clipData) {
 
 /**
  * @param {Grid} grid
+ * @param {boolean} cut
+ */
+async function copy(grid, cut) {
+  const range = grid.selection();
+  await clipboard.writeText(toCsv(grid.gridData(), range));
+  if (cut) {
+    grid.clearCells(range);
+    grid.render();
+  }
+}
+
+/**
+ * @param {Grid} grid
  * @param {number} option
  */
 async function paste(grid, option) {
@@ -1447,6 +1484,7 @@ async function paste(grid, option) {
   } else {
     await showPasteDialog(grid, clipText, clipData);
   }
+  grid.render();
 }
 
 function toMacroParam(param) {
@@ -1472,17 +1510,12 @@ async function runMacro(macro, grid) {
   env.set('Col=/0', () => grid.x);
   env.set('Col=/1', a => grid.moveTo(a, grid.y));
   env.set('ConnectCell/0', () => grid.connectCells(grid.selection()));
-  env.set('Copy/0', () =>
-      clipboard.writeText(toCsv(grid.gridData(), grid.selection())));
+  env.set('Copy/0', () => copy(grid, /* cut= */ false));
   env.set('CopyAvr/0', () =>
       clipboard.writeText(grid.sumAndAvr(grid.selection()).avr.toString()));
   env.set('CopySum/0', () =>
       clipboard.writeText(grid.sumAndAvr(grid.selection()).sum.toString()));
-  env.set('Cut/0', async () => {
-    const range = grid.selection();
-    await clipboard.writeText(toCsv(grid.gridData(), range));
-    grid.clearCells(range);
-  });
+  env.set('Cut/0', () => copy(grid, /* cut= */ true));
   env.set('CutCol/0', () => grid.deleteCol(grid.selLeft(), grid.selRight()));
   env.set('CutRow/0', () => grid.deleteRow(grid.selTop(), grid.selBottom()));
   env.set('DeleteCellLeft/0', () => grid.deleteCellLeft(grid.selection()));
