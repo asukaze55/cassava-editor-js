@@ -24,7 +24,28 @@ const toZenkakuAlphabet = net.asukaze.cassava.toZenkakuAlphabet;
 const toZenkakuKana = net.asukaze.cassava.toZenkakuKana;
 // #endif
 
-let clipText = '';
+class Clipboard {
+  #clipText = '';
+
+  /** @returns {Promise<string>} */
+  async readText() {
+    try {
+      return await navigator.clipboard.readText();
+    } catch {
+      return this.#clipText;
+    }
+  }
+
+  /** @param {string} text */
+  async writeText(text) {
+    this.#clipText = text;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
+  }
+}
+
+let clipboard = new Clipboard();
 
 function blurActiveElement() {
   /** @type {HTMLElement} */(document.activeElement).blur();
@@ -1345,6 +1366,17 @@ function saveAs(fileName, gridData) {
   return false;
 }
 
+/**
+ * @param {Grid} grid
+ * @param {number} option
+ */
+async function paste(grid, option) {
+  const clipText = await clipboard.readText();
+  const clipData = new GridData();
+  parseCsv(clipText, clipData);
+  grid.paste(clipText, clipData, grid.selection(), option);
+}
+
 function toMacroParam(param) {
   if (typeof(param) == 'number') {
     return param;
@@ -1368,12 +1400,15 @@ async function runMacro(macro, grid) {
   env.set('Col=/0', () => grid.x);
   env.set('Col=/1', a => grid.moveTo(a, grid.y));
   env.set('ConnectCell/0', () => grid.connectCells(grid.selection()));
-  env.set('Copy/0', () => clipText = toCsv(grid.gridData(), grid.selection()));
-  env.set('CopyAvr/0', () => clipText = grid.sumAndAvr(grid.selection()).avr.toString());
-  env.set('CopySum/0', () => clipText = grid.sumAndAvr(grid.selection()).sum.toString());
-  env.set('Cut/0', () => {
+  env.set('Copy/0', () =>
+      clipboard.writeText(toCsv(grid.gridData(), grid.selection())));
+  env.set('CopyAvr/0', () =>
+      clipboard.writeText(grid.sumAndAvr(grid.selection()).avr.toString()));
+  env.set('CopySum/0', () =>
+      clipboard.writeText(grid.sumAndAvr(grid.selection()).sum.toString()));
+  env.set('Cut/0', async () => {
     const range = grid.selection();
-    clipText = toCsv(grid.gridData(), range);
+    await clipboard.writeText(toCsv(grid.gridData(), range));
     grid.clearCells(range);
   });
   env.set('CutCol/0', () => grid.deleteCol(grid.selLeft(), grid.selRight()));
@@ -1408,16 +1443,8 @@ async function runMacro(macro, grid) {
   env.set('MessageBox/1', a => alert(a));
   env.set('New/0', () => grid.clear());
   env.set('NewLine/0', () => grid.setCell(grid.x, grid.y, '\n'));
-  env.set('Paste/0', () => {
-    const clipData = new GridData();
-    parseCsv(clipText, clipData);
-    grid.paste(clipText, clipData, grid.selection(), -1);
-  });
-  env.set('Paste/1', a => {
-    const clipData = new GridData();
-    parseCsv(clipText, clipData);
-    grid.paste(clipText, clipData, grid.selection(), a);
-  });
+  env.set('Paste/0', () => paste(grid, -1));
+  env.set('Paste/1', a => paste(grid, a));
   env.set('QuickFind/0', () => grid.findPanel.show());
   env.set('Refresh/0', () => grid.refresh());
   env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.range()));
