@@ -1368,13 +1368,96 @@ function saveAs(fileName, gridData) {
 
 /**
  * @param {Grid} grid
+ * @param {string} clipText
+ * @param {GridData} clipData
+ * @returns {Promise}
+ */
+function showPasteDialog(grid, clipText, clipData) {
+  return new Promise((resolve, reject) => {
+    const selection = grid.selection();
+    const textarea = createElement('textarea', {
+      cols: 40,
+      name: 'clip-text',
+      rows: 10,
+      value: clipText
+    })
+    const radioInput = c => createElement('input', {
+      checked: !!c,
+      name: 'cassava-paste',
+      type: 'radio'
+    });
+    const option0Input = radioInput();
+    const option1Input = radioInput();
+    const option2Input = radioInput(true);
+    const option3Input = radioInput();
+    const option4Input = radioInput();
+    const option5Input = radioInput();
+    const pasteDialog = dialog([
+      createElement('div', {style: 'display: flex; margin-bottom: 8px'}, [
+        createElement('span', {style: 'flex-grow: 1'}, ['貼り付けオプション']),
+        createElement('span', {
+          onclick: () => {
+            pasteDialog.close();
+            document.body.removeChild(pasteDialog);
+            resolve();
+          },
+          style: 'cursor: pointer; text-align: end;'
+        }, ['×'])
+      ]),
+      div('選択サイズ： ' + (selection.right - selection.left + 1) +
+          ' × ' + (selection.bottom - selection.top + 1)),
+      div(createElement('details', {}, [
+        createElement('summary', {}, ['クリップボードサイズ： ' + clipData.right() +
+                      ' × ' + clipData.bottom()]),
+        textarea
+      ])),
+      div(createElement('fieldset', {}, [
+        createElement('legend', {}, ['貼り付け方法']),
+        div(label(option0Input, '選択領域と重なった部分のみに貼り付け')),
+        div(label(option1Input, '選択領域にくり返し処理をして貼り付け')),
+        div(label(option2Input, 'データのサイズで上書き')),
+        div(label(option3Input, '内容を右に移動させてデータを挿入')),
+        div(label(option4Input, '内容を下に移動させてデータを挿入')),
+        div(label(option5Input, 'テキストとして1セル内に貼り付け')),
+      ])),
+      div(button('OK', async () => {
+        const text = textarea.value;
+        const data = new GridData();
+        parseCsv(text, data);
+        const option = option1Input.checked ? 1
+                     : option2Input.checked ? 2
+                     : option3Input.checked ? 3
+                     : option4Input.checked ? 4
+                     : option5Input.checked ? 5
+                     : 0;
+        grid.paste(text, data, grid.selection(), option);
+        pasteDialog.close();
+        document.body.removeChild(pasteDialog);
+        resolve();
+      }))
+    ]);
+    document.body.append(pasteDialog);
+    pasteDialog.showModal();
+  });
+}
+
+/**
+ * @param {Grid} grid
  * @param {number} option
  */
 async function paste(grid, option) {
   const clipText = await clipboard.readText();
   const clipData = new GridData();
   parseCsv(clipText, clipData);
-  grid.paste(clipText, clipData, grid.selection(), option);
+  const selection = grid.selection();
+  if (option >= 0) {
+    grid.paste(clipText, clipData, selection, option);
+  } else if (selection.right - selection.left + 1 == clipData.right() &&
+             selection.bottom - selection.top + 1 == clipData.bottom()) {
+    grid.paste(clipText, clipData, selection, 2);
+  } else {
+    await showPasteDialog(grid, clipText, clipData);
+  }
 }
 
 function toMacroParam(param) {

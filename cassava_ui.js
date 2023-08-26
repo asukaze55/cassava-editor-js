@@ -112,6 +112,9 @@ function init() {
       ['編集', toggleSubMenu, [
         ['元に戻す (Ctrl+Z)', () => grid.undo()],
         ['やり直し (Ctrl+Y)', () => grid.redo()],
+        ['切り取り', () => grid.runCommand('Cut')],
+        ['コピー', () => grid.runCommand('Copy')],
+        ['貼り付け', () => grid.runCommand('Paste')],
         ['すべて選択 (Ctrl+A)', () => grid.runCommand('SelectAll')],
         ['行選択 (Shift+Space)', () => grid.runCommand('SelectRow')],
         ['列選択 (Ctrl+Space)', () => grid.runCommand('SelectCol')],
