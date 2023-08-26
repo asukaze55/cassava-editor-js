@@ -2,7 +2,7 @@
 // import { Environment, run } from './cassava_macro.js';
 // import { GridData, Range, isNumber } from './cassava_grid_data.js';
 // import { UndoGrid } from './cassava_undo_grid.js';
-// import { button, createElement, dialog, div, label } from './cassava_dom.js'
+// import { button, createElement, dialog, div, label, titleBar } from './cassava_dom.js'
 // import { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } from './cassava_replacer.js';
 // #else
 (() => {
@@ -17,6 +17,7 @@ const dialog = net.asukaze.cassava.dom.dialog;
 const div = net.asukaze.cassava.dom.div;
 const isNumber = net.asukaze.cassava.isNumber;
 const label = net.asukaze.cassava.dom.label;
+const titleBar = net.asukaze.cassava.dom.titleBar;
 const run = net.asukaze.cassava.macro.run;
 const toHankakuAlphabet = net.asukaze.cassava.toHankakuAlphabet;
 const toHankakuKana = net.asukaze.cassava.toHankakuKana;
@@ -82,13 +83,7 @@ class FindDialog {
     });
     const buttonAttributes = {style: 'margin-bottom: 4px; width: 100%;'};
     this.element = dialog([
-      createElement('div', {style: 'display: flex; margin-bottom: 8px'}, [
-        createElement('span', {style: 'flex-grow: 1'}, ['検索・置換']),
-        createElement('span', {
-          onclick: () => this.element.close(),
-          style: 'cursor: pointer; text-align: end;'
-        }, ['×'])
-      ]),
+      titleBar('検索・置換', () => this.element.close()),
       createElement('div', {style: 'display: flex;'}, [
         div(div(createElement('fieldset', {}, [
               div(label('検索する文字列：', findTextInput)),
@@ -1393,17 +1388,11 @@ function showPasteDialog(grid, clipText, clipData) {
     const option4Input = radioInput();
     const option5Input = radioInput();
     const pasteDialog = dialog([
-      createElement('div', {style: 'display: flex; margin-bottom: 8px'}, [
-        createElement('span', {style: 'flex-grow: 1'}, ['貼り付けオプション']),
-        createElement('span', {
-          onclick: () => {
-            pasteDialog.close();
-            document.body.removeChild(pasteDialog);
-            resolve();
-          },
-          style: 'cursor: pointer; text-align: end;'
-        }, ['×'])
-      ]),
+      titleBar('貼り付けオプション', () => {
+        pasteDialog.close();
+        document.body.removeChild(pasteDialog);
+        resolve();
+      }),
       div('選択サイズ： ' + (selection.right - selection.left + 1) +
           ' × ' + (selection.bottom - selection.top + 1)),
       div(createElement('details', {}, [

@@ -115,8 +115,23 @@ function dialog(children) {
   return element;
 }
 
+/**
+ * @param {string} title
+ * @param {() => any} onClose
+ * @returns {HTMLDivElement}
+ */
+function titleBar(title, onClose) {
+  const closeButton = createElement('span',
+      {style: 'cursor: pointer; text-align: end;'}, ['×']);
+  closeButton.addEventListener('click', onClose);
+  return createElement('div', {style: 'display: flex; margin-bottom: 8px'}, [
+    createElement('span', {style: 'flex-grow: 1'}, [title]),
+    closeButton
+  ]);
+}
+
 // #ifdef MODULE
-// export { button, createElement, dialog, div, label };
+// export { button, createElement, dialog, div, label, titleBar };
 // #else
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
@@ -127,5 +142,6 @@ net.asukaze.cassava.dom.createElement = createElement;
 net.asukaze.cassava.dom.dialog = dialog;
 net.asukaze.cassava.dom.div = div;
 net.asukaze.cassava.dom.label = label;
+net.asukaze.cassava.dom.titleBar = titleBar;
 })();
 // #endif
