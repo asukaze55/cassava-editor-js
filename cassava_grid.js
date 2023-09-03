@@ -1657,12 +1657,6 @@ class CassavaGridElement extends HTMLElement {
 
   redo() {}
 
-  /**
-   * @param {string} command
-   * @param  {...any} args
-   */
-  runCommand(command, ...args) {}
-
   /** @param {string} macroName */
   runNamedMacro(macroName) {}
 
@@ -1695,11 +1689,6 @@ function initGrid() {
     element.getMacroNames = () => grid.macroMap.keys();
     element.open = (file, encoding) => open(file, encoding, grid);
     element.redo = () => grid.redo();
-    element.runCommand = (command, ...args) =>
-        runMacro(command + '('
-                 + args.map(toMacroParam).join(',')
-                 + ')',
-                 grid);
     element.runNamedMacro = macroName => runMacro(grid.macroMap.get(macroName), grid);
     element.runMacro = macro => runMacro(macro, grid);
     element.undo = () => grid.undo();

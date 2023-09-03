@@ -95,9 +95,13 @@ function init() {
           }))
     ]);
 
+    const command = command => () => {
+      grid.runMacro(command + '()');
+    };
+
     const ul = createElement('ul', {}, menuItems([
       ['ファイル', toggleSubMenu, [
-        ['新規作成', () => grid.runCommand('New')],
+        ['新規作成', command('New')],
         ['開く...', () => fileInput.click()],
         ['文字コード指定再読み込み ▶', toggleSubMenu, [
           ['UTF-8', () => grid.open(fileInput.files[0], 'UTF-8')],
@@ -106,52 +110,54 @@ function init() {
         ['保存', () => {
           const file = fileInput.files[0];
           const name = file ? file.name : '無題.csv';
-          grid.runCommand('SaveAs', name);
+          grid.runMacro('SaveAs("' + name.toString()
+              .replaceAll('"', '\\"')
+              .replaceAll('\n', '\\n') + '")');
         }]
       ]],
       ['編集', toggleSubMenu, [
         ['元に戻す (Ctrl+Z)', () => grid.undo()],
         ['やり直し (Ctrl+Y)', () => grid.redo()],
-        ['切り取り (Ctrl+X)', () => grid.runCommand('Cut')],
-        ['コピー (Ctrl+C)', () => grid.runCommand('Copy')],
-        ['貼り付け (Ctrl+V)', () => grid.runCommand('Paste')],
-        ['すべて選択 (Ctrl+A)', () => grid.runCommand('SelectAll')],
-        ['行選択 (Shift+Space)', () => grid.runCommand('SelectRow')],
-        ['列選択 (Ctrl+Space)', () => grid.runCommand('SelectCol')],
+        ['切り取り (Ctrl+X)', command('Cut')],
+        ['コピー (Ctrl+C)', command('Copy')],
+        ['貼り付け (Ctrl+V)', command('Paste')],
+        ['すべて選択 (Ctrl+A)', command('SelectAll')],
+        ['行選択 (Shift+Space)', command('SelectRow')],
+        ['列選択 (Ctrl+Space)', command('SelectCol')],
         ['文字変換 ▶', toggleSubMenu, [
-          ['英数・記号を半角に変換', () => grid.runCommand('TransChar0')],
-          ['英数・記号を全角に変換', () => grid.runCommand('TransChar1')],
-          ['英字を大文字に変換', () => grid.runCommand('TransChar2')],
-          ['英字を小文字に変換', () => grid.runCommand('TransChar3')],
-          ['カナを半角に変換', () => grid.runCommand('TransChar4')],
-          ['カナを全角に変換', () => grid.runCommand('TransChar5')],
+          ['英数・記号を半角に変換', command('TransChar0')],
+          ['英数・記号を全角に変換', command('TransChar1')],
+          ['英字を大文字に変換', command('TransChar2')],
+          ['英字を小文字に変換', command('TransChar3')],
+          ['カナを半角に変換', command('TransChar4')],
+          ['カナを全角に変換', command('TransChar5')],
         ]],
         ['連続データ ▶', toggleSubMenu, [
-          ['連番作成', () => grid.runCommand('SequenceS')],
-          ['1 行目をコピー', () => grid.runCommand('SequenceC')],
+          ['連番作成', command('SequenceS')],
+          ['1 行目をコピー', command('SequenceC')],
         ]]
       ]],
       ['挿入・削除', toggleSubMenu, [
-        ['行挿入 (Shift+Enter)', () => grid.runCommand('InsRow')],
-        ['列挿入', () => grid.runCommand('InsCol')],
-        ['行削除', () => grid.runCommand('CutRow')],
-        ['列削除', () => grid.runCommand('CutCol')],
-        ['行分割 (Ctrl+Enter)', () => grid.runCommand('Enter')],
-        ['セル結合 (Ctrl+BkSp)', () => grid.runCommand('ConnectCell')],
+        ['行挿入 (Shift+Enter)', command('InsRow')],
+        ['列挿入', command('InsCol')],
+        ['行削除', command('CutRow')],
+        ['列削除', command('CutCol')],
+        ['行分割 (Ctrl+Enter)', command('Enter')],
+        ['セル結合 (Ctrl+BkSp)', command('ConnectCell')],
         ['セル挿入 ▶', toggleSubMenu, [
-          ['右向き (Ctrl+Ins)', () => grid.runCommand('InsertCellRight')],
-          ['下向き', () => grid.runCommand('InsertCellDown')]
+          ['右向き (Ctrl+Ins)', command('InsertCellRight')],
+          ['下向き', command('InsertCellDown')]
         ]],
         ['セル削除 ▶', toggleSubMenu, [
-          ['左につめる (Ctrl+Del)', () => grid.runCommand('DeleteCellLeft')],
-          ['上につめる (Shift+Ctrl+Del)', () => grid.runCommand('DeleteCellUp')]
+          ['左につめる (Ctrl+Del)', command('DeleteCellLeft')],
+          ['上につめる (Shift+Ctrl+Del)', command('DeleteCellUp')]
         ]]
       ]],
       ['検索', toggleSubMenu, [
-        ['簡易検索... (Ctrl+F)', () => grid.runCommand('QuickFind')],
-        ['検索・置換...', () => grid.runCommand('Find')],
-        ['次を検索 (F3)', () => grid.runCommand('FindNext')],
-        ['前を検索 (Shift+F3)', () => grid.runCommand('FindBack')],
+        ['簡易検索... (Ctrl+F)', command('QuickFind')],
+        ['検索・置換...', command('Find')],
+        ['次を検索 (F3)', command('FindNext')],
+        ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
       ['マクロ', event => toggleMacroMenu(event, grid, [
         ['マクロを追加...', () => macroDialog.show()]
