@@ -1498,18 +1498,6 @@ async function paste(grid, option) {
   grid.render();
 }
 
-function toMacroParam(param) {
-  if (typeof(param) == 'number') {
-    return param;
-  } else {
-    return '"'
-           + param.toString()
-                  .replaceAll('"', '\\"')
-                  .replaceAll('\n', '\\n')
-           + '"';
-  }
-}
-
 /**
  * @param {string} macro
  * @param {Grid} grid
