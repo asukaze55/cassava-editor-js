@@ -1266,12 +1266,23 @@ function gridTouchMove(event, grid) {
 
 /**
  * @param {string} message
+ * @param {string=} title
+ * @param {string=} defaultValue
  * @returns {Promise<string>}
  */
-function inputBoxMultiLine(message) {
+function inputBoxMultiLine(message, title, defaultValue) {
   return new Promise((resolve, reject) => {
-    const textarea = createElement('textarea');
+    const textarea = createElement('textarea', {
+      cols: 40,
+      rows: 10,
+      value: defaultValue || ''
+    });
     const inputBox = dialog([
+      titleBar(title || 'Cassava Macro', () => {
+        inputBox.close();
+        document.body.removeChild(inputBox);
+        reject('Cancelled.');
+      }),
       div(message),
       div(textarea),
       div(button('OK', () => {
@@ -1537,6 +1548,8 @@ async function runMacro(macro, grid) {
   env.set('InputBox/1', a => prompt(a));
   env.set('InputBox/2', (a, b) => prompt(a, b));
   env.set('InputBoxMultiLine/1', a => inputBoxMultiLine(a));
+  env.set('InputBoxMultiLine/2', (a, b) => inputBoxMultiLine(a, null, b));
+  env.set('InputBoxMultiLine/3', (a, b, c) => inputBoxMultiLine(a, b, c));
   env.set('InsCol/0', () => grid.insertCol(grid.selLeft(), grid.selRight(), true));
   env.set('InsRow/0', () => grid.insertRow(grid.selTop(), grid.selBottom(), true));
   env.set('InsertCellDown/0', () => grid.insertCellDown(grid.selection()));
