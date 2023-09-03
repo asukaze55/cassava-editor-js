@@ -1,5 +1,5 @@
 // #ifdef MODULE
-// import { button, createElement, dialog, div } from './cassava_dom.js'
+// import { button, createElement, dialog, div, titleBar } from './cassava_dom.js'
 // import { CassavaGridElement, initGrid } from './cassava_grid.js';
 // #else
 (() => {
@@ -8,6 +8,7 @@ const button = net.asukaze.cassava.dom.button;
 const createElement = net.asukaze.cassava.dom.createElement;
 const dialog = net.asukaze.cassava.dom.dialog;
 const div = net.asukaze.cassava.dom.div;
+const titleBar = net.asukaze.cassava.dom.titleBar;
 // #endif
 
 function menuItem(label, onclick, children) {
@@ -84,15 +85,14 @@ function init() {
     const macroNameInput = createElement('input', {name: 'macro-name', value: '新規マクロ'});
     const macroTextarea = createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
     const macroDialog = dialog([
-      div('マクロ名：', macroNameInput, ' ',
-          button('▶', () => grid.runMacro(macroTextarea.value))),
+      titleBar('マクロを編集', () => macroDialog.close()),
       div(macroTextarea),
-      div(button('追加', () => {
+      div(button('実行', () => grid.runMacro(macroTextarea.value))),
+      div('マクロ名：', macroNameInput, ' ',
+          button('追加', () => {
             grid.addMacro(macroNameInput.value, macroTextarea.value);
             macroDialog.close();
-          }),
-          ' ',
-          button('キャンセル', () => macroDialog.close()))
+          }))
     ]);
 
     const ul = createElement('ul', {}, menuItems([
