@@ -233,8 +233,10 @@ class Grid {
     return this.table().rows[i].cells[x];
   }
 
-  clear() {
+  /** @param {string=} fileName */
+  clear(fileName = '') {
     this.undoGrid.clear();
+    this.fileName = fileName;
     this.isEditing = false;
     this.isMouseDown = false;
     this.mouseDownX = 1;
@@ -348,6 +350,7 @@ class Grid {
     return rowHeight != null ? rowHeight : this.defaultRowHeight;
   }
 
+  /** @returns {GridData} */
   gridData() {
     return this.undoGrid.gridData;
   }
@@ -1363,26 +1366,75 @@ function toCsv(gridData, range) {
   return result;
 }
 
-function open(file, encoding, grid) {
-  if (!file) {
-    return;
+class OpenDialog {
+  #encoding = 'UTF-8';
+  /** @type {HTMLInputElement} */
+  #fileInput;
+  /** @type {Grid} */
+  #grid;
+
+  /** @param {Grid} grid */
+  constructor(grid) {
+    this.#grid = grid;
+    this.#fileInput = createElement('input', {
+      style: 'display: none;',
+      type: 'file'
+    });
+    
   }
-  const reader = new FileReader();
-  reader.readAsText(file, encoding || 'UTF-8');
-  reader.addEventListener('load', () => {
-    grid.clear();
-    parseCsv(reader.result, grid.gridData());
-    grid.render();
-  });
+
+  /**  @returns {Promise?} */
+  load() {
+    const file = this.#fileInput.files[0];
+    if (!file) {
+      return;
+    }
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.readAsText(file, this.#encoding);
+      reader.addEventListener('load', () => {
+        this.#grid.clear(file.name);
+        parseCsv(reader.result, this.#grid.gridData());
+        this.#grid.render();
+        resolve();
+      });
+    });
+  }
+
+  /** @param {string} encoding */
+  async reload(encoding) {
+    this.#encoding = encoding;
+    await this.load();
+  }
+
+  /**  @returns {Promise} */
+  show() {
+    return new Promise(resolve => {
+      this.#fileInput.value = '';
+      const listener = async () => {
+        this.#fileInput.removeEventListener('change', listener);
+        await this.load();
+        resolve();
+      };
+      this.#fileInput.addEventListener('change', listener);
+      this.#fileInput.click();
+    });
+  }
 }
 
-function saveAs(fileName, gridData) {
+/**
+ * @param {string} fileName
+ * @param {Grid} grid
+ */
+function saveAs(fileName, grid) {
+  grid.fileName = fileName;
+  const gridData = grid.gridData();
   const blob = new Blob(
       [toCsv(gridData, gridData.range())],
       {type: "text/csv"});
   if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
     /** @type {any} */(navigator).msSaveOrOpenBlob(blob, fileName);
-    return false;
+    return;
   }
   const url = URL.createObjectURL(blob);
   const a = createElement("a", {
@@ -1393,7 +1445,6 @@ function saveAs(fileName, gridData) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  return false;
 }
 
 /**
@@ -1501,8 +1552,9 @@ async function paste(grid, option) {
 /**
  * @param {string} macro
  * @param {Grid} grid
+ * @param {OpenDialog} openDialog
  */
-async function runMacro(macro, grid) {
+async function runMacro(macro, grid, openDialog) {
   const env = new Environment();
   env.set('Bottom=/0', () => grid.bottom());
   env.set('Bottom=/1', a => grid.setBottom(a));
@@ -1531,6 +1583,8 @@ async function runMacro(macro, grid) {
     return colWidth != null
         ? colWidth : grid.defaultColWidth;
   });
+  env.set('GetFilePath/0', () => '');
+  env.set('GetFileName/0', () => grid.fileName);
   env.set('GetRowHeight/0', () => grid.defaultRowHeight);
   env.set('GetRowHeight/1', a => grid.getRowHeight(a));
   env.set('InputBox/1', a => prompt(a));
@@ -1549,10 +1603,14 @@ async function runMacro(macro, grid) {
   env.set('MessageBox/1', a => alert(a));
   env.set('New/0', () => grid.clear());
   env.set('NewLine/0', () => grid.setCell(grid.x, grid.y, '\n'));
+  env.set('Open/0', () => openDialog.show());
+  env.set('Open/1', () => openDialog.show());
   env.set('Paste/0', () => paste(grid, -1));
   env.set('Paste/1', a => paste(grid, a));
   env.set('QuickFind/0', () => grid.findPanel.show());
   env.set('Refresh/0', () => grid.refresh());
+  env.set('ReloadCodeShiftJIS/0', () => openDialog.reload('Shift_JIS'));
+  env.set('ReloadCodeUTF8/0', () => openDialog.reload('UTF-8'));
   env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.range()));
   env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.range()));
   env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
@@ -1560,7 +1618,9 @@ async function runMacro(macro, grid) {
   env.set('Right=/1', a => grid.setRight(a));
   env.set('Row=/0', () => grid.y);
   env.set('Row=/1', a => grid.moveTo(grid.x, a));
-  env.set('SaveAs/1', a => saveAs(a, grid.gridData()));
+  env.set('Save/0', () => saveAs(grid.fileName || '無題.csv', grid));
+  env.set('SaveAs/0', () => saveAs(prompt("ファイル名を入力してください。"), grid));
+  env.set('SaveAs/1', a => saveAs(a, grid));
   env.set('SelBottom=/0', () => grid.selBottom());
   env.set('SelBottom=/1', a => grid.select(grid.selLeft(), Math.min(a, grid.selTop()), grid.selRight(), a));
   env.set('SelLeft=/0', () => grid.selLeft());
@@ -1637,12 +1697,6 @@ class CassavaGridElement extends HTMLElement {
   /** @returns IterableIterator<string> */
   getMacroNames() {}
 
-  /**
-   * @param {Blob} file
-   * @param {string?} encoding
-   */
-  open(file, encoding) {}
-
   redo() {}
 
   /** @param {string} macroName */
@@ -1673,12 +1727,15 @@ function initGrid() {
         event => gridTouchMove(event, grid),
         {passive: true});
     table.addEventListener('touchend', event => gridTouchMove(event, grid));
-    element.addMacro = (macroName, macroText) => grid.addMacro(macroName, macroText);
+
+    const openDialog = new OpenDialog(grid);
+    element.addMacro =
+        (macroName, macroText) => grid.addMacro(macroName, macroText);
     element.getMacroNames = () => grid.macroMap.keys();
-    element.open = (file, encoding) => open(file, encoding, grid);
     element.redo = () => grid.redo();
-    element.runNamedMacro = macroName => runMacro(grid.macroMap.get(macroName), grid);
-    element.runMacro = macro => runMacro(macro, grid);
+    element.runNamedMacro =
+        macroName => runMacro(grid.macroMap.get(macroName), grid, openDialog);
+    element.runMacro = macro => runMacro(macro, grid, openDialog);
     element.undo = () => grid.undo();
     grid.render();
 

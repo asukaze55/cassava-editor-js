@@ -73,15 +73,6 @@ function init() {
     const grid = /** @type {CassavaGridElement} */(
         document.getElementById(element.getAttribute('for')));
 
-    const fileInput = createElement('input', {
-      style: 'display: none;',
-      type: 'file'
-    });
-    fileInput.addEventListener('change', () => {
-      grid.open(fileInput.files[0], 'UTF-8');
-      closeMenus();
-    });
-
     const macroNameInput = createElement('input', {name: 'macro-name', value: '新規マクロ'});
     const macroTextarea = createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
     const macroDialog = dialog([
@@ -102,18 +93,13 @@ function init() {
     const ul = createElement('ul', {}, menuItems([
       ['ファイル', toggleSubMenu, [
         ['新規作成', command('New')],
-        ['開く...', () => fileInput.click()],
+        ['開く...', command('Open')],
         ['文字コード指定再読み込み ▶', toggleSubMenu, [
-          ['UTF-8', () => grid.open(fileInput.files[0], 'UTF-8')],
-          ['Shift-JIS', () => grid.open(fileInput.files[0], 'Shift_JIS')]
+          ['UTF-8', command('ReloadCodeUTF8')],
+          ['Shift-JIS', command('ReloadCodeShiftJIS')]
         ]],
-        ['保存', () => {
-          const file = fileInput.files[0];
-          const name = file ? file.name : '無題.csv';
-          grid.runMacro('SaveAs("' + name.toString()
-              .replaceAll('"', '\\"')
-              .replaceAll('\n', '\\n') + '")');
-        }]
+        ['保存', command('Save')],
+        ['名前を付けて保存', command('SaveAs')]
       ]],
       ['編集', toggleSubMenu, [
         ['元に戻す (Ctrl+Z)', () => grid.undo()],
@@ -167,7 +153,7 @@ function init() {
         ['GitHub', () => window.open('https://github.com/asukaze55/cassava-editor-js/', '_blank')]
       ]]
     ]));
-    element.append(ul, macroDialog, fileInput);
+    element.append(ul, macroDialog);
   }
 
   closeMenus();
