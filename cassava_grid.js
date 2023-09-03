@@ -998,6 +998,11 @@ function gridKeyDown(event, grid) {
         event.preventDefault();
       }
       return;
+    case 's':
+      if (event.ctrlKey) {
+        saveAs(grid.fileName || '無題.csv', grid);
+        event.preventDefault();
+      }
     case 'v':
       if (event.ctrlKey) {
         if (!grid.isEditing) {
@@ -1619,7 +1624,12 @@ async function runMacro(macro, grid, openDialog) {
   env.set('Row=/0', () => grid.y);
   env.set('Row=/1', a => grid.moveTo(grid.x, a));
   env.set('Save/0', () => saveAs(grid.fileName || '無題.csv', grid));
-  env.set('SaveAs/0', () => saveAs(prompt("ファイル名を入力してください。"), grid));
+  env.set('SaveAs/0', () => {
+    const fileName = prompt("ファイル名を入力してください。");
+    if (fileName) {
+      saveAs(fileName, grid);
+    }
+  });
   env.set('SaveAs/1', a => saveAs(a, grid));
   env.set('SelBottom=/0', () => grid.selBottom());
   env.set('SelBottom=/1', a => grid.select(grid.selLeft(), Math.min(a, grid.selTop()), grid.selRight(), a));

@@ -98,8 +98,7 @@ function init() {
           ['UTF-8', command('ReloadCodeUTF8')],
           ['Shift-JIS', command('ReloadCodeShiftJIS')]
         ]],
-        ['保存', command('Save')],
-        ['名前を付けて保存', command('SaveAs')]
+        ['保存 (Ctrl+S)', command('Save')]
       ]],
       ['編集', toggleSubMenu, [
         ['元に戻す (Ctrl+Z)', () => grid.undo()],
