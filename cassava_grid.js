@@ -1760,7 +1760,7 @@ function initGrid() {
     table.addEventListener('mousedown', event => gridMouseDown(event, grid));
     table.addEventListener('mousemove', event => gridMouseMove(event, grid));
     table.addEventListener('mouseup', event => gridMouseUp(event, grid));
-    table.addEventListener('scroll', () => this.render());
+    table.addEventListener('scroll', () => grid.render());
     table.addEventListener('touchend', event => gridTouchMove(event, grid));
     table.addEventListener('touchmove', event => gridTouchMove(event, grid),
         {passive: true});
