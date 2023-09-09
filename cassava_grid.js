@@ -64,71 +64,77 @@ function sanitize(text) {
 }
 
 class FindDialog {
+  #findTextInput = createElement('input');
+  #replaceInput = createElement('input');
+  #respectCaseInput = createElement('input', {checked: true, type: 'checkbox'});
+  #wholeCellInput = createElement('input', {type: 'checkbox'});
+  #isRegexInput = createElement('input', {type: 'checkbox'});
+  #isUpwardInput = createElement('input', {
+    name: 'cassava-find-direction',
+    type: 'radio'
+  });
+  #isDownwardInput = createElement('input', {
+    checked: true,
+    name: 'cassava-find-direction',
+    type: 'radio'
+  });
+
+  /** @type {Grid} */
+  #grid;
+
   /** @param {Grid} grid */
   constructor(grid) {
-    const findTextInput = createElement('input');
-    const replaceInput = createElement('input');
-    const respectCaseInput =
-        createElement('input', {checked: true, type: 'checkbox'});
-    const wholeCellInput = createElement('input', {type: 'checkbox'});
-    const isRegexInput = createElement('input', {type: 'checkbox'});
-    const isUpwardInput = createElement('input', {
-      name: 'cassava-find-direction',
-      type: 'radio'
-    });
-    const isDownwardInput = createElement('input', {
-      checked: true,
-      name: 'cassava-find-direction',
-      type: 'radio'
-    });
+    this.#grid = grid;
+
     const buttonAttributes = {style: 'margin-bottom: 4px; width: 100%;'};
     this.element = dialog([
       titleBar('検索・置換', () => this.element.close()),
       createElement('div', {style: 'display: flex;'}, [
         div(div(createElement('fieldset', {}, [
-              div(label('検索する文字列：', findTextInput)),
-              div(label('置換後の文字列：', replaceInput)),
-              div(label(respectCaseInput, '大文字と小文字を区別')),
-              div(label(wholeCellInput, 'セル内容が完全に同一であるものを検索')),
-              div(label(isRegexInput, '正規表現検索')),
+              div(label('検索する文字列：', this.#findTextInput)),
+              div(label('置換後の文字列：', this.#replaceInput)),
+              div(label(this.#respectCaseInput, '大文字と小文字を区別')),
+              div(label(this.#wholeCellInput,
+                  'セル内容が完全に同一であるものを検索')),
+              div(label(this.#isRegexInput, '正規表現検索')),
             ])),
             div(createElement('fieldset', {}, [
               createElement('legend', {}, ['検索方向']),
-              label(isUpwardInput, '左・上へ'),
-              label(isDownwardInput, '右・下へ')
+              label(this.#isUpwardInput, '左・上へ'),
+              label(this.#isDownwardInput, '右・下へ')
             ]))),
         createElement('div', {style: 'margin-left: 16px;'}, [
           div(button('先頭から検索', () => {
-            if (isUpwardInput.checked) {
+            if (this.#isUpwardInput.checked) {
               grid.moveTo(grid.right(), grid.bottom());
             } else {
               grid.moveTo(1, 1);
             }
-            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
           div(button('次を検索', () => {
-            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
           div(button('置換して次に', () => {
             grid.replaceAll(
-                findTextInput.value,
-                replaceInput.value,
-                !(respectCaseInput.checked),
-                wholeCellInput.checked,
-                isRegexInput.checked,
+              this.#findTextInput.value,
+              this.#replaceInput.value,
+                !(this.#respectCaseInput.checked),
+                this.#wholeCellInput.checked,
+                this.#isRegexInput.checked,
                 new Range(grid.x, grid.y, grid.x, grid.y));
-            grid.findNext(isUpwardInput.checked ? -1 : 1);
+            this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
           div(button('すべて置換', () => {
             grid.replaceAll(
-                findTextInput.value,
-                replaceInput.value,
-                !(respectCaseInput.checked),
-                wholeCellInput.checked,
-                isRegexInput.checked,
+                this.#findTextInput.value,
+                this.#replaceInput.value,
+                !(this.#respectCaseInput.checked),
+                this.#wholeCellInput.checked,
+                this.#isRegexInput.checked,
                 grid.range());
             grid.render();
           }, buttonAttributes)),
@@ -136,15 +142,42 @@ class FindDialog {
         ])
       ])
     ]);
-
-    this.findText = () => findTextInput.value;
-    this.setFindText = value => {
-      findTextInput.value = value;
-    };
-    this.ignoreCase = () => !(respectCaseInput.checked);
-    this.wholeCell = () => wholeCellInput.checked;
-    this.isRegex = () => isRegexInput.checked;
   }
+
+  /** @param {number} step */
+  findNext(step) {
+    const grid = this.#grid;
+    const finder = createFinder(
+        this.#findTextInput.value,
+        !(this.#respectCaseInput.checked),
+        this.#wholeCellInput.checked,
+        this.#isRegexInput.checked);
+    let x = grid.x + step;
+    let y = grid.y;
+    const right = grid.right();
+    const bottom = grid.bottom();
+    while (y >= 1 && y <= bottom) {
+      while (x >= 1 && x <= right) {
+        if (finder(grid.cell(x, y))) {
+          grid.moveTo(x, y);
+          return;
+        }
+        x += step;
+      }
+      y += step;
+      x = step > 0 ? 1 : right;
+    }
+  }
+
+  /** @returns {string} */
+  findText() {
+    return this.#findTextInput.value;
+  }
+
+  /** @param {string} value */
+  setFindText(value) {
+    this.#findTextInput.value = value;
+  };
 
   show() {
     this.element.show();
@@ -155,72 +188,88 @@ class FindDialog {
 }
 
 class FindPanel {
-  /** @param {Grid} grid */
-  constructor(grid) {
+  #findTextInput = createElement('input');
+
+  /** @type {Grid} */
+  #grid;
+  /** @type {FindDialog} */
+  #findDialog;
+
+  /**
+   * @param {Grid} grid
+   * @param {FindDialog} findDialog
+   */
+  constructor(grid, findDialog) {
+    this.#grid = grid;
+    this.#findDialog = findDialog;
+
     const updateFindText = () => {
-      grid.findDialog.setFindText(findTextInput.value);
+      findDialog.setFindText(this.#findTextInput.value);
     }
-    const findTextInput = createElement('input', {onchange: updateFindText});
+    this.#findTextInput.addEventListener('change', updateFindText);
     const buttonAttributes = {style: 'margin: 4px 0 4px 4px;'};
     this.element = createElement('div', {style: 'display: none;'}, [
       createElement('span', {
         onclick: () => {
           this.element.style.display = 'none';
+          grid.panelHeight = 0;
           grid.render();
         },
         style: 'cursor: pointer; padding: 8px;'
       }, ['×']),
       '検索：',
-      findTextInput,
+      this.#findTextInput,
       button('⇩ 次', () => {
         updateFindText();
-        grid.findNext(1);
+        findDialog.findNext(1);
       }, buttonAttributes),
       button('⇧ 前', () => {
         updateFindText();
-        grid.findNext(-1);
+        findDialog.findNext(-1);
       }, buttonAttributes),
-      button('オプション', () => grid.findDialog.show(), buttonAttributes)
+      button('オプション', () => findDialog.show(), buttonAttributes)
     ]);
+  }
 
-    this.show = () => {
-      findTextInput.value = grid.findDialog.findText();
-      this.element.style.display = '';
-      findTextInput.focus();
-    }
+  show() {
+    this.#findTextInput.value = this.#findDialog.findText();
+    this.element.style.display = '';
+    this.#grid.panelHeight = this.element.getBoundingClientRect().height;
+    this.#grid.render();
+    this.#findTextInput.focus();
   }
 }
 
 class Grid {
-  constructor(element, gridData) {
-    this.element = element;
-    this.undoGrid = new UndoGrid(gridData);
-    this.macroMap = new Map();
-    this.findDialog = new FindDialog(this);
-    this.findPanel = new FindPanel(this);
-    this.suppressRender = 0;
+  /** @type {UndoGrid} */
+  #undoGrid;
+  /** @type {number} */
+  #suppressRender;
+  /** @type {number} */
+  #renderedTop;
+  /** @type {number} */
+  #renderedBottom;
+
+  /** @param {GridData} gridData */
+  constructor(gridData) {
+    this.element = createElement('table', {tabIndex: -1});
+    this.panelHeight = 0;
+    this.#undoGrid = new UndoGrid(gridData);    
+    this.#suppressRender = 0;
     this.clear();
   }
 
-  addMacro(macroName, macroText) {
-    if (macroText == '') {
-      this.macroMap.delete(macroName);
-    } else {
-      this.macroMap.set(macroName, macroText);
-    }
-  }
-
   beginMacro() {
-    this.undoGrid.push();
-    this.suppressRender++;
+    this.#undoGrid.push();
+    this.#suppressRender++;
   }
 
   bottom() {
-    return this.undoGrid.bottom();
+    return this.#undoGrid.bottom();
   }
 
   cell(x, y) {
-    return this.undoGrid.cell(x, y);
+    return this.#undoGrid.cell(x, y);
   }
 
   /**
@@ -229,13 +278,13 @@ class Grid {
    * @returns {HTMLTableCellElement}
    */
   cellNode(x, y) {
-    const i = (y == 0) ? 0 : y - this.renderedTop + 1;
-    return this.table().rows[i].cells[x];
+    const i = (y == 0) ? 0 : y - this.#renderedTop + 1;
+    return this.element.rows[i].cells[x];
   }
 
   /** @param {string=} fileName */
   clear(fileName = '') {
-    this.undoGrid.clear();
+    this.#undoGrid.clear();
     this.fileName = fileName;
     this.isEditing = false;
     this.isMouseDown = false;
@@ -249,12 +298,12 @@ class Grid {
     this.anchorY = 1;
     this.x = 1;
     this.y = 1;
-    this.renderedTop = 1;
-    this.renderedBottom = 0;
+    this.#renderedTop = 1;
+    this.#renderedBottom = 0;
   }
 
   clearCells(range) {
-    this.undoGrid.clearCells(range);
+    this.#undoGrid.clearCells(range);
   }
 
   connectCells(range) {
@@ -264,35 +313,35 @@ class Grid {
     const r = range.right;
     const b = range.bottom;
     if (r > l || b > t) {
-      this.undoGrid.push();
+      this.#undoGrid.push();
       let result = '';
       for (let y = t; y <= b; y++) {
         for (let x = l; x <= r; x++) {
-          result += this.undoGrid.cell(x, y);
-          this.undoGrid.setCell(x, y, '');
+          result += this.#undoGrid.cell(x, y);
+          this.#undoGrid.setCell(x, y, '');
         }
       }
-      this.undoGrid.setCell(l, t, result);
-      this.undoGrid.pop(range, range);
+      this.#undoGrid.setCell(l, t, result);
+      this.#undoGrid.pop(range, range);
       this.select(l, t, r, b);
     } else if (l > 1) {
-      this.undoGrid.push();
-      this.undoGrid.setCell(l - 1, t, this.undoGrid.cell(l - 1, t) + this.undoGrid.cell(l, t));
-      this.undoGrid.deleteCellLeft(new Range(l, t, l, t));
-      this.undoGrid.pop(range, new Range(l - 1, t, l - 1, t));
+      this.#undoGrid.push();
+      this.#undoGrid.setCell(l - 1, t, this.#undoGrid.cell(l - 1, t) + this.#undoGrid.cell(l, t));
+      this.#undoGrid.deleteCellLeft(new Range(l, t, l, t));
+      this.#undoGrid.pop(range, new Range(l - 1, t, l - 1, t));
       this.moveTo(l - 1, t);
     } else if (t > 1) {
-      this.undoGrid.push();
-      const right = this.undoGrid.right();
+      this.#undoGrid.push();
+      const right = this.#undoGrid.right();
       let ux = right;
-      while(ux > 0 && this.undoGrid.cell(ux, t - 1) == '') {
+      while(ux > 0 && this.#undoGrid.cell(ux, t - 1) == '') {
         ux--;
       }
       for (let x = 1; x <= right; x++) {
-        this.undoGrid.setCell(x + ux, t - 1, this.undoGrid.cell(x, t));
+        this.#undoGrid.setCell(x + ux, t - 1, this.#undoGrid.cell(x, t));
       }
-      this.undoGrid.deleteRow(t, t);
-      this.undoGrid.pop(range, new Range(ux + 1, t - 1, ux + 1, t - 1));
+      this.#undoGrid.deleteRow(t, t);
+      this.#undoGrid.pop(range, new Range(ux + 1, t - 1, ux + 1, t - 1));
       this.moveTo(ux + 1, t - 1);
     } else {
       this.moveTo(l, t);
@@ -300,49 +349,25 @@ class Grid {
   }
 
   deleteCellUp(range) {
-    this.undoGrid.deleteCellUp(range);
+    this.#undoGrid.deleteCellUp(range);
   }
 
   deleteCellLeft(range) {
-    this.undoGrid.deleteCellLeft(range);
+    this.#undoGrid.deleteCellLeft(range);
   }
 
   deleteCol(l, r) {
-    this.undoGrid.deleteCol(l, r);
+    this.#undoGrid.deleteCol(l, r);
   }
 
   deleteRow(t, b) {
-    this.undoGrid.deleteRow(t, b);
+    this.#undoGrid.deleteRow(t, b);
   }
 
   endMacro() {
     const range = this.selection();
-    this.undoGrid.pop(range, range);
-    this.suppressRender--;
-  }
-
-  /** @param {number} step */
-  findNext(step) {
-    const finder = createFinder(
-        this.findDialog.findText(),
-        this.findDialog.ignoreCase(),
-        this.findDialog.wholeCell(),
-        this.findDialog.isRegex());
-    let x = this.x + step;
-    let y = this.y;
-    const right = this.right();
-    const bottom = this.bottom();
-    while (y >= 1 && y <= bottom) {
-      while (x >= 1 && x <= right) {
-        if (finder(this.cell(x, y))) {
-          this.moveTo(x, y);
-          return;
-        }
-        x += step;
-      }
-      y += step;
-      x = step > 0 ? 1 : right;
-    }
+    this.#undoGrid.pop(range, range);
+    this.#suppressRender--;
   }
 
   getRowHeight(y) {
@@ -352,19 +377,19 @@ class Grid {
 
   /** @returns {GridData} */
   gridData() {
-    return this.undoGrid.gridData;
+    return this.#undoGrid.gridData;
   }
 
   insertCellDown(range) {
-    this.undoGrid.insertCellDown(range);
+    this.#undoGrid.insertCellDown(range);
   }
 
   insertCellRight(range) {
-    this.undoGrid.insertCellRight(range);
+    this.#undoGrid.insertCellRight(range);
   }
 
   insertCol(l, r, move) {
-    this.undoGrid.insertCol(l, r);
+    this.#undoGrid.insertCol(l, r);
     if (move) {
       this.moveTo(l, 1);
     } else {
@@ -378,7 +403,7 @@ class Grid {
   }
 
   insertRow(t, b, move) {
-    this.undoGrid.insertRow(t, b);
+    this.#undoGrid.insertRow(t, b);
     if (move) {
       this.moveTo(1, t);
     } else {
@@ -396,17 +421,17 @@ class Grid {
     const t = this.selTop();
     const l = this.selLeft();
     blurActiveElement();
-    this.undoGrid.push();
-    const cellText = this.undoGrid.cell(l, t);
+    this.#undoGrid.push();
+    const cellText = this.#undoGrid.cell(l, t);
     const selStart = Math.min(selAnchor, selFocus);
-    this.undoGrid.insertRow(t + 1, t + 1);
-    this.undoGrid.setCell(1, t + 1, cellText.substring(selStart));
-    this.undoGrid.setCell(l, t, cellText.substring(0, selStart))
-    for (let x = l + 1; x <= this.undoGrid.right(); x++) {
-      this.undoGrid.setCell(x - l + 1, t + 1, this.undoGrid.cell(x, t));
-      this.undoGrid.setCell(x, t, '');
+    this.#undoGrid.insertRow(t + 1, t + 1);
+    this.#undoGrid.setCell(1, t + 1, cellText.substring(selStart));
+    this.#undoGrid.setCell(l, t, cellText.substring(0, selStart))
+    for (let x = l + 1; x <= this.#undoGrid.right(); x++) {
+      this.#undoGrid.setCell(x - l + 1, t + 1, this.#undoGrid.cell(x, t));
+      this.#undoGrid.setCell(x, t, '');
     }
-    this.undoGrid.pop(this.selection(), new Range(1, t + 1, this.selRight() - l + 1, t + 1));
+    this.#undoGrid.pop(this.selection(), new Range(1, t + 1, this.selRight() - l + 1, t + 1));
     if (isEditing) {
       this.selectText(1, t + 1, selAnchor - selStart, selFocus - selStart);
     } else {
@@ -423,12 +448,12 @@ class Grid {
     this.anchorY = y;
     this.x = x;
     this.y = y;
-    if (y < this.renderedTop || y > this.renderedBottom) {
-      this.renderedTop = y;
-      this.renderedBottom = 0;
-      this.table().innerHTML = '';
+    if (y < this.#renderedTop || y > this.#renderedBottom) {
+      this.#renderedTop = y;
+      this.#renderedBottom = 0;
+      this.element.innerHTML = '';
     }
-    if (this.suppressRender > 0) {
+    if (this.#suppressRender > 0) {
       return;
     }
     this.render();
@@ -455,36 +480,36 @@ class Grid {
     const targetRange = new Range(l, t, l + targetCols - 1, t + targetRows - 1);
     switch (way) {
       case 1:
-        this.undoGrid.pasteRepeat(clipData, targetRange);
+        this.#undoGrid.pasteRepeat(clipData, targetRange);
         return;
       case 3:
-        this.undoGrid.push();
-        this.undoGrid.insertCellRight(targetRange);
-        this.undoGrid.paste(clipData, targetRange);
-        this.undoGrid.pop(targetRange, targetRange);
+        this.#undoGrid.push();
+        this.#undoGrid.insertCellRight(targetRange);
+        this.#undoGrid.paste(clipData, targetRange);
+        this.#undoGrid.pop(targetRange, targetRange);
         return;
       case 4:
-        this.undoGrid.push();
-        this.undoGrid.insertCellDown(targetRange);
-        this.undoGrid.paste(clipData, targetRange);
-        this.undoGrid.pop(targetRange, targetRange);
+        this.#undoGrid.push();
+        this.#undoGrid.insertCellDown(targetRange);
+        this.#undoGrid.paste(clipData, targetRange);
+        this.#undoGrid.pop(targetRange, targetRange);
         return;
       case 5:
-        this.undoGrid.setCell(this.x, this.y, clipText);
+        this.#undoGrid.setCell(this.x, this.y, clipText);
         return;
       default:
-        this.undoGrid.paste(clipData, targetRange);
+        this.#undoGrid.paste(clipData, targetRange);
         return;
     }
   }
 
   range() {
-    return this.undoGrid.range();
+    return this.#undoGrid.range();
   }
 
   redo() {
     blurActiveElement();
-    const range = this.undoGrid.redo();
+    const range = this.#undoGrid.redo();
     this.render();
     this.select(range.left, range.top, range.right, range.bottom);
   }
@@ -494,29 +519,30 @@ class Grid {
   }
 
   render() {
-    if (this.suppressRender > 0) {
+    if (this.#suppressRender > 0) {
       return;
     }
-    const table = this.table();
-    table.style.maxHeight = this.element.getAttribute('max-height')
-        || (window.innerHeight - 16
-            - this.findPanel.element.getBoundingClientRect().height
-            - table.getBoundingClientRect().top) + 'px';
-    table.style.width = this.element.getAttribute('width');
-    const bottom = Math.max(4, this.undoGrid.bottom() + 1, this.y, this.anchorY);
-    while (table.rows.length > bottom - this.renderedTop + 2) {
+    const table = this.element;
+    if (table.parentElement) {
+      table.style.maxHeight = table.parentElement.getAttribute('max-height')
+          || (window.innerHeight - 16 - this.panelHeight
+              - table.getBoundingClientRect().top) + 'px';
+      table.style.width = table.parentElement.getAttribute('width');
+    }
+    const bottom = Math.max(4, this.#undoGrid.bottom() + 1, this.y, this.anchorY);
+    while (table.rows.length > bottom - this.#renderedTop + 2) {
       table.deleteRow(-1);
     }
     const headerRow = (table.rows.length > 0) ? table.rows[0] : table.insertRow();
-    const right = Math.max(4, this.undoGrid.right() + 1, this.x, this.anchorX);
+    const right = Math.max(4, this.#undoGrid.right() + 1, this.x, this.anchorX);
     this.renderRow(headerRow, 0, right);
     const tableTop = table.getBoundingClientRect().top;
-    this.renderedBottom = bottom;
-    for (let y = this.renderedTop; y <= bottom; y++) {
-      const i = y - this.renderedTop + 1;
+    this.#renderedBottom = bottom;
+    for (let y = this.#renderedTop; y <= bottom; y++) {
+      const i = y - this.#renderedTop + 1;
       const row = (i < table.rows.length) ? table.rows[i] : table.insertRow();
       if (row.getBoundingClientRect().top - tableTop > screen.height * 2) {
-        this.renderedBottom = y - 1;
+        this.#renderedBottom = y - 1;
         break;
       }
       const rowHeight = this.getRowHeight(y);
@@ -531,14 +557,14 @@ class Grid {
       this.renderRow(row, y, right);
     }
     if (table.rows[1].getBoundingClientRect().bottom > tableTop) {
-      const count = Math.min(10, this.renderedTop - 1);
+      const count = Math.min(10, this.#renderedTop - 1);
       let prerenderedHeight = 0;
       for (let i = 1; i <= count; i++) {
         const row = table.insertRow(1);
-        this.renderRow(row, this.renderedTop - i, right);
+        this.renderRow(row, this.#renderedTop - i, right);
         prerenderedHeight += row.getBoundingClientRect().height;
       }
-      this.renderedTop -= count;
+      this.#renderedTop -= count;
       if (table.scrollTop == 0) {
         table.scrollTop = prerenderedHeight;
       }
@@ -595,11 +621,11 @@ class Grid {
       let html = '';
       if (x == 0 && y == 0) {
       } else if (y == 0) {
-        html = (x <= this.undoGrid.right()) ? x.toString() : '&nbsp;';
+        html = (x <= this.#undoGrid.right()) ? x.toString() : '&nbsp;';
       } else if (x == 0) {
-        html = (y <= this.undoGrid.bottom()) ? y.toString() : '&nbsp;';
+        html = (y <= this.#undoGrid.bottom()) ? y.toString() : '&nbsp;';
       } else if (!isEditing) {
-        html = this.undoGrid.cell(x, y).split('\n')
+        html = this.#undoGrid.cell(x, y).split('\n')
             .map(line => sanitize(line) + '<br>')
             .join('')
       }
@@ -621,11 +647,11 @@ class Grid {
   }
 
   replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
-    this.undoGrid.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
+    this.#undoGrid.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
   }
 
   right() {
-    return this.undoGrid.right();
+    return this.#undoGrid.right();
   }
 
   selBottom() {
@@ -653,7 +679,7 @@ class Grid {
       return;
     }
     blurActiveElement();
-    this.table().focus();
+    this.element.focus();
     this.isEditing = false;
     this.anchorX = x1;
     this.anchorY = y1;
@@ -663,15 +689,15 @@ class Grid {
   }
 
   selectAll() {
-    this.select(1, 1, this.undoGrid.right(), this.undoGrid.bottom());
+    this.select(1, 1, this.#undoGrid.right(), this.#undoGrid.bottom());
   }
 
   selectCol(l, r) {
-    this.select(l, 1, r, this.undoGrid.bottom());
+    this.select(l, 1, r, this.#undoGrid.bottom());
   }
 
   selectRow(t, b) {
-    this.select(1, t, this.undoGrid.right(), b);
+    this.select(1, t, this.#undoGrid.right(), b);
   }
 
   /**
@@ -725,16 +751,16 @@ class Grid {
   }
 
   setBottom(b) {
-    this.undoGrid.setBottom(b);
+    this.#undoGrid.setBottom(b);
   }
 
   setCell(x, y, value) {
-    this.undoGrid.setCell(x, y, value);
+    this.#undoGrid.setCell(x, y, value);
     this.render();
   }
 
   setRight(r) {
-    this.undoGrid.setRight(r);
+    this.#undoGrid.setRight(r);
   }
 
   setRowHeight(y, h) {
@@ -742,50 +768,37 @@ class Grid {
   }
 
   sequenceC(range) {
-    this.undoGrid.sequenceC(range);
+    this.#undoGrid.sequenceC(range);
   }
 
   sequenceS(range) {
-    this.undoGrid.sequenceS(range);
+    this.#undoGrid.sequenceS(range);
   }
 
   sort(range, p, dir, num, ignoreCase, zenhan) {
-    this.undoGrid.sort(range, p, dir, num, ignoreCase, zenhan);
+    this.#undoGrid.sort(range, p, dir, num, ignoreCase, zenhan);
   }
 
   sumAndAvr(range) {
-    return this.undoGrid.sumAndAvr(range);
-  }
-
-  /** @returns {HTMLTableElement} */
-  table() {
-    const existingElement = this.element.firstElementChild;
-    if (existingElement && existingElement.tagName == 'TABLE') {
-      return existingElement;
-    }
-    const table = createElement('table', {tabIndex: -1});
-    this.element.innerHTML = '';
-    this.element.append(table, this.findPanel.element, this.findDialog.element);
-    table.addEventListener('scroll', () => this.render());
-    return table;
+    return this.#undoGrid.sumAndAvr(range);
   }
 
   undo() {
     blurActiveElement();
-    const range = this.undoGrid.undo();
+    const range = this.#undoGrid.undo();
     this.render();
     this.select(range.left, range.top, range.right, range.bottom);
   }
 
   updateSelectedCells(callback) {
     const range = this.selection();
-    this.undoGrid.push();
+    this.#undoGrid.push();
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
-        this.undoGrid.setCell(x, y, callback(this.undoGrid.cell(x, y)));
+        this.#undoGrid.setCell(x, y, callback(this.#undoGrid.cell(x, y)));
       }
     }
-    this.undoGrid.pop(range, range);
+    this.#undoGrid.pop(range, range);
   }
 }
 
@@ -954,8 +967,10 @@ function containsLastPosition(selection, cellNode) {
 /**
  * @param {KeyboardEvent} event
  * @param {Grid} grid
+ * @param {FindDialog} findDialog
+ * @param {FindPanel} findPanel
  */
-function gridKeyDown(event, grid) {
+function gridKeyDown(event, grid, findDialog, findPanel) {
   const selection = window.getSelection();
   let cellNode = grid.isEditing ? getCellNode(selection.focusNode) : null;
   let x = grid.x;
@@ -994,7 +1009,7 @@ function gridKeyDown(event, grid) {
       return;
     case 'f':
       if (event.ctrlKey) {
-        grid.findPanel.show();
+        findPanel.show();
         event.preventDefault();
       }
       return;
@@ -1154,9 +1169,9 @@ function gridKeyDown(event, grid) {
       return;
     case 'F3':
       if (event.shiftKey) {
-        grid.findNext(-1);
+        findDialog.findNext(-1);
       } else {
-        grid.findNext(1);
+        findDialog.findNext(1);
       }
       event.preventDefault();
       return;
@@ -1228,8 +1243,12 @@ function gridMouseUp(event, grid) {
   grid.isMouseDown = false;
 }
 
-function touchedCell(touch, element) {
-  const table = element.firstElementChild;
+/**
+ * @param {Touch} touch
+ * @param {HTMLTableElement} table
+ * @returns {HTMLTableCellElement?}
+ */
+function touchedCell(touch, table) {
   let y = 0;
   for (const row of table.rows) {
     if (touch.clientY
@@ -1557,9 +1576,12 @@ async function paste(grid, option) {
 /**
  * @param {string} macro
  * @param {Grid} grid
+ * @param {FindDialog} findDialog
+ * @param {FindPanel} findPanel
+ * @param {Map<string, string>} macroMap
  * @param {OpenDialog} openDialog
  */
-async function runMacro(macro, grid, openDialog) {
+async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog) {
   const env = new Environment();
   env.set('Bottom=/0', () => grid.bottom());
   env.set('Bottom=/1', a => grid.setBottom(a));
@@ -1579,9 +1601,9 @@ async function runMacro(macro, grid, openDialog) {
   env.set('DeleteCol/1', a => grid.deleteCol(a, a));
   env.set('DeleteRow/1', a => grid.deleteRow(a, a));
   env.set('Enter/0', () => grid.insertRowAtCursor(0, 0));
-  env.set('Find/0', () => grid.findDialog.show());
-  env.set('FindBack/0', () => grid.findNext(-1));
-  env.set('FindNext/0', () => grid.findNext(1));
+  env.set('Find/0', () => findDialog.show());
+  env.set('FindBack/0', () => findDialog.findNext(-1));
+  env.set('FindNext/0', () => findDialog.findNext(1));
   env.set('GetColWidth/0', () => grid.defaultColWidth);
   env.set('GetColWidth/1', a => {
     const colWidth = grid.colWidths.get(a - 0);
@@ -1612,7 +1634,7 @@ async function runMacro(macro, grid, openDialog) {
   env.set('Open/1', () => openDialog.show());
   env.set('Paste/0', () => paste(grid, -1));
   env.set('Paste/1', a => paste(grid, a));
-  env.set('QuickFind/0', () => grid.findPanel.show());
+  env.set('QuickFind/0', () => findPanel.show());
   env.set('Refresh/0', () => grid.refresh());
   env.set('ReloadCodeShiftJIS/0', () => openDialog.reload('Shift_JIS'));
   env.set('ReloadCodeUTF8/0', () => openDialog.reload('UTF-8'));
@@ -1686,7 +1708,7 @@ async function runMacro(macro, grid, openDialog) {
   if (macro) {
     grid.beginMacro();
     try {
-      await run(macro, env, grid.macroMap);
+      await run(macro, env, macroMap);
     } catch(e) {
       alert(e);
       throw e;
@@ -1724,28 +1746,40 @@ const gridElements = [];
 function initGrid() {
   for (const element of /** @type {HTMLCollectionOf<CassavaGridElement>} */(
       document.getElementsByTagName('cassava-grid'))) {
-    const grid = new Grid(element, new GridData());
-    const table = grid.table();
+    const grid = new Grid(new GridData());
+    const findDialog = new FindDialog(grid);
+    const findPanel = new FindPanel(grid, findDialog);
+    const table = grid.element;
+    element.innerHTML = '';
+    element.append(table, findPanel.element, findDialog.element);
     table.addEventListener('focusin', event => gridFocusIn(event, grid));
     table.addEventListener('focusout', event => gridFocusOut(event, grid));
-    table.addEventListener('keydown', event => gridKeyDown(event, grid));
+    table.addEventListener('input', event => gridInput(event, grid));
+    table.addEventListener('keydown',
+        event => gridKeyDown(event, grid, findDialog, findPanel));
     table.addEventListener('mousedown', event => gridMouseDown(event, grid));
     table.addEventListener('mousemove', event => gridMouseMove(event, grid));
     table.addEventListener('mouseup', event => gridMouseUp(event, grid));
-    table.addEventListener('input', event => gridInput(event, grid));
-    table.addEventListener('touchmove',
-        event => gridTouchMove(event, grid),
-        {passive: true});
+    table.addEventListener('scroll', () => this.render());
     table.addEventListener('touchend', event => gridTouchMove(event, grid));
+    table.addEventListener('touchmove', event => gridTouchMove(event, grid),
+        {passive: true});
 
+    const macroMap = new Map();
     const openDialog = new OpenDialog(grid);
-    element.addMacro =
-        (macroName, macroText) => grid.addMacro(macroName, macroText);
-    element.getMacroNames = () => grid.macroMap.keys();
+    element.addMacro = (macroName, macroText) => {
+      if (macroText == '') {
+        macroMap.delete(macroName);
+      } else {
+        macroMap.set(macroName, macroText);
+      }
+    };
+    element.getMacroNames = () => macroMap.keys();
     element.redo = () => grid.redo();
-    element.runNamedMacro =
-        macroName => runMacro(grid.macroMap.get(macroName), grid, openDialog);
-    element.runMacro = macro => runMacro(macro, grid, openDialog);
+    element.runNamedMacro = macroName => runMacro(macroMap.get(macroName), grid,
+        findDialog, findPanel, macroMap, openDialog);
+    element.runMacro = macro =>
+        runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog);
     element.undo = () => grid.undo();
     grid.render();
 
