@@ -80,7 +80,7 @@ class Environment {
     this.functions = (parent != null)
         ? parent.functions : new Map();
     this.loop = (parent != null)
-        ? parent.loop - 1: 1000;
+        ? parent.loop - 1: 1000000;
   }
 
   init() {
