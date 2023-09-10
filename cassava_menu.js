@@ -101,8 +101,8 @@ function init() {
         ['保存 (Ctrl+S)', command('Save')]
       ]],
       ['編集', toggleSubMenu, [
-        ['元に戻す (Ctrl+Z)', () => grid.undo()],
-        ['やり直し (Ctrl+Y)', () => grid.redo()],
+        ['元に戻す (Ctrl+Z)', command('Undo')],
+        ['やり直し (Ctrl+Y)', command('Redo')],
         ['切り取り (Ctrl+X)', command('Cut')],
         ['コピー (Ctrl+C)', command('Copy')],
         ['貼り付け (Ctrl+V)', command('Paste')],

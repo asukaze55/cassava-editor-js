@@ -507,8 +507,10 @@ class Grid {
   redo() {
     blurActiveElement();
     const range = this.#undoGrid.redo();
-    this.render();
-    this.select(range.left, range.top, range.right, range.bottom);
+    if (range) {
+      this.render();
+      this.select(range.left, range.top, range.right, range.bottom);
+    }
   }
 
   refresh() {
@@ -777,8 +779,10 @@ class Grid {
   undo() {
     blurActiveElement();
     const range = this.#undoGrid.undo();
-    this.render();
-    this.select(range.left, range.top, range.right, range.bottom);
+    if (range) {
+      this.render();
+      this.select(range.left, range.top, range.right, range.bottom);
+    }
   }
 
   updateSelectedCells(callback) {
@@ -1626,6 +1630,7 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
   env.set('Paste/0', () => paste(grid, -1));
   env.set('Paste/1', a => paste(grid, a));
   env.set('QuickFind/0', () => findPanel.show());
+  env.set('Redo/0', () => grid.redo());
   env.set('Refresh/0', () => grid.refresh());
   env.set('ReloadCodeShiftJIS/0', () => openDialog.reload('Shift_JIS'));
   env.set('ReloadCodeUTF8/0', () => openDialog.reload('UTF-8'));
@@ -1675,6 +1680,7 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
   env.set('TransChar3/0', () => grid.updateSelectedCells(value => value.toLowerCase()));
   env.set('TransChar4/0', () => grid.updateSelectedCells(toHankakuKana));
   env.set('TransChar5/0', () => grid.updateSelectedCells(toZenkakuKana));
+  env.set('Undo/0', () => grid.undo());
   env.set('avr/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).avr);
   env.set('cell/2', (a, b) => {
     const value = grid.cell(a, b);
@@ -1720,15 +1726,11 @@ class CassavaGridElement extends HTMLElement {
   /** @returns IterableIterator<string> */
   getMacroNames() {}
 
-  redo() {}
-
   /** @param {string} macroName */
   runNamedMacro(macroName) {}
 
   /** @param {string} macro */
   runMacro(macro) {}
-
-  undo() {}
 }
 
 const onReadyCallbacks = [];
@@ -1766,12 +1768,10 @@ function initGrid() {
       }
     };
     element.getMacroNames = () => macroMap.keys();
-    element.redo = () => grid.redo();
     element.runNamedMacro = macroName => runMacro(macroMap.get(macroName), grid,
         findDialog, findPanel, macroMap, openDialog);
     element.runMacro = macro =>
         runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog);
-    element.undo = () => grid.undo();
     grid.render();
 
     for (const callback of onReadyCallbacks) {

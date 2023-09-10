@@ -220,6 +220,7 @@ class UndoGrid {
     return this.gridData.range();
   }
 
+  /** @returns {Range?} */
   redo() {
     if (this.redoList.length == 0) {
       return;
@@ -301,11 +302,17 @@ class UndoGrid {
     return this.gridData.sumAndAvr(range);
   }
 
+  /** @returns {Range?} */
   undo() {
-    if (this.undoList.length == 0) {
+    let action;
+    if (this.undoList.length > 0) {
+      action = this.undoList.pop();
+    } else if (this.undoGroups.length > 0
+               && this.undoGroups.at(-1).length > 0) {
+      action = this.undoGroups.at(-1).pop();
+    } else {
       return;
     }
-    const action = this.undoList.pop();
     this.redoList.push(action);
     action.undo(this.gridData);
     return action.undoRange;
