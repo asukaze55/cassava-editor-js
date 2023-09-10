@@ -212,7 +212,6 @@ class FindPanel {
       createElement('span', {
         onclick: () => {
           this.element.style.display = 'none';
-          grid.panelHeight = 0;
           grid.render();
         },
         style: 'cursor: pointer; padding: 8px;'
@@ -234,7 +233,6 @@ class FindPanel {
   show() {
     this.#findTextInput.value = this.#findDialog.findText();
     this.element.style.display = '';
-    this.#grid.panelHeight = this.element.getBoundingClientRect().height;
     this.#grid.render();
     this.#findTextInput.focus();
   }
@@ -253,7 +251,6 @@ class Grid {
   /** @param {GridData} gridData */
   constructor(gridData) {
     this.element = createElement('table', {tabIndex: -1});
-    this.panelHeight = 0;
     this.#undoGrid = new UndoGrid(gridData);    
     this.#suppressRender = 0;
     this.clear();
@@ -523,12 +520,6 @@ class Grid {
       return;
     }
     const table = this.element;
-    if (table.parentElement) {
-      table.style.maxHeight = table.parentElement.getAttribute('max-height')
-          || (window.innerHeight - 16 - this.panelHeight
-              - table.getBoundingClientRect().top) + 'px';
-      table.style.width = table.parentElement.getAttribute('width');
-    }
     const bottom = Math.max(4, this.#undoGrid.bottom() + 1, this.y, this.anchorY);
     while (table.rows.length > bottom - this.#renderedTop + 2) {
       table.deleteRow(-1);

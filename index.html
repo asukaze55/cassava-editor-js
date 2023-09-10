@@ -5,11 +5,27 @@
   <meta charset="UTF-8">
   <meta http-equiv="content-language" content="ja">
   <title>Cassava Editor JS</title>
-  <link rel="stylesheet" href="cassava_20230520.css">
+  <link rel="stylesheet" href="cassava_20230910.css">
   <style>
-    html, body {
+    html {
       margin: 0;
       padding: 0;
+    }
+    
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    header, cassava-menu {
+      flex: none;
+    }
+
+    cassava-grid {
+      flex: 1;
     }
 
     h1 {
@@ -38,12 +54,8 @@
 </div>
 <h1>Cassava Editor JS</h1>
 </header>
-<div>
-  <cassava-menu for="main-grid"></cassava-menu>
-</div>
-<div>
-  <cassava-grid id="main-grid" width="100%"></cassava-grid>
-</div>
+<cassava-menu for="main-grid"></cassava-menu>
+<cassava-grid id="main-grid"></cassava-grid>
 <script src="cassava_replacer.js"></script>
 <script src="cassava_macro.js"></script>
 <script src="cassava_grid_data.js"></script>
