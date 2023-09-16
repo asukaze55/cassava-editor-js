@@ -65,8 +65,16 @@ function builtInFunction(name, arity) {
     return SwapFunction;
   } else if (name == 'tan' && arity == 1) {
     return a => Math.tan(a);
+  } else if (name == 'GetDate' && arity == 0) {
+    return () => new Date().getDate();
+  } else if (name == 'GetHours' && arity == 0) {
+    return () => new Date().getHours();
+  } else if (name == 'GetMinutes' && arity == 0) {
+    return () => new Date().getMinutes();
   } else if (name == 'GetMonth' && arity == 0) {
     return () => new Date().getMonth() + 1;
+  } else if (name == 'GetSeconds' && arity == 0) {
+    return () => new Date().getSeconds();
   } else if (name == 'GetYear' && arity == 0) {
     return () => new Date().getFullYear();
   }
