@@ -135,7 +135,7 @@ class FindDialog {
                 !(this.#respectCaseInput.checked),
                 this.#wholeCellInput.checked,
                 this.#isRegexInput.checked,
-                grid.range());
+                grid.allCells());
             grid.render();
           }, buttonAttributes)),
           div(button('キャンセル', () => this.element.close(), buttonAttributes))
@@ -254,6 +254,11 @@ class Grid {
     this.#undoGrid = new UndoGrid(gridData);    
     this.#suppressRender = 0;
     this.clear();
+  }
+
+  /** @returns {Range} */
+  allCells() {
+    return this.#undoGrid.range();
   }
 
   beginMacro() {
@@ -501,11 +506,6 @@ class Grid {
     }
   }
 
-  /** @returns {Range} */
-  range() {
-    return this.#undoGrid.range();
-  }
-
   redo() {
     blurActiveElement();
     const range = this.#undoGrid.redo();
@@ -737,6 +737,7 @@ class Grid {
     });
   }
 
+  /** @returns {Range} */
   selection() {
     return new Range(
         Math.min(this.anchorX, this.x),
@@ -1108,7 +1109,7 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
         }
         event.preventDefault();
       } else if (!grid.isEditing) {
-        grid.clearCells(grid.range());
+        grid.clearCells(grid.selection());
         grid.render();
         event.preventDefault();
       }
@@ -1640,8 +1641,8 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
   env.set('Refresh/0', () => grid.refresh());
   env.set('ReloadCodeShiftJIS/0', () => openDialog.reload('Shift_JIS'));
   env.set('ReloadCodeUTF8/0', () => openDialog.reload('UTF-8'));
-  env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.range()));
-  env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.range()));
+  env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.allCells()));
+  env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.allCells()));
   env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
   env.set('Right=/0', () => grid.right());
   env.set('Right=/1', a => grid.setRight(a));
