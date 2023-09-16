@@ -299,6 +299,7 @@ class Grid {
     this.#renderedBottom = 0;
   }
 
+  /** @param {Range} range */
   clearCells(range) {
     this.#undoGrid.clearCells(range);
   }
@@ -500,6 +501,7 @@ class Grid {
     }
   }
 
+  /** @returns {Range} */
   range() {
     return this.#undoGrid.range();
   }
@@ -1104,6 +1106,10 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
         if (isEditing) {
           grid.moveTo(grid.selLeft(), grid.selTop());
         }
+        event.preventDefault();
+      } else if (!grid.isEditing) {
+        grid.clearCells(grid.range());
+        grid.render();
         event.preventDefault();
       }
       return;
