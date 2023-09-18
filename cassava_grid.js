@@ -1293,6 +1293,8 @@ function gridTouchMove(event, grid) {
   }
 }
 
+const macroTerminated = {};
+
 /**
  * @param {string} message
  * @param {string=} title
@@ -1310,7 +1312,7 @@ function inputBoxMultiLine(message, title, defaultValue) {
       titleBar(title || 'Cassava Macro', () => {
         inputBox.close();
         document.body.removeChild(inputBox);
-        reject('Cancelled.');
+        reject(macroTerminated);
       }),
       div(message),
       div(textarea),
@@ -1322,7 +1324,7 @@ function inputBoxMultiLine(message, title, defaultValue) {
           button('Cancel', () => {
             inputBox.close();
             document.body.removeChild(inputBox);
-            reject('Cancelled.');
+            reject(macroTerminated);
           }))
     ]);
     document.body.append(inputBox);
@@ -1629,6 +1631,9 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
   env.set('InsertCol/2', (a, b) => grid.insertCol(a, b, false));
   env.set('InsertRow/1', a => grid.insertRow(a, a, false));
   env.set('InsertRow/2', (a, b) => grid.insertRow(a, b, false));
+  env.set('MacroTerminate/0', () => {
+    throw macroTerminated;
+  });
   env.set('MessageBox/1', a => alert(a));
   env.set('New/0', () => grid.clear());
   env.set('NewLine/0', () => grid.setCell(grid.x, grid.y, '\n'));
@@ -1714,8 +1719,10 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
     try {
       await run(macro, env, macroMap);
     } catch(e) {
-      alert(e);
-      throw e;
+      if (e != macroTerminated) {
+        alert(e);
+        throw e;
+      }
     } finally {
       grid.endMacro();
     }
