@@ -208,26 +208,28 @@ class FindPanel {
     }
     this.#findTextInput.addEventListener('change', updateFindText);
     const buttonAttributes = {style: 'margin: 4px 0 4px 4px;'};
-    this.element = createElement('div', {style: 'display: none;'}, [
-      createElement('span', {
-        onclick: () => {
-          this.element.style.display = 'none';
-          grid.render();
-        },
-        style: 'cursor: pointer; padding: 8px;'
-      }, ['×']),
-      '検索：',
-      this.#findTextInput,
-      button('⇩ 次', () => {
-        updateFindText();
-        findDialog.findNext(1);
-      }, buttonAttributes),
-      button('⇧ 前', () => {
-        updateFindText();
-        findDialog.findNext(-1);
-      }, buttonAttributes),
-      button('オプション', () => findDialog.show(), buttonAttributes)
-    ]);
+    this.element = createElement('div',
+        {className: 'panel', style: 'display: none;'},
+        [
+          createElement('span', {
+            onclick: () => {
+              this.element.style.display = 'none';
+              grid.render();
+            },
+            style: 'cursor: pointer; padding: 8px;'
+          }, ['×']),
+          '検索：',
+          this.#findTextInput,
+          button('⇩ 次', () => {
+            updateFindText();
+            findDialog.findNext(1);
+          }, buttonAttributes),
+          button('⇧ 前', () => {
+            updateFindText();
+            findDialog.findNext(-1);
+          }, buttonAttributes),
+          button('オプション', () => findDialog.show(), buttonAttributes)
+        ]);
   }
 
   show() {
@@ -583,11 +585,11 @@ class Grid {
         cell = createElement((x == 0 || y == 0) ? 'th' : 'td');
         cell.dataset.x = String(x);
         if (x == 0 && y == 0) {
-          cell.className = 'cassava-fixed-both';
+          cell.className = 'fixed-both';
         } else if (y == 0) {
-          cell.className = 'cassava-fixed-row';
+          cell.className = 'fixed-row';
         } else if (x == 0) {
-          cell.className = 'cassava-fixed-col';
+          cell.className = 'fixed-col';
         } else {
           cell.contentEditable = 'true';
         }
@@ -1730,86 +1732,129 @@ async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog
   grid.render();
 }
 
+const styleContent = `
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+.panel {
+  flex: none;
+}
+
+table {
+  border-collapse: collapse;
+  display: inline-block;
+  flex: 1;
+  max-width: 100%;
+  overflow: auto;
+  white-space: nowrap;
+}
+
+td, th {
+  border: 1px solid #ddd;
+  min-width: 32px;
+}
+
+.fixed-both {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 1;
+}
+
+.fixed-col {
+  position: sticky;
+  left: 0;
+}
+
+.fixed-row {
+  position: sticky;
+  top: 0;
+}
+`;
+
 class CassavaGridElement extends HTMLElement {
+  #findDialog;
+  #findPanel;
+  #grid;
+  #macroMap;
+  #openDialog;
+  
+  constructor() {
+    super();
+
+    this.#grid = new Grid(new GridData());
+    this.#findDialog = new FindDialog(this.#grid);
+    this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
+    this.#macroMap = new Map();
+    this.#openDialog = new OpenDialog(this.#grid);
+    this.style.overflow = 'hidden';
+
+    const table = this.#grid.element;
+    const shadow = this.attachShadow({mode: 'open'});
+    shadow.innerHTML = '';
+    shadow.append(
+        createElement('style', {textContent: styleContent}),
+        createElement('div', {className: 'root'},
+            [table, this.#findPanel.element, this.#findDialog.element]));
+
+    table.addEventListener('focusin', event => gridFocusIn(event, this.#grid));
+    table.addEventListener('focusout',
+        event => gridFocusOut(event, this.#grid));
+    table.addEventListener('input', event => gridInput(event, this.#grid));
+    table.addEventListener('keydown', event =>
+        gridKeyDown(event, this.#grid, this.#findDialog, this.#findPanel));
+    table.addEventListener('mousedown',
+        event => gridMouseDown(event, this.#grid));
+    table.addEventListener('mousemove',
+        event => gridMouseMove(event, this.#grid));
+    table.addEventListener('mouseup', event => gridMouseUp(event, this.#grid));
+    table.addEventListener('scroll', () => this.#grid.render());
+    table.addEventListener('touchend',
+        event => gridTouchMove(event, this.#grid));
+    table.addEventListener('touchmove',
+        event => gridTouchMove(event, this.#grid), {passive: true});
+    this.#grid.render();
+  }
+
   /**
    * @param {string} macroName
    * @param {string} macroText
    */
-  addMacro(macroName, macroText) {}
+  addMacro(macroName, macroText) {
+    if (macroText == '') {
+      this.#macroMap.delete(macroName);
+    } else {
+      this.#macroMap.set(macroName, macroText);
+    }
+  }
 
   /** @returns IterableIterator<string> */
-  getMacroNames() {}
+  getMacroNames() {
+    return this.#macroMap.keys();
+  }
 
   /** @param {string} macroName */
-  runNamedMacro(macroName) {}
+  runNamedMacro(macroName) {
+    runMacro(this.#macroMap.get(macroName), this.#grid, this.#findDialog,
+        this.#findPanel, this.#macroMap, this.#openDialog);
+  }
 
   /** @param {string} macro */
-  runMacro(macro) {}
-}
-
-const onReadyCallbacks = [];
-const gridElements = [];
-
-function initGrid() {
-  for (const element of /** @type {HTMLCollectionOf<CassavaGridElement>} */(
-      document.getElementsByTagName('cassava-grid'))) {
-    const grid = new Grid(new GridData());
-    const findDialog = new FindDialog(grid);
-    const findPanel = new FindPanel(grid, findDialog);
-    const table = grid.element;
-    element.innerHTML = '';
-    element.append(table, findPanel.element, findDialog.element);
-    table.addEventListener('focusin', event => gridFocusIn(event, grid));
-    table.addEventListener('focusout', event => gridFocusOut(event, grid));
-    table.addEventListener('input', event => gridInput(event, grid));
-    table.addEventListener('keydown',
-        event => gridKeyDown(event, grid, findDialog, findPanel));
-    table.addEventListener('mousedown', event => gridMouseDown(event, grid));
-    table.addEventListener('mousemove', event => gridMouseMove(event, grid));
-    table.addEventListener('mouseup', event => gridMouseUp(event, grid));
-    table.addEventListener('scroll', () => grid.render());
-    table.addEventListener('touchend', event => gridTouchMove(event, grid));
-    table.addEventListener('touchmove', event => gridTouchMove(event, grid),
-        {passive: true});
-
-    const macroMap = new Map();
-    const openDialog = new OpenDialog(grid);
-    element.addMacro = (macroName, macroText) => {
-      if (macroText == '') {
-        macroMap.delete(macroName);
-      } else {
-        macroMap.set(macroName, macroText);
-      }
-    };
-    element.getMacroNames = () => macroMap.keys();
-    element.runNamedMacro = macroName => runMacro(macroMap.get(macroName), grid,
-        findDialog, findPanel, macroMap, openDialog);
-    element.runMacro = macro =>
-        runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog);
-    grid.render();
-
-    for (const callback of onReadyCallbacks) {
-      callback(element);
-    }
-    gridElements.push(element);
+  runMacro(macro) {
+    runMacro(macro, this.#grid, this.#findDialog, this.#findPanel,
+        this.#macroMap, this.#openDialog);
   }
 }
 
-function onReady(callback) {
-  for (const element of gridElements) {
-    callback(element);
-  }
-  onReadyCallbacks.push(callback);
-}
-
-window.net = /** @type {any} */(window.net || {});
-net.asukaze = net.asukaze || {};
-net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.onReady = onReady;
+customElements.define('cassava-grid', CassavaGridElement);
 
 // #ifdef MODULE
-// export { CassavaGridElement, initGrid, onReady };
+// export { CassavaGridElement };
 // #else
-net.asukaze.cassava.initGrid = initGrid;
 })();
 // #endif
