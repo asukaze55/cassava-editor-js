@@ -14,5 +14,6 @@ RENAME out\cassava_min.js %FILENAME%
 
 CALL perl updateScript.pl %FILENAME% < ..\index.html > out\index.html
 
+COPY ..\cassava_20230910.css out\
 COPY ..\sample_macros.js out\
 COPY ..\test_macros.js out\

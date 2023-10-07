@@ -71,7 +71,7 @@ function isInputElement(element, root) {
  */
 function dialog(children) {
   const element = createElement('dialog', {
-    style: 'margin-top: 8px; z-index: 3;'
+    className: 'cassava-dialog',
   }, children);
 
   const eventOption = /** @type {EventListenerOptions} */({passive: true});

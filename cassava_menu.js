@@ -1,8 +1,9 @@
 // #ifdef MODULE
 // import { button, createElement, dialog, div, titleBar } from './cassava_dom.js'
-// import { CassavaGridElement } from './cassava_grid.js';
+// import { CassavaGridElement, initGrid } from './cassava_grid.js';
 // #else
 (() => {
+const initGrid = net.asukaze.cassava.initGrid;
 const button = net.asukaze.cassava.dom.button;
 const createElement = net.asukaze.cassava.dom.createElement;
 const dialog = net.asukaze.cassava.dom.dialog;
@@ -16,8 +17,9 @@ function menuItem(label, onclick, children) {
     li.addEventListener('click', onclick);
   }
   if (children) {
-    li.append(
-        createElement('ul', {className: 'sub-menu'}, menuItems(children)));
+    li.append(createElement('ul', {
+      className: 'cassava-sub-menu'
+    }, menuItems(children)));
   }
   return li;
 }
@@ -26,51 +28,53 @@ function menuItems(items) {
   return items.map(item => menuItem(...item));
 }
 
-const styleContent = `
-.top-menu {
-  border-bottom: 1px solid #000;
-  margin: 0;
-  padding: 0;
+function closeMenus() {
+  for (const subMenu of
+      document.getElementsByClassName('cassava-sub-menu')) {
+    /** @type {HTMLElement} */(subMenu).style.display = 'none';
+  }
 }
 
-.top-menu > li {
-  border: 0;
-  cursor: default;
-  display: inline-block;
-  list-style: none;
-  margin: 4px 8px;
-  position: relative;
-  vertical-align: top;
+function toggleSubMenu(event) {
+  event.stopPropagation();
+  const currentTarget = event.currentTarget;
+  let subMenu = currentTarget.lastElementChild;
+  const open = subMenu.style.display == 'none';
+  closeMenus();
+  if (open) {
+    subMenu.style.display = '';
+  } else if (event.target != currentTarget) {
+    return;
+  }
+  subMenu = subMenu.parentElement;
+  while (subMenu != null && subMenu.tagName != 'cassava-menu') {
+    subMenu.style.display = '';
+    subMenu = subMenu.parentElement;
+  }
 }
 
-.sub-menu {
-  margin: 5px 0;
-  padding: 0;
-  position: absolute;
-  white-space: nowrap;
-  z-index: 2;
+function toggleMacroMenu(event, grid, items) {
+  const currentTarget = event.currentTarget;
+  const subMenu = currentTarget.lastElementChild;
+  subMenu.innerHTML = '';
+  subMenu.append(...menuItems(items));
+  for (const name of grid.getMacroNames()) {
+    if (!name.startsWith('lib/') && !name.startsWith('tests/')) {
+      subMenu.append(menuItem(name, () => grid.runNamedMacro(name)));
+    }
+  }
+  toggleSubMenu(event);
 }
 
-.sub-menu li {
-  background: #fff;
-  border: 1px solid #000;
-  cursor: default;
-  list-style: none;
-  margin: -1px 0 0 0;
-  padding: 8px;
-}
-`;
+function init() {
+  initGrid();
 
-class CassavaMenuElement extends HTMLElement {
-  constructor() {
-    super();
-
+  for (const element of document.getElementsByTagName('cassava-menu')) {
     const grid = /** @type {CassavaGridElement} */(
-        document.getElementById(this.getAttribute('for')));
-    const macroNameInput =
-        createElement('input', {name: 'macro-name', value: '新規マクロ'});
-    const macroTextarea =
-        createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
+        document.getElementById(element.getAttribute('for')));
+
+    const macroNameInput = createElement('input', {name: 'macro-name', value: '新規マクロ'});
+    const macroTextarea = createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
     const macroDialog = dialog([
       titleBar('マクロを編集', () => macroDialog.close()),
       div(macroTextarea),
@@ -82,12 +86,11 @@ class CassavaMenuElement extends HTMLElement {
           }))
     ]);
 
-    const toggleSubMenu = event => this.toggleSubMenu(event);
     const command = command => () => {
       grid.runMacro(command + '()');
     };
 
-    const ul = createElement('ul', {className: 'top-menu'}, menuItems([
+    const ul = createElement('ul', {}, menuItems([
       ['ファイル', toggleSubMenu, [
         ['新規作成', command('New')],
         ['開く...', command('Open')],
@@ -141,7 +144,7 @@ class CassavaMenuElement extends HTMLElement {
         ['次を検索 (F3)', command('FindNext')],
         ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
-      ['マクロ', event => this.toggleMacroMenu(event, grid, [
+      ['マクロ', event => toggleMacroMenu(event, grid, [
         ['マクロを追加...', () => macroDialog.show()]
       ]), []],
       ['ヘルプ', toggleSubMenu, [
@@ -149,57 +152,18 @@ class CassavaMenuElement extends HTMLElement {
         ['GitHub', () => window.open('https://github.com/asukaze55/cassava-editor-js/', '_blank')]
       ]]
     ]));
-
-    const shadow = this.attachShadow({mode: 'open'});
-    shadow.innerHTML = '';
-    shadow.append(
-        createElement('style', {textContent: styleContent}), ul, macroDialog);
-
-    this.closeMenus();
-    document.body.addEventListener('click', () => this.closeMenus());
+    element.append(ul, macroDialog);
   }
 
-  closeMenus() {
-    for (const subMenu of
-        this.shadowRoot.querySelectorAll('.sub-menu')) {
-      /** @type {HTMLElement} */(subMenu).style.display = 'none';
-    }
-  }
-  
-  toggleSubMenu(event) {
-    event.stopPropagation();
-    const currentTarget = event.currentTarget;
-    let subMenu = currentTarget.lastElementChild;
-    const open = subMenu.style.display == 'none';
-    this.closeMenus();
-    if (open) {
-      subMenu.style.display = '';
-    } else if (event.target != currentTarget) {
-      return;
-    }
-    subMenu = subMenu.parentElement;
-    while (subMenu != null && subMenu.tagName != 'cassava-menu') {
-      subMenu.style.display = '';
-      subMenu = subMenu.parentElement;
-    }
-  }
-  
-  toggleMacroMenu(event, grid, items) {
-    const currentTarget = event.currentTarget;
-    const subMenu = currentTarget.lastElementChild;
-    subMenu.innerHTML = '';
-    subMenu.append(...menuItems(items));
-    for (const name of grid.getMacroNames()) {
-      if (!name.startsWith('lib/') && !name.startsWith('tests/')) {
-        subMenu.append(menuItem(name, () => grid.runNamedMacro(name)));
-      }
-    }
-    this.toggleSubMenu(event);
-  }
+  closeMenus();
+  document.body.addEventListener('click', closeMenus);
 }
 
-customElements.define('cassava-menu', CassavaMenuElement);
+net.asukaze.cassava.init = init;
+window.addEventListener('DOMContentLoaded', init);
 
-// #ifndef MODULE
+// #ifdef MODULE
+// export { init };
+// #else
 })();
 // #endif

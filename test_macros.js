@@ -1,4 +1,4 @@
-for (const grid of document.getElementsByTagName('cassava-grid')) {
+net.asukaze.cassava.onReady(grid => {
 grid.addMacro('tests/ArrayTest.cms', `
 import { Array, split, arrayOf, arrayFrom } from "lib/Array.cms";
 import { Assert } from "lib/Assert.cms";
@@ -1093,4 +1093,4 @@ testSuite.run(new StringTest());
 
 testSuite.showResult();
 `);
-}
+});
