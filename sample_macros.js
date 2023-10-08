@@ -1,4 +1,4 @@
-net.asukaze.cassava.onReady(grid => {
+for (const grid of document.getElementsByTagName('cassava-grid')) {
 grid.addMacro('lib/Array.cms', `
 class Array {
   constructor() {
@@ -359,4 +359,4 @@ for (y = 1; y <= size; y++) {
 Right = h;
 Bottom = w;
 `);
-});
+}
