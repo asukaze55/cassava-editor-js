@@ -19,90 +19,74 @@ function functionId(name, arity, varArgs, fileName) {
 
 const SwapFunction = {};
 
+const builtInFunctions = new Map(Object.entries({
+  'acos/1': a => Math.acos(a),
+  'ascW/1': a => a.toString().charCodeAt(0),
+  'asin/1': a => Math.asin(a),
+  'atan/1': a => Math.atan(a),
+  'atan2/2': (a, b) => Math.atan2(a, b),
+  'chrW/1': a => String.fromCharCode(a - 0),
+  'cos/1': a => Math.cos(a),
+  'double/1': a => a - 0,
+  'int/1': a => Math.trunc(a),
+  'left/2': (a, b) => a.toString().slice(0, b),
+  'len/1': a => a.toString().length,
+  'max/+1': (...a) => Math.max(...a),
+  'mid/2': (a, b) => a.toString().substring(b - 1),
+  'mid/3': (a, b, c) => a.toString().substring((b - 1), (b - 1) + (c - 0)),
+  'min/+1': (...a) => Math.min(...a),
+  'pos/2': (a, b) => a.toString().indexOf(b) + 1,
+  'pow/2': (a, b) => Math.pow(a, b),
+  'replace/+3': (str1, str2, str3, ignoreCase, regex) => createReplacer(
+      str2.toString(), str3.toString(), ignoreCase, false, regex)(
+          str1.toString()),
+  'right/2': (a, b) => a.toString().slice(-b),
+  'sin/1': a => Math.sin(a),
+  'sqrt/1': a => Math.sqrt(a),
+  'str/1': a => a.toString(),
+  'swap/2': SwapFunction,
+  'tan/1': a => Math.tan(a),
+  'GetDate/0': () => new Date().getDate(),
+  'GetHours/0': () => new Date().getHours(),
+  'GetMinutes/0': () => new Date().getMinutes(),
+  'GetMonth/0': () => new Date().getMonth() + 1,
+  'GetSeconds/0': () => new Date().getSeconds(),
+  'GetYear/0': () => new Date().getFullYear()
+}));
+
 /**
+ * @param {Map<string, any>} map
  * @param {string} name
  * @param {number} arity
+ * @param {string=} fileName
  * @returns {Function|SwapFunction?}
  */
-function builtInFunction(name, arity) {
-  if (name == 'acos' && arity == 1) {
-    return a => Math.acos(a);
-  } else if (name == 'ascW' && arity == 1) {
-    return a => a.toString().charCodeAt(0);
-  } else if (name == 'asin' && arity == 1) {
-    return a => Math.asin(a);
-  } else if (name == 'atan' && arity == 1) {
-    return a => Math.atan(a);
-  } else if (name == 'atan2' && arity == 2) {
-    return (a, b) => Math.atan2(a, b);
-  } else if (name == 'chrW' && arity == 1) {
-    return a => String.fromCharCode(a - 0);
-  } else if (name == 'cos' && arity == 1) {
-    return a => Math.cos(a);
-  } else if (name == 'double' && arity == 1) {
-    return a => a - 0;
-  } else if (name == 'int' && arity == 1) {
-    return a => Math.trunc(a);
-  } else if (name == 'left' && arity == 2) {
-    return (a, b) => a.toString().slice(0, b);
-  } else if (name == 'len' && arity == 1) {
-    return a => a.toString().length;
-  } else if (name == 'max') {
-    return (...a) => Math.max(...a);
-  } else if (name == 'mid' && arity == 2) {
-    return (a, b) => a.toString().substring(b - 1);
-  } else if (name == 'mid' && arity == 3) {
-    return (a, b, c) => a.toString()
-        .substring((b - 1), (b - 1) + (c - 0));
-  } else if (name == 'min') {
-    return (...a) => Math.min(...a);
-  } else if (name == 'pos' && arity == 2) {
-    return (a, b) => a.toString().indexOf(b) + 1;
-  } else if (name == 'pow' && arity == 2) {
-    return (a, b) => Math.pow(a, b);
-  } else if (name == 'sqrt' && arity == 1) {
-    return a => Math.sqrt(a);
-  } else if (name == 'replace' && arity >= 3) {
-    return (str1, str2, str3, ignoreCase, regex) => createReplacer(
-        str2.toString(), str3.toString(), ignoreCase, false, regex)(
-            str1.toString());
-  } else if (name == 'right' && arity == 2) {
-    return (a, b) => a.toString().slice(-b);
-  } else if (name == 'sin' && arity == 1) {
-    return a => Math.sin(a);
-  } else if (name == 'sqrt' && arity == 1) {
-    return a => Math.sqrt(a);
-  } else if (name == 'str' && arity == 1) {
-    return a => a.toString();
-  } else if (name == 'swap' && arity == 2) {
-    return SwapFunction;
-  } else if (name == 'tan' && arity == 1) {
-    return a => Math.tan(a);
-  } else if (name == 'GetDate' && arity == 0) {
-    return () => new Date().getDate();
-  } else if (name == 'GetHours' && arity == 0) {
-    return () => new Date().getHours();
-  } else if (name == 'GetMinutes' && arity == 0) {
-    return () => new Date().getMinutes();
-  } else if (name == 'GetMonth' && arity == 0) {
-    return () => new Date().getMonth() + 1;
-  } else if (name == 'GetSeconds' && arity == 0) {
-    return () => new Date().getSeconds();
-  } else if (name == 'GetYear' && arity == 0) {
-    return () => new Date().getFullYear();
+function findFunction(map, name, arity, fileName) {
+  let id = functionId(name, arity, false, fileName);
+  if (map.has(id)) {
+    return map.get(id);
+  }
+  for (let i = arity; i >= 0; i--) {
+    id = functionId(name, i, true, fileName)
+    if (map.has(id)) {
+      return map.get(id);
+    }
   }
   return undefined;
 }
 
 class Environment {
-  /** @param {Environment=} parent */
-  constructor(parent) {
+  /**
+   * @param {Environment} parent
+   * @param {Map<string, any>=} api
+   */
+  constructor(parent, api) {
     /** @type {Map<string, any>} */
     this.variables = new Map();
     /** @type {Set<string>} */
     this.constants = new Set();
     /** @type {Map<string, Function>} */
-    this.functions = (parent != null) ? parent.functions : new Map();
+    this.functions = (parent != null) ? parent.functions : new Map(api);
     /** @type {number} */
     this.loop = (parent != null) ? parent.loop - 1: 1000000;
   }
@@ -128,30 +112,17 @@ class Environment {
       }
       throw 'Undefined variable: ' + name;
     }
-    let id;
     if (fileName) {
-      id = functionId(name, arity, false, fileName);
-      if (this.functions.has(id)) {
-        return this.functions.get(id);
-      }
-      for (let i = arity; i >= 0; i--) {
-        id = functionId(name, i, true, fileName)
-        if (this.functions.has(id)) {
-          return this.functions.get(id);
-        }
+      const func = findFunction(this.functions, name, arity, fileName);
+      if (func) {
+        return func;
       }
     }
-    id = functionId(name, arity, false);
-    if (this.functions.has(id)) {
-      return this.functions.get(id);
+    const func = findFunction(this.functions, name, arity);
+    if (func) {
+      return func;
     }
-    for (let i = arity; i >= 0; i--) {
-      id = functionId(name, i, true)
-      if (this.functions.has(id)) {
-        return this.functions.get(id);
-      }
-    }
-    const builtIn = builtInFunction(name, arity);
+    const builtIn = findFunction(builtInFunctions, name, arity);
     if (builtIn) {
       return builtIn;
     }

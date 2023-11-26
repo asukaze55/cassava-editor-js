@@ -1577,159 +1577,6 @@ async function paste(grid, option) {
   grid.render();
 }
 
-/**
- * @param {string} macro
- * @param {Grid} grid
- * @param {FindDialog} findDialog
- * @param {FindPanel} findPanel
- * @param {Map<string, string>} macroMap
- * @param {OpenDialog} openDialog
- */
-async function runMacro(macro, grid, findDialog, findPanel, macroMap, openDialog) {
-  const env = new Environment();
-  env.set('Bottom=/0', () => grid.bottom());
-  env.set('Bottom=/1', a => grid.setBottom(a));
-  env.set('Col=/0', () => grid.x);
-  env.set('Col=/1', a => grid.moveTo(a, grid.y));
-  env.set('ConnectCell/0', () => grid.connectCells(grid.selection()));
-  env.set('Copy/0', () => copy(grid, /* cut= */ false));
-  env.set('CopyAvr/0', () =>
-      clipboard.writeText(grid.sumAndAvr(grid.selection()).avr.toString()));
-  env.set('CopySum/0', () =>
-      clipboard.writeText(grid.sumAndAvr(grid.selection()).sum.toString()));
-  env.set('Cut/0', () => copy(grid, /* cut= */ true));
-  env.set('CutCol/0', () => grid.deleteCol(grid.selLeft(), grid.selRight()));
-  env.set('CutRow/0', () => grid.deleteRow(grid.selTop(), grid.selBottom()));
-  env.set('DeleteCellLeft/0', () => grid.deleteCellLeft(grid.selection()));
-  env.set('DeleteCellUp/0', () => grid.deleteCellUp(grid.selection()));
-  env.set('DeleteCol/1', a => grid.deleteCol(a, a));
-  env.set('DeleteRow/1', a => grid.deleteRow(a, a));
-  env.set('Enter/0', () => grid.insertRowAtCursor(0, 0));
-  env.set('Find/0', () => findDialog.show());
-  env.set('FindBack/0', () => findDialog.findNext(-1));
-  env.set('FindNext/0', () => findDialog.findNext(1));
-  env.set('GetColWidth/0', () => grid.defaultColWidth);
-  env.set('GetColWidth/1', a => {
-    const colWidth = grid.colWidths.get(a - 0);
-    return colWidth != null
-        ? colWidth : grid.defaultColWidth;
-  });
-  env.set('GetFilePath/0', () => '');
-  env.set('GetFileName/0', () => grid.fileName);
-  env.set('GetRowHeight/0', () => grid.defaultRowHeight);
-  env.set('GetRowHeight/1', a => grid.getRowHeight(a));
-  env.set('InputBox/1', a => prompt(a));
-  env.set('InputBox/2', (a, b) => prompt(a, b));
-  env.set('InputBoxMultiLine/1', a => inputBoxMultiLine(a));
-  env.set('InputBoxMultiLine/2', (a, b) => inputBoxMultiLine(a, null, b));
-  env.set('InputBoxMultiLine/3', (a, b, c) => inputBoxMultiLine(a, b, c));
-  env.set('InsCol/0', () => grid.insertCol(grid.selLeft(), grid.selRight(), true));
-  env.set('InsRow/0', () => grid.insertRow(grid.selTop(), grid.selBottom(), true));
-  env.set('InsertCellDown/0', () => grid.insertCellDown(grid.selection()));
-  env.set('InsertCellRight/0', () => grid.insertCellRight(grid.selection()));
-  env.set('InsertCol/1', a => grid.insertCol(a, a, false));
-  env.set('InsertCol/2', (a, b) => grid.insertCol(a, b, false));
-  env.set('InsertRow/1', a => grid.insertRow(a, a, false));
-  env.set('InsertRow/2', (a, b) => grid.insertRow(a, b, false));
-  env.set('MacroTerminate/0', () => {
-    throw macroTerminated;
-  });
-  env.set('MessageBox/1', a => alert(a));
-  env.set('New/0', () => grid.clear());
-  env.set('NewLine/0', () => grid.setCell(grid.x, grid.y, '\n'));
-  env.set('Open/0', () => openDialog.show());
-  env.set('Open/1', () => openDialog.show());
-  env.set('Paste/0', () => paste(grid, -1));
-  env.set('Paste/1', a => paste(grid, a));
-  env.set('QuickFind/0', () => findPanel.show());
-  env.set('Redo/0', () => grid.redo());
-  env.set('Refresh/0', () => grid.refresh());
-  env.set('ReloadCodeShiftJIS/0', () => openDialog.reload('Shift_JIS'));
-  env.set('ReloadCodeUTF8/0', () => openDialog.reload('UTF-8'));
-  env.set('ReplaceAll/2', (a, b) => grid.replaceAll(a, b, false, false, false, grid.allCells()));
-  env.set('ReplaceAll/5', (a, b, c, d, e) => grid.replaceAll(a, b, c, d, e, grid.allCells()));
-  env.set('ReplaceAll/9', (a, b, c, d, e, f, g, h, i) => grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)));
-  env.set('Right=/0', () => grid.right());
-  env.set('Right=/1', a => grid.setRight(a));
-  env.set('Row=/0', () => grid.y);
-  env.set('Row=/1', a => grid.moveTo(grid.x, a));
-  env.set('Save/0', () => saveAs(grid.fileName || '無題.csv', grid));
-  env.set('SaveAs/0', () => {
-    const fileName = prompt("ファイル名を入力してください。");
-    if (fileName) {
-      saveAs(fileName, grid);
-    }
-  });
-  env.set('SaveAs/1', a => saveAs(a, grid));
-  env.set('SelBottom=/0', () => grid.selBottom());
-  env.set('SelBottom=/1', a => grid.select(grid.selLeft(), Math.min(a, grid.selTop()), grid.selRight(), a));
-  env.set('SelLeft=/0', () => grid.selLeft());
-  env.set('SelLeft=/1', a => grid.select(a, grid.selTop(), Math.max(a, grid.selRight()), grid.selBottom()));
-  env.set('SelRight=/0', () => grid.selRight());
-  env.set('SelRight=/1', a => grid.select(Math.min(a, grid.selLeft()), grid.selTop(), a, grid.selBottom()));
-  env.set('SelTop=/0', () => grid.selTop());
-  env.set('SelTop=/1', a => grid.select(grid.selLeft(), a, grid.selRight(), Math.max(a, grid.selBottom())));
-  env.set('Select/4', (a, b, c, d) => grid.select(a, b, c, d));
-  env.set('SelectAll/0', () => grid.selectAll());
-  env.set('SelectCol/0', () => grid.selectCol(grid.selLeft(), grid.selRight()));
-  env.set('SelectRow/0', () => grid.selectRow(grid.selTop(), grid.selBottom()));
-  env.set('SequenceC/0', () => grid.sequenceC(grid.selection()));
-  env.set('SequenceS/0', () => grid.sequenceS(grid.selection()));
-  env.set('SetColWidth/1', a => {
-    grid.colWidths.clear();
-    grid.defaultColWidth = a;
-  });
-  env.set('SetColWidth/2', (a, b) => grid.colWidths.set(a - 0, b - 0));
-  env.set('SetRowHeight/1', a => {
-    grid.rowHeights.clear();
-    grid.defaultRowHeight = a;
-  });
-  env.set('SetRowHeight/2', (a, b) => grid.setRowHeight(a, b));
-  env.set('Sort/9', (a, b, c, d, e, f, g, h, i) => grid.sort(new Range(a, b, c, d), e, f, g, h, i));
-  env.set('TransChar0/0', () => grid.updateSelectedCells(toHankakuAlphabet));
-  env.set('TransChar1/0', () => grid.updateSelectedCells(toZenkakuAlphabet));
-  env.set('TransChar2/0', () => grid.updateSelectedCells(value => value.toUpperCase()));
-  env.set('TransChar3/0', () => grid.updateSelectedCells(value => value.toLowerCase()));
-  env.set('TransChar4/0', () => grid.updateSelectedCells(toHankakuKana));
-  env.set('TransChar5/0', () => grid.updateSelectedCells(toZenkakuKana));
-  env.set('Undo/0', () => grid.undo());
-  env.set('avr/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).avr);
-  env.set('cell/2', (a, b) => {
-    const value = grid.cell(a, b);
-    if ((value - 0).toString() == value) {
-      return value - 0;
-    }
-    return value;
-  });
-  env.set('cell=/3', (a, b, c) => grid.setCell(a, b, c));
-  env.set('move/2', (a, b) => grid.moveTo(grid.x + a, grid.y + b));
-  env.set('moveto/2', (a, b) => grid.moveTo(a, b));
-  env.set('random/1', a => Math.floor(Math.random() * a));
-  env.set('sum/4', (a, b, c, d) => grid.sumAndAvr(new Range(a, b, c, d)).sum);
-  env.set('write/1', a => {
-    grid.setCell(grid.x, grid.y, a);
-    grid.moveTo(grid.x + 1, grid.y);
-  });
-  env.set('writeln/1', a => {
-    grid.setCell(grid.x, grid.y, a);
-    grid.moveTo(1, grid.y + 1);
-  });
-  if (macro) {
-    grid.beginMacro();
-    try {
-      await run(macro, env, macroMap);
-    } catch(e) {
-      if (e != macroTerminated) {
-        alert(e);
-        throw e;
-      }
-    } finally {
-      grid.endMacro();
-    }
-  }
-  grid.render();
-}
-
 const styleContent = `
 :host {
   display: flex;
@@ -1779,7 +1626,153 @@ class CassavaGridElement extends HTMLElement {
   #grid;
   #macroMap;
   #openDialog;
-  
+
+  #api = new Map(Object.entries({
+    'Bottom=/0': () => this.#grid.bottom(),
+    'Bottom=/1': a => this.#grid.setBottom(a),
+    'Col=/0': () => this.#grid.x,
+    'Col=/1': a => this.#grid.moveTo(a, this.#grid.y),
+    'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
+    'Copy/0': () => copy(this.#grid, /* cut= */ false),
+    'CopyAvr/0': () => clipboard.writeText(
+        this.#grid.sumAndAvr(this.#grid.selection()).avr.toString()),
+    'CopySum/0': () => clipboard.writeText(
+        this.#grid.sumAndAvr(this.#grid.selection()).sum.toString()),
+    'Cut/0': () => copy(this.#grid, /* cut= */ true),
+    'CutCol/0': () =>
+        this.#grid.deleteCol(this.#grid.selLeft(), this.#grid.selRight()),
+    'CutRow/0': () =>
+        this.#grid.deleteRow(this.#grid.selTop(), this.#grid.selBottom()),
+    'DeleteCellLeft/0': () =>
+        this.#grid.deleteCellLeft(this.#grid.selection()),
+    'DeleteCellUp/0': () => this.#grid.deleteCellUp(this.#grid.selection()),
+    'DeleteCol/1': a => this.#grid.deleteCol(a, a),
+    'DeleteRow/1': a => this.#grid.deleteRow(a, a),
+    'Enter/0': () => this.#grid.insertRowAtCursor(0, 0),
+    'Find/0': () => this.#findDialog.show(),
+    'FindBack/0': () => this.#findDialog.findNext(-1),
+    'FindNext/0': () => this.#findDialog.findNext(1),
+    'GetColWidth/0': () => this.#grid.defaultColWidth,
+    'GetColWidth/1':
+        a => this.#grid.colWidths.get(a - 0) ?? this.#grid.defaultColWidth,
+    'GetFilePath/0': () => '',
+    'GetFileName/0': () => this.#grid.fileName,
+    'GetRowHeight/0': () => this.#grid.defaultRowHeight,
+    'GetRowHeight/1': a => this.#grid.getRowHeight(a),
+    'InputBox/1': a => prompt(a),
+    'InputBox/2': (a, b) => prompt(a, b),
+    'InputBoxMultiLine/1': a => inputBoxMultiLine(a),
+    'InputBoxMultiLine/2': (a, b) => inputBoxMultiLine(a, null, b),
+    'InputBoxMultiLine/3': (a, b, c) => inputBoxMultiLine(a, b, c),
+    'InsCol/0': () => this.#grid.insertCol(
+        this.#grid.selLeft(), this.#grid.selRight(), true),
+    'InsRow/0': () => this.#grid.insertRow(
+        this.#grid.selTop(), this.#grid.selBottom(), true),
+    'InsertCellDown/0':
+        () => this.#grid.insertCellDown(this.#grid.selection()),
+    'InsertCellRight/0':
+        () => this.#grid.insertCellRight(this.#grid.selection()),
+    'InsertCol/1': a => this.#grid.insertCol(a, a, false),
+    'InsertCol/2': (a, b) => this.#grid.insertCol(a, b, false),
+    'InsertRow/1': a => this.#grid.insertRow(a, a, false),
+    'InsertRow/2': (a, b) => this.#grid.insertRow(a, b, false),
+    'MacroTerminate/0': () => {
+      throw macroTerminated;
+    },
+    'MessageBox/1': a => alert(a),
+    'New/0': () => this.#grid.clear(),
+    'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
+    'Open/0': () => this.#openDialog.show(),
+    'Open/1': () => this.#openDialog.show(),
+    'Paste/0': () => paste(this.#grid, -1),
+    'Paste/1': a => paste(this.#grid, a),
+    'QuickFind/0': () => this.#findPanel.show(),
+    'Redo/0': () => this.#grid.redo(),
+    'Refresh/0': () => this.#grid.refresh(),
+    'ReloadCodeShiftJIS/0': () => this.#openDialog.reload('Shift_JIS'),
+    'ReloadCodeUTF8/0': () => this.#openDialog.reload('UTF-8'),
+    'ReplaceAll/2': (a, b) => this.#grid.replaceAll(
+        a, b, false, false, false, this.#grid.allCells()),
+    'ReplaceAll/5': (a, b, c, d, e) =>
+        this.#grid.replaceAll(a, b, c, d, e, this.#grid.allCells()),
+    'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) =>
+        this.#grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)),
+    'Right=/0': () => this.#grid.right(),
+    'Right=/1': a => this.#grid.setRight(a),
+    'Row=/0': () => this.#grid.y,
+    'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
+    'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
+    'SaveAs/0': () => {
+      const fileName = prompt("ファイル名を入力してください。");
+      if (fileName) {
+        saveAs(fileName, this.#grid);
+      }
+    },
+    'SaveAs/1': a => saveAs(a, this.#grid),
+    'SelBottom=/0': () => this.#grid.selBottom(),
+    'SelBottom=/1': a => this.#grid.select(this.#grid.selLeft(),
+        Math.min(a, this.#grid.selTop()), this.#grid.selRight(), a),
+    'SelLeft=/0': () => this.#grid.selLeft(),
+    'SelLeft=/1': a => this.#grid.select(a, this.#grid.selTop(),
+        Math.max(a, this.#grid.selRight()), this.#grid.selBottom()),
+    'SelRight=/0': () => this.#grid.selRight(),
+    'SelRight=/1': a => this.#grid.select(Math.min(a, this.#grid.selLeft()),
+        this.#grid.selTop(), a, this.#grid.selBottom()),
+    'SelTop=/0': () => this.#grid.selTop(),
+    'SelTop=/1': a => this.#grid.select(this.#grid.selLeft(), a,
+        this.#grid.selRight(), Math.max(a, this.#grid.selBottom())),
+    'Select/4': (a, b, c, d) => this.#grid.select(a, b, c, d),
+    'SelectAll/0': () => this.#grid.selectAll(),
+    'SelectCol/0': () =>
+        this.#grid.selectCol(this.#grid.selLeft(), this.#grid.selRight()),
+    'SelectRow/0': () =>
+        this.#grid.selectRow(this.#grid.selTop(), this.#grid.selBottom()),
+    'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
+    'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
+    'SetColWidth/1': a => {
+      this.#grid.colWidths.clear();
+      this.#grid.defaultColWidth = a;
+    },
+    'SetColWidth/2': (a, b) => this.#grid.colWidths.set(a - 0, b - 0),
+    'SetRowHeight/1': a => {
+      this.#grid.rowHeights.clear();
+      this.#grid.defaultRowHeight = a;
+    },
+    'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(a, b),
+    'Sort/9': (a, b, c, d, e, f, g, h, i) =>
+        this.#grid.sort(new Range(a, b, c, d), e, f, g, h, i),
+    'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
+    'TransChar1/0': () => this.#grid.updateSelectedCells(toZenkakuAlphabet),
+    'TransChar2/0':
+        () => this.#grid.updateSelectedCells(value => value.toUpperCase()),
+    'TransChar3/0':
+        () => this.#grid.updateSelectedCells(value => value.toLowerCase()),
+    'TransChar4/0': () => this.#grid.updateSelectedCells(toHankakuKana),
+    'TransChar5/0': () => this.#grid.updateSelectedCells(toZenkakuKana),
+    'Undo/0': () => this.#grid.undo(),
+    'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).avr,
+    'cell/2': (a, b) => {
+      const value = this.#grid.cell(a, b);
+      if ((value - 0).toString() == value) {
+        return value - 0;
+      }
+      return value;
+    },
+    'cell=/3': (a, b, c) => this.#grid.setCell(a, b, c),
+    'move/2': (a, b) => this.#grid.moveTo(this.#grid.x + a, this.#grid.y + b),
+    'moveto/2': (a, b) => this.#grid.moveTo(a, b),
+    'random/1': a => Math.floor(Math.random() * a),
+    'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).sum,
+    'write/1': a => {
+      this.#grid.setCell(this.#grid.x, this.#grid.y, a);
+      this.#grid.moveTo(this.#grid.x + 1, this.#grid.y);
+    },
+    'writeln/1': a => {
+      this.#grid.setCell(this.#grid.x, this.#grid.y, a);
+      this.#grid.moveTo(1, this.#grid.y + 1);
+    }
+  }));
+
   constructor() {
     super();
 
@@ -1834,14 +1827,27 @@ class CassavaGridElement extends HTMLElement {
 
   /** @param {string} macroName */
   runNamedMacro(macroName) {
-    runMacro(this.#macroMap.get(macroName), this.#grid, this.#findDialog,
-        this.#findPanel, this.#macroMap, this.#openDialog);
+    return this.runMacro(this.#macroMap.get(macroName));
   }
 
   /** @param {string} macro */
-  runMacro(macro) {
-    runMacro(macro, this.#grid, this.#findDialog, this.#findPanel,
-        this.#macroMap, this.#openDialog);
+  async runMacro(macro) {
+    if (!macro) {
+      return;
+    }
+    this.#grid.beginMacro();
+    try {
+      const env = new Environment(/* parent= */ null, this.#api);
+      await run(macro, env, this.#macroMap);
+    } catch(e) {
+      if (e != macroTerminated) {
+        alert(e);
+        throw e;
+      }
+    } finally {
+      this.#grid.endMacro();
+    }
+    this.#grid.render();
   }
 }
 
