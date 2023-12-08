@@ -1,10 +1,5 @@
-// #ifdef MODULE
-// import { GridData, Range } from './cassava_grid_data.js';
-// #else
 (() => {
-const GridData = net.asukaze.cassava.GridData;
-const Range = net.asukaze.cassava.Range;  
-// #endif
+const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
 
 class Action {
   /** @type {Range} */
@@ -319,12 +314,5 @@ class UndoGrid {
   }
 }
 
-// #ifdef MODULE
-// export { UndoGrid };
-// #else
-window.net = window.net || {};
-net.asukaze = net.asukaze || {};
-net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.UndoGrid = UndoGrid;
+net.asukaze.export({ UndoGrid });
 })();
-// #endif

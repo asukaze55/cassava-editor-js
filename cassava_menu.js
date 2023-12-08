@@ -1,14 +1,6 @@
-// #ifdef MODULE
-// import { button, createElement, dialog, div, titleBar } from './cassava_dom.js'
-// import { CassavaGridElement } from './cassava_grid.js';
-// #else
 (() => {
-const button = net.asukaze.cassava.dom.button;
-const createElement = net.asukaze.cassava.dom.createElement;
-const dialog = net.asukaze.cassava.dom.dialog;
-const div = net.asukaze.cassava.dom.div;
-const titleBar = net.asukaze.cassava.dom.titleBar;
-// #endif
+const { button, createElement, dialog, div, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 
 function menuItem(label, onclick, children) {
   const li = createElement('li', {}, [label]);
@@ -200,6 +192,4 @@ class CassavaMenuElement extends HTMLElement {
 
 customElements.define('cassava-menu', CassavaMenuElement);
 
-// #ifndef MODULE
 })();
-// #endif

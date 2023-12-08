@@ -1,9 +1,5 @@
-// #ifdef MODULE
-// import { createReplacer } from './cassava_replacer.js';
-// #else
 (() => {
-const createReplacer = net.asukaze.cassava.createReplacer;
-// #endif
+const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
 
 /**
  * @param {string} name
@@ -1194,12 +1190,5 @@ function run(script, env, macroMap) {
   return tree.run(env);
 }
 
-// #ifdef MODULE
-// export { Environment, run };
-// #else
-net.asukaze.cassava.macro =
-    net.asukaze.cassava.macro || {};
-net.asukaze.cassava.macro.Environment = Environment;
-net.asukaze.cassava.macro.run = run;
+net.asukaze.export({ Environment, run });
 })();
-// #endif

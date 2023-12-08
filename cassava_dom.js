@@ -1,6 +1,4 @@
-// #ifndef MODULE
 (() => {
-// #endif
 
 /**
  * @template {string} K
@@ -130,18 +128,5 @@ function titleBar(title, onClose) {
   ]);
 }
 
-// #ifdef MODULE
-// export { button, createElement, dialog, div, label, titleBar };
-// #else
-window.net = window.net || {};
-net.asukaze = net.asukaze || {};
-net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.dom = net.asukaze.cassava.dom || {};
-net.asukaze.cassava.dom.button = button;
-net.asukaze.cassava.dom.createElement = createElement;
-net.asukaze.cassava.dom.dialog = dialog;
-net.asukaze.cassava.dom.div = div;
-net.asukaze.cassava.dom.label = label;
-net.asukaze.cassava.dom.titleBar = titleBar;
+net.asukaze.export({ button, createElement, dialog, div, label, titleBar });
 })();
-// #endif

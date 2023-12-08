@@ -4,6 +4,8 @@ while (<STDIN>) {
     print;
   } elsif (/cassava_.*\.js/) {
     # pass
+  } elsif (/module\.js/) {
+    # pass
   } else {
     print;
   }

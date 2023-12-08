@@ -1,20 +1,14 @@
 $x = 0;
 while (<>) {
-  if (/#ifdef MODULE/) {
-    $x = 1;
+  if (/const (\{.*\}) = net\.asukaze\.import\(('.*')\);/) {
+    print "import $1 from $2;\n"
+  } elsif (/net\.asukaze\.export\((\{.*\})\);/) {
+    print "export $1;\n"
+  } elsif (/^\(\(\) => \{\r?\n?$/) {
     print "\n"
-  } elsif (/#else/ || /#ifndef MODULE/) {
-    $x = 2;
+  } elsif (/^\}\)\(\);\r?\n?$/) {
     print "\n"
-  } elsif (/#endif/) {
-    $x = 0;
-    print "\n"
-  } elsif ($x == 0) {
-    print;
-  } elsif ($x == 1) {
-    s/^\/\/\s*//;
-    print;
   } else {
-    print "\n"
+    print
   }
 }

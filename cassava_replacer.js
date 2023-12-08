@@ -1,6 +1,4 @@
-// #ifndef MODULE
 (() => {
-// #endif
 
 function stringForReplace(replaceText, match) {
   let result = '';
@@ -325,20 +323,5 @@ function toZenkakuKana(value) {
   return result;
 }
 
-// #ifdef MODULE
-// export { createFinder, createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana };
-// #else
-window.net = window.net || {};
-net.asukaze = net.asukaze || {};
-net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.createFinder = createFinder;
-net.asukaze.cassava.createReplacer = createReplacer;
-net.asukaze.cassava.toHankakuAlphabet =
-    toHankakuAlphabet;
-net.asukaze.cassava.toHankakuKana =
-    toHankakuKana;
-net.asukaze.cassava.toZenkakuAlphabet =
-    toZenkakuAlphabet;
-net.asukaze.cassava.toZenkakuKana =
-    toZenkakuKana;
+net.asukaze.export({ createFinder, createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana });
 })();

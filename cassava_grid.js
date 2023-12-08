@@ -1,29 +1,9 @@
-// #ifdef MODULE
-// import { Environment, run } from './cassava_macro.js';
-// import { GridData, Range, isNumber } from './cassava_grid_data.js';
-// import { UndoGrid } from './cassava_undo_grid.js';
-// import { button, createElement, dialog, div, label, titleBar } from './cassava_dom.js'
-// import { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } from './cassava_replacer.js';
-// #else
 (() => {
-const Environment = net.asukaze.cassava.macro.Environment;
-const GridData = net.asukaze.cassava.GridData;
-const Range = net.asukaze.cassava.Range;
-const UndoGrid = net.asukaze.cassava.UndoGrid;
-const button = net.asukaze.cassava.dom.button;
-const createElement = net.asukaze.cassava.dom.createElement;
-const createFinder = net.asukaze.cassava.createFinder;
-const dialog = net.asukaze.cassava.dom.dialog;
-const div = net.asukaze.cassava.dom.div;
-const isNumber = net.asukaze.cassava.isNumber;
-const label = net.asukaze.cassava.dom.label;
-const titleBar = net.asukaze.cassava.dom.titleBar;
-const run = net.asukaze.cassava.macro.run;
-const toHankakuAlphabet = net.asukaze.cassava.toHankakuAlphabet;
-const toHankakuKana = net.asukaze.cassava.toHankakuKana;
-const toZenkakuAlphabet = net.asukaze.cassava.toZenkakuAlphabet;
-const toZenkakuKana = net.asukaze.cassava.toZenkakuKana;
-// #endif
+const { Environment, run } = net.asukaze.import('./cassava_macro.js');
+const { GridData, Range, isNumber } = net.asukaze.import('./cassava_grid_data.js');
+const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
+const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
 
 class Clipboard {
   #clipText = '';
@@ -1853,8 +1833,5 @@ class CassavaGridElement extends HTMLElement {
 
 customElements.define('cassava-grid', CassavaGridElement);
 
-// #ifdef MODULE
-// export { CassavaGridElement };
-// #else
+net.asukaze.export({ CassavaGridElement });
 })();
-// #endif

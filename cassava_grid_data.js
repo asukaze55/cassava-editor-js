@@ -1,9 +1,5 @@
-// #ifdef MODULE
-// import { createReplacer } from './cassava_replacer.js';
-// #else
 (() => {
-const createReplacer = net.asukaze.cassava.createReplacer;
-// #endif
+const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
 
 function isNumber(value) {
   return value != '' && !isNaN(Number(value));
@@ -332,14 +328,5 @@ class GridData {
   }
 }
 
-// #ifdef MODULE
-// export { GridData, Range, isNumber };
-// #else
-window.net = window.net || {};
-net.asukaze = net.asukaze || {};
-net.asukaze.cassava = net.asukaze.cassava || {};
-net.asukaze.cassava.GridData = GridData;
-net.asukaze.cassava.Range = Range;
-net.asukaze.cassava.isNumber = isNumber;
+net.asukaze.export({ GridData, Range, isNumber });
 })();
-// #endif
