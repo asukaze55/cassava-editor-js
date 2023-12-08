@@ -627,7 +627,12 @@ class TreeBuilder {
               : await l.run(env);
           let paramResults = [];
           for (const p of params) {
-            paramResults.push(await p.run(env));
+            const paramResult = await p.run(env);
+            if (paramResult instanceof FunctionValue) {
+              paramResults.push((...a) => paramResult.run(a, env));
+            } else {
+              paramResults.push(paramResult);
+            }
           }
           if (func instanceof FunctionValue) {
             return func.run(paramResults, env);

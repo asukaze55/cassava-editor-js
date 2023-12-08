@@ -1,4 +1,5 @@
 (() => {
+const { CassavaStatusBarElement } = net.asukaze.import('./cassava_status_bar.js');
 const { Environment, run } = net.asukaze.import('./cassava_macro.js');
 const { GridData, Range, isNumber } = net.asukaze.import('./cassava_grid_data.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
@@ -227,12 +228,18 @@ class Grid {
   #renderedTop;
   /** @type {number} */
   #renderedBottom;
+  /** @type {Function} */
+  #onRender;
 
-  /** @param {GridData} gridData */
-  constructor(gridData) {
+  /**
+   * @param {GridData} gridData
+   * @param {Function} onRender
+   */
+  constructor(gridData, onRender) {
     this.element = createElement('table', {tabIndex: -1});
     this.#undoGrid = new UndoGrid(gridData);    
     this.#suppressRender = 0;
+    this.#onRender = onRender;
     this.clear();
   }
 
@@ -426,7 +433,7 @@ class Grid {
    * @param {number} x
    * @param {number} y
    */
-  moveTo(x, y) {
+  async moveTo(x, y) {
     this.anchorX = x;
     this.anchorY = y;
     this.x = x;
@@ -439,7 +446,7 @@ class Grid {
     if (this.#suppressRender > 0) {
       return;
     }
-    this.render();
+    await this.render();
     const cellNode = this.cellNode(x, y);
     cellNode.focus();
     setTimeout(() => window.getSelection()
@@ -499,9 +506,14 @@ class Grid {
     this.rowHeights.clear();
   }
 
-  render() {
+  async render() {
     if (this.#suppressRender > 0) {
       return;
+    }
+    if (this.#onRender) {
+      this.#suppressRender++;
+      await this.#onRender();
+      this.#suppressRender--;
     }
     const table = this.element;
     const bottom = Math.max(4, this.#undoGrid.bottom() + 1, this.y, this.anchorY);
@@ -993,7 +1005,7 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
       return;
     case 's':
       if (event.ctrlKey) {
-        saveAs(grid.fileName || '無題.csv', grid);
+        saveAs(grid.fileName || '無�csv', grid);
         event.preventDefault();
       }
     case 'v':
@@ -1601,11 +1613,18 @@ td, th {
 `;
 
 class CassavaGridElement extends HTMLElement {
+  /** @type {FindDialog} */
   #findDialog;
+  /** @type {FindPanel} */
   #findPanel;
+  /** @type {Grid} */
   #grid;
+  /** @type {Map<string, string>} */
   #macroMap;
+  /** @type {OpenDialog} */
   #openDialog;
+  /** @type {CassavaStatusBarElement} */
+  #statusBarPanel;
 
   #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
@@ -1632,9 +1651,12 @@ class CassavaGridElement extends HTMLElement {
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
     'FindNext/0': () => this.#findDialog.findNext(1),
+    'GetActiveDataType/0': () => 'CSV',
+    'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
         a => this.#grid.colWidths.get(a - 0) ?? this.#grid.defaultColWidth,
+    'GetDataTypes/0': () => 'CSV',
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
@@ -1681,7 +1703,7 @@ class CassavaGridElement extends HTMLElement {
     'Right=/1': a => this.#grid.setRight(a),
     'Row=/0': () => this.#grid.y,
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
-    'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
+    'Save/0': () => saveAs(this.#grid.fileName || '無�csv', this.#grid),
     'SaveAs/0': () => {
       const fileName = prompt("ファイル名を入力してください。");
       if (fileName) {
@@ -1709,6 +1731,16 @@ class CassavaGridElement extends HTMLElement {
         this.#grid.selectRow(this.#grid.selTop(), this.#grid.selBottom()),
     'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
     'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
+    'SetActiveDataType/1': dataType => {
+      if (dataType != 'CSV') {
+        throw 'Unsupported data type: ' + dataType;
+      }
+    },
+    'SetCharCode/1': charCode => {
+      if (charCode != 'UTF-8') {
+        throw 'Unsupported encoding: ' + charCode;
+      }
+    },
     'SetColWidth/1': a => {
       this.#grid.colWidths.clear();
       this.#grid.defaultColWidth = a;
@@ -1719,6 +1751,10 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.defaultRowHeight = a;
     },
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(a, b),
+    'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(a),
+    'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(a, b, c),
+    'SetStatusBarText/2': (a, b) => this.#statusBarPanel.setText(a, b),
+    'SetStatusBarWidth/2': (a, b) => this.#statusBarPanel.setWidth(a, b),
     'Sort/9': (a, b, c, d, e, f, g, h, i) =>
         this.#grid.sort(new Range(a, b, c, d), e, f, g, h, i),
     'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
@@ -1756,18 +1792,24 @@ class CassavaGridElement extends HTMLElement {
   constructor() {
     super();
 
-    this.#grid = new Grid(new GridData());
+    this.#grid = new Grid(new GridData(),
+        /* onRender= */ () => this.runNamedMacro('!statusbar.cms'));
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
     this.#macroMap = new Map();
     this.#openDialog = new OpenDialog(this.#grid);
+    this.#statusBarPanel = /** @type {CassavaStatusBarElement} */(
+        createElement('cassava-status-bar'));
 
     const table = this.#grid.element;
     const shadow = this.attachShadow({mode: 'open'});
     shadow.innerHTML = '';
     shadow.append(
         createElement('style', {textContent: styleContent}),
-        table, this.#findPanel.element, this.#findDialog.element);
+        table,
+        this.#findPanel.element,
+        this.#findDialog.element,
+        this.#statusBarPanel);
 
     table.addEventListener('focusin', event => gridFocusIn(event, this.#grid));
     table.addEventListener('focusout',
@@ -1792,11 +1834,22 @@ class CassavaGridElement extends HTMLElement {
    * @param {string} macroName
    * @param {string} macroText
    */
-  addMacro(macroName, macroText) {
+  async addMacro(macroName, macroText) {
     if (macroText == '') {
       this.#macroMap.delete(macroName);
+      if (macroName == '!statusbar.cms') {
+        this.#statusBarPanel.style.display = 'none';
+      }
     } else {
       this.#macroMap.set(macroName, macroText);
+      if (macroName == '!statusbar.cms') {
+        this.#statusBarPanel.style.display = '';
+        try {
+          await this.runMacro('import{init}from"!statusbar.cms";init();',
+              /* ignoreErrors= */ true);
+        } catch {}
+        await this.#grid.render();
+      }
     }
   }
 
@@ -1810,8 +1863,11 @@ class CassavaGridElement extends HTMLElement {
     return this.runMacro(this.#macroMap.get(macroName));
   }
 
-  /** @param {string} macro */
-  async runMacro(macro) {
+  /**
+   * @param {string} macro
+   * @param {boolean=} ignoreErrors
+   */
+  async runMacro(macro, ignoreErrors) {
     if (!macro) {
       return;
     }
@@ -1820,14 +1876,14 @@ class CassavaGridElement extends HTMLElement {
       const env = new Environment(/* parent= */ null, this.#api);
       await run(macro, env, this.#macroMap);
     } catch(e) {
-      if (e != macroTerminated) {
+      if (e != macroTerminated && !ignoreErrors) {
         alert(e);
         throw e;
       }
     } finally {
       this.#grid.endMacro();
     }
-    this.#grid.render();
+    await this.#grid.render();
   }
 }
 
