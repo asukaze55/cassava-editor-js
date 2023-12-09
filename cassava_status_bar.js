@@ -14,6 +14,11 @@ div {
   overflow: hidden;
   padding: 0 8px;
   white-space: pre;
+  width: 50px;
+}
+
+div:last-child {
+  flex: 1;
 }
 
 ul {
@@ -52,7 +57,7 @@ class CassavaStatusBarElement extends HTMLElement {
   #panel(index) {
     const shadow = this.shadowRoot;
     while (shadow.children.length <= index + 1) {
-      shadow.append(createElement('div', {style: 'width: 50px;'}));
+      shadow.append(createElement('div'));
     }
     return /** @type {HTMLElement} */(shadow.children[index + 1]);
   }

@@ -2,27 +2,19 @@ for (const grid of document.getElementsByTagName('cassava-grid')) {
 
 grid.addMacro('!statusbar.cms', `
 function init() {
-  SetStatusBarCount(5);
+  SetStatusBarCount(3);
 }
 
-SetStatusBarWidth(1, 80);
-SetStatusBarText(1, GetActiveDataType());
-SetStatusBarPopUp(1, GetDataTypes(), type => SetActiveDataType(type));
-
-SetStatusBarWidth(2, 80);
-SetStatusBarText(2, GetCharCode());
-SetStatusBarPopUp(2, "UTF-8\nShift-JIS", code => SetCharCode(code));
-
-SetStatusBarText(3, "[" + x + "," + y + "]");
+SetStatusBarText(1, "[" + x + "," + y + "]");
 
 if (SelRight > SelLeft || SelBottom > SelTop) {
-  SetStatusBarText(4, (SelRight - SelLeft + 1) + "×" + (SelBottom - SelTop + 1));
+  SetStatusBarText(2, (SelRight - SelLeft + 1) + "×" + (SelBottom - SelTop + 1));
   if ((SelRight - SelLeft + 1) * (SelBottom - SelTop + 1) <= 1000) {
-    SetStatusBarText(5, "SUM=" + sum(SelLeft, SelTop, SelRight, SelBottom));
+    SetStatusBarText(3, "SUM=" + sum(SelLeft, SelTop, SelRight, SelBottom));
   }
 } else {
-  SetStatusBarText(4, "");
-  SetStatusBarText(5, [x,y]);
+  SetStatusBarText(2, "");
+  SetStatusBarText(3, [x,y]);
 }
 `);
 
