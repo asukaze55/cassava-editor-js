@@ -1801,7 +1801,7 @@ class CassavaGridElement extends HTMLElement {
     this.#macroMap = new Map();
     this.#openDialog = new OpenDialog(this.#grid);
     this.#statusBarPanel = /** @type {CassavaStatusBarElement} */(
-        createElement('cassava-status-bar'));
+        createElement('cassava-status-bar', {style: 'display: none;'}));
 
     const table = this.#grid.element;
     const shadow = this.attachShadow({mode: 'open'});
