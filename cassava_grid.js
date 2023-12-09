@@ -237,7 +237,7 @@ class Grid {
    */
   constructor(gridData, onRender) {
     this.element = createElement('table', {tabIndex: -1});
-    this.#undoGrid = new UndoGrid(gridData);    
+    this.#undoGrid = new UndoGrid(gridData);
     this.#suppressRender = 0;
     this.#onRender = onRender;
     this.clear();
@@ -296,6 +296,7 @@ class Grid {
     this.#undoGrid.clearCells(range);
   }
 
+  /** @param {Range} range */
   connectCells(range) {
     blurActiveElement();
     const l = range.left;
@@ -700,6 +701,7 @@ class Grid {
     this.y = y;
     this.render();
     const cellNode = this.cellNode(x, y);
+    this.renderCell(cellNode, x, y);
     cellNode.focus();
     setTimeout(() => {
       let anchorNode = null;
@@ -959,9 +961,11 @@ function containsLastPosition(selection, cellNode) {
  * @param {Grid} grid
  * @param {FindDialog} findDialog
  * @param {FindPanel} findPanel
+ * @param {ShadowRoot} shadow
  */
-function gridKeyDown(event, grid, findDialog, findPanel) {
-  const selection = window.getSelection();
+function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
+  const selection = /** @type {any} */(shadow).getSelection
+      ? /** @type {any} */(shadow).getSelection() : document.getSelection();
   let cellNode = grid.isEditing ? getCellNode(selection.focusNode) : null;
   let x = grid.x;
   let y = grid.y;
@@ -1005,7 +1009,7 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
       return;
     case 's':
       if (event.ctrlKey) {
-        saveAs(grid.fileName || '無�csv', grid);
+        saveAs(grid.fileName || '無題.csv', grid);
         event.preventDefault();
       }
     case 'v':
@@ -1080,7 +1084,7 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
       return;
     case 'Backspace':
       if (event.ctrlKey) {
-        grid.connectCells(selection);
+        grid.connectCells(grid.selection());
         event.preventDefault();
       }
       return;
@@ -1109,11 +1113,10 @@ function gridKeyDown(event, grid, findDialog, findPanel) {
     case 'Enter':
       if (event.ctrlKey) {
         if (grid.isEditing) {
-          const windowSelection = window.getSelection();
-          const p1 = getInCellOffset(
-              windowSelection.anchorNode, windowSelection.anchorOffset);
-          const p2 = getInCellOffset(
-              windowSelection.focusNode, windowSelection.focusOffset);
+          const p1 =
+              getInCellOffset(selection.anchorNode, selection.anchorOffset);
+          const p2 =
+              getInCellOffset(selection.focusNode, selection.focusOffset);
           grid.insertRowAtCursor(p1, p2);
         } else {
           grid.insertRowAtCursor(0, 0);
@@ -1400,7 +1403,6 @@ class OpenDialog {
       style: 'display: none;',
       type: 'file'
     });
-    
   }
 
   /**  @returns {Promise?} */
@@ -1703,7 +1705,7 @@ class CassavaGridElement extends HTMLElement {
     'Right=/1': a => this.#grid.setRight(a),
     'Row=/0': () => this.#grid.y,
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
-    'Save/0': () => saveAs(this.#grid.fileName || '無�csv', this.#grid),
+    'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
     'SaveAs/0': () => {
       const fileName = prompt("ファイル名を入力してください。");
       if (fileName) {
@@ -1815,8 +1817,8 @@ class CassavaGridElement extends HTMLElement {
     table.addEventListener('focusout',
         event => gridFocusOut(event, this.#grid));
     table.addEventListener('input', event => gridInput(event, this.#grid));
-    table.addEventListener('keydown', event =>
-        gridKeyDown(event, this.#grid, this.#findDialog, this.#findPanel));
+    table.addEventListener('keydown', event => gridKeyDown(event, this.#grid,
+        this.#findDialog, this.#findPanel, shadow));
     table.addEventListener('mousedown',
         event => gridMouseDown(event, this.#grid));
     table.addEventListener('mousemove',
