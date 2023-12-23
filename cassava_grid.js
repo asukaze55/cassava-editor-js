@@ -1343,6 +1343,11 @@ function parseCsv(data, gridData) {
         } else {
           quoted = false;
         }
+      } else if (c == '\r') {
+        current += '\n';
+        if (data[i + 1] == '\n') {
+          i++;
+        }
       } else {
         current += c;
       }
