@@ -1,5 +1,5 @@
 (() => {
-const { button, createElement, dialog, div, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 
 class MacroDialog {
@@ -15,6 +15,8 @@ class MacroDialog {
   #macroTextarea;
   /** @type {HTMLDivElement} */
   #warningDiv;
+  /** @type {HTMLInputElement} */
+  #enableLocalStorageInput;
 
   /** @param {CassavaGridElement} grid */
   constructor(grid) {
@@ -37,6 +39,11 @@ class MacroDialog {
     });
     this.#warningDiv =
         createElement('div', {style: 'color: #f00; font-size: 70%'});
+    this.#enableLocalStorageInput = createElement('input', {
+      name: 'enable-local-storage',
+      type: 'checkbox',
+      oninput: () => this.#enableLocalStorageChanged()
+    });
     this.element = dialog([
       titleBar('マクロを編集', () => this.element.close()),
       createElement('div', smallScreen ? {} : {style: 'display: flex'}, [
@@ -46,9 +53,20 @@ class MacroDialog {
         div(div(this.#macroTextarea),
             div(button('実行', () => grid.runMacro(this.#macroTextarea.value))),
             div('名前変更：', this.#macroNameInput),
-            this.#warningDiv)
+            this.#warningDiv,
+            div(label(this.#enableLocalStorageInput, 'ローカルストレージに保存する')))
       ])
     ]);
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('Macro/')) {
+          const macroName = key.substring(6);
+          grid.addMacro(macroName, localStorage.getItem(key));
+        }
+      }
+    } catch {}
   }
 
   show() {
@@ -75,11 +93,33 @@ class MacroDialog {
     }
   }
 
+  #enableLocalStorageChanged() {
+    if (this.#enableLocalStorageInput.checked) {
+      this.#save();
+    } else {
+      localStorage.removeItem(this.#key(this.#macroName));
+    }
+  }
+
+  #key(macroName) {
+    return 'Macro/' + macroName;
+  }
+
   #load(macroName) {
     this.#macroName = macroName;
     this.#macroNameInput.value = macroName;
     this.#macroTextarea.value = this.#grid.getMacro(macroName) || '';
     this.#warningDiv.innerText = '';
+
+    try {
+      if (localStorage.getItem(this.#key(macroName))) {
+        this.#enableLocalStorageInput.checked = true;
+      } else {
+        this.#enableLocalStorageInput.checked = false;
+      }
+    } catch {
+      this.#enableLocalStorageInput.checked = false;
+    }
   }
 
   #rename(newName) {
@@ -94,8 +134,15 @@ class MacroDialog {
       this.#warningDiv.innerText = '同名のマクロがあります。他の名前を入力してください。';
       return;
     }
+
     this.#warningDiv.innerText = '';
     this.#grid.addMacro(this.#macroName, '');
+    try {
+      if (this.#enableLocalStorageInput.checked) {
+        localStorage.removeItem(this.#key(this.#macroName));
+      }
+    } catch {}
+
     this.#macroName = newName;
     this.#save();
   }
@@ -117,6 +164,14 @@ class MacroDialog {
     const macroText = this.#macroTextarea.value;
     this.#grid.addMacro(this.#macroName, macroText);
     this.#renderMacroSelect();
+
+    if (this.#enableLocalStorageInput.checked) {
+      if (macroText == '') {
+        localStorage.removeItem(this.#key(this.#macroName));
+      } else {
+        localStorage.setItem(this.#key(this.#macroName), macroText);
+      }
+    }
   }
 }
 
