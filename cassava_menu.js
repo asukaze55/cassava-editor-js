@@ -1,6 +1,7 @@
 (() => {
-const { button, createElement, dialog, div, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { createElement } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
+const { MacroDialog } = net.asukaze.import('./cassava_macro_dialog.js');
 
 function menuItem(label, onclick, children) {
   const li = createElement('li', {}, [label]);
@@ -59,20 +60,7 @@ class CassavaMenuElement extends HTMLElement {
 
     const grid = /** @type {CassavaGridElement} */(
         document.getElementById(this.getAttribute('for')));
-    const macroNameInput =
-        createElement('input', {name: 'macro-name', value: '新規マクロ'});
-    const macroTextarea =
-        createElement('textarea', {cols: 40, name: 'macro-text', rows: 10});
-    const macroDialog = dialog([
-      titleBar('マクロを編集', () => macroDialog.close()),
-      div(macroTextarea),
-      div(button('実行', () => grid.runMacro(macroTextarea.value))),
-      div('マクロ名：', macroNameInput, ' ',
-          button('追加', () => {
-            grid.addMacro(macroNameInput.value, macroTextarea.value);
-            macroDialog.close();
-          }))
-    ]);
+    const macroDialog = new MacroDialog(grid);
 
     const toggleSubMenu = event => this.toggleSubMenu(event);
     const command = command => () => {
@@ -134,7 +122,7 @@ class CassavaMenuElement extends HTMLElement {
         ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
       ['マクロ', event => this.toggleMacroMenu(event, grid, [
-        ['マクロを追加...', () => macroDialog.show()]
+        ['マクロを編集...', () => macroDialog.show()]
       ]), []],
       ['ヘルプ', toggleSubMenu, [
         ['掲示板', () => window.open('https://www.asukaze.net/soft/cassava/bbs/', '_blank')],
@@ -145,7 +133,7 @@ class CassavaMenuElement extends HTMLElement {
     const shadow = this.attachShadow({mode: 'open'});
     shadow.innerHTML = '';
     shadow.append(
-        createElement('style', {textContent: styleContent}), ul, macroDialog);
+        createElement('style', {textContent: styleContent}), ul, macroDialog.element);
 
     this.closeMenus();
     document.body.addEventListener('click', () => this.closeMenus());
@@ -157,7 +145,7 @@ class CassavaMenuElement extends HTMLElement {
       /** @type {HTMLElement} */(subMenu).style.display = 'none';
     }
   }
-  
+
   toggleSubMenu(event) {
     event.stopPropagation();
     const currentTarget = event.currentTarget;
@@ -175,7 +163,7 @@ class CassavaMenuElement extends HTMLElement {
       subMenu = subMenu.parentElement;
     }
   }
-  
+
   toggleMacroMenu(event, grid, items) {
     const currentTarget = event.currentTarget;
     const subMenu = currentTarget.lastElementChild;

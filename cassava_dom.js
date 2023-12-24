@@ -55,7 +55,8 @@ function label(...children) {
  */
 function isInputElement(element, root) {
   while (element != null && element != root) {
-    if (element.tagName == 'BUTTON' || element.tagName == 'INPUT' || element.tagName == 'TEXTAREA') {
+    if (element.tagName == 'BUTTON' || element.tagName == 'INPUT' ||
+        element.tagName == 'SELECT' || element.tagName == 'TEXTAREA') {
       return true;
     }
     element = element.parentElement;

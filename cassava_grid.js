@@ -1860,6 +1860,14 @@ class CassavaGridElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {string} macroName
+   * @returns {string}
+   */
+  getMacro(macroName) {
+    return this.#macroMap.get(macroName);
+  }
+
   /** @returns IterableIterator<string> */
   getMacroNames() {
     return this.#macroMap.keys();

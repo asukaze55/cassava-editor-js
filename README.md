@@ -27,7 +27,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 <!-- グリッドを表示 -->
 <cassava-grid id="cassava-grid" style="max-height: 90vh;"></cassava-grid>
 <!-- JavaScript を読み込む -->
-<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20231209.js"></script>
+<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20231224.js"></script>
 </body>
 </html>
 ```
@@ -51,6 +51,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 |メソッド|説明|
 |-|-|
 |`addMacro(macroName: string, macroText: string)`|`macroName` で指定した名前で、`macroText` の内容のマクロを登録します。登録したマクロは、他のマクロの `import` 文で使用したり `runNamedMacro` メソッドで実行したりできます。|
+|`getMacro(macroName: string): string`|指定したマクロ名のマクロの内容を取得します。|
 |`getMacroNames(): IterableIterator<string>`|`addMacro` で登録したマクロ名の一覧を取得します。|
 |`runNamedMacro(macroName: string)`|`addMacro` で登録したマクロを実行します。|
 |`runMacro(macro: string)`|`macro` の内容のマクロを実行します。|
