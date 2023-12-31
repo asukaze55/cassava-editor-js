@@ -21,18 +21,20 @@ const builtInFunctions = new Map(Object.entries({
   'asin/1': a => Math.asin(a),
   'atan/1': a => Math.atan(a),
   'atan2/2': (a, b) => Math.atan2(a, b),
-  'chrW/1': a => String.fromCharCode(a - 0),
+  'chrW/1': a => String.fromCharCode(Number(a)),
   'cos/1': a => Math.cos(a),
-  'double/1': a => a - 0,
+  'double/1': a => Number(a),
   'int/1': a => Math.trunc(a),
   'left/2': (a, b) => a.toString().slice(0, b),
   'len/1': a => a.toString().length,
   'max/+1': (...a) => Math.max(...a),
   'mid/2': (a, b) => a.toString().substring(b - 1),
-  'mid/3': (a, b, c) => a.toString().substring((b - 1), (b - 1) + (c - 0)),
+  'mid/3': (a, b, c) =>
+      a.toString().substring(Number(b) - 1, Number(b) - 1 + Number(c)),
   'min/+1': (...a) => Math.min(...a),
   'pos/2': (a, b) => a.toString().indexOf(b) + 1,
   'pow/2': (a, b) => Math.pow(a, b),
+  'random/1': a => Math.floor(Math.random() * a),
   'replace/+3': (str1, str2, str3, ignoreCase, regex) => createReplacer(
       str2.toString(), str3.toString(), ignoreCase, false, regex)(
           str1.toString()),
@@ -653,8 +655,8 @@ class TreeBuilder {
                 env.get('cell=', 3))(x, y, value);
           } else if (l.name == 'mid') {
             const str = (await params[0].run(env)).toString();
-            const start = (await params[1].run(env)) - 1;
-            const len = (await params[2].run(env)) - 0;
+            const start = Number(await params[1].run(env)) - 1;
+            const len = Number(await params[2].run(env));
             await params[0].assign(env, str.substring(0, start) + value
                 + str.substring(start + len));
           } else {
@@ -678,7 +680,7 @@ class TreeBuilder {
             }
             return result;
           }
-          const str = obj.toString();
+          const str = /** @type {string} */(obj.toString());
           if (name == 'endsWith') {
             return (a, b) =>
                 str.endsWith(a, b) ? 1 : 0;
@@ -696,7 +698,7 @@ class TreeBuilder {
           } else if (name == 'padStart') {
             return (a, b) => str.padStart(a, b);
           } else if (name == 'repeat') {
-            return (a, b) => str.repeat(a, b);
+            return a => str.repeat(a);
           } else if (name == 'replace') {
             return (a, b) => str.replace(a, b);
           } else if (name == 'replaceAll') {
@@ -720,8 +722,8 @@ class TreeBuilder {
             return () => str.trimEnd();
           } else if (name == 'trimStart') {
             return () => str.trimStart();
-          } else if (!isNaN(name - 0)) {
-            return str[name - 0] || '';
+          } else if (!isNaN(Number(name))) {
+            return str[Number(name)] || '';
           } else {
             throw 'Undefined member: ' + name
                   + '\nString: ' + obj.toString();
@@ -750,7 +752,7 @@ class TreeBuilder {
       if (name[0] == '"' || name[0] == "'") {
         name = parseString(name);
       } else if (isNumCharOrDot(name[0])) {
-        name = name - 0;
+        name = Number(name);
       }
       const token = this.tokens.shift();
       if (token == ':') {
@@ -1033,7 +1035,7 @@ class TreeBuilder {
           stack.push(this.buildTree(')'));
         }
       } else if (token == '!') {
-        stack.push(operatorNode(15, (l, r) => (r - 0 != 0) ? 0 : 1));
+        stack.push(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
       } else if (token == '++') {
         stack.push(new Node(15, async (env, left, children) => {
           const child = left || children[0];
@@ -1081,18 +1083,18 @@ class TreeBuilder {
       } else if (token == '&&' || token == '&') {
         stack.push(new Node(5, async (env, left, children) => {
           const l = await left.run(env);
-          return (l - 0 == 0) ? l : children[0].run(env);
+          return (Number(l) == 0) ? l : children[0].run(env);
         }));
       } else if (token == '||' || token == '|') {
         stack.push(new Node(4, async (env, left, children) => {
           const l = await left.run(env);
-          return (l - 0 != 0) ? l : children[0].run(env);
+          return (Number(l) != 0) ? l : children[0].run(env);
         }));
       } else if (token == '?') {
         const thenNode = this.buildTree(':');
         stack.push(new Node(3, async (env, left, children) => {
           const l = await left.run(env);
-          return (l - 0 != 0) ? thenNode.run(env) : children[0].run(env);
+          return (Number(l) != 0) ? thenNode.run(env) : children[0].run(env);
         }));
       } else if (token == '=') {
         if (!stack.hasValueNode()) {

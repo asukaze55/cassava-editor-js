@@ -8,20 +8,28 @@ function isNumber(value) {
 function increment(value) {
   const c = value.at(-1);
   if (c >= '0' && c < '9') {
-    return value.substring(0, value.length - 1)
-           + ((c - 0) + 1);
+    return value.substring(0, value.length - 1) + (Number(c) + 1);
   } else if (c == '9') {
-    return increment(
-        value.substring(0, value.length - 1)) + '0';
+    return increment(value.substring(0, value.length - 1)) + '0';
   }
   return value + '1';
 }
 
 class Range {
+  /**
+   * @param {number} left
+   * @param {number} top
+   * @param {number} right
+   * @param {number} bottom
+   */
   constructor(left, top, right, bottom) {
+    /** @type {number} */
     this.left = left;
+    /** @type {number} */
     this.top = top;
+    /** @type {number} */
     this.right = right;
+    /** @type {number} */
     this.bottom = bottom;
   }
 }
@@ -31,10 +39,16 @@ class GridData {
     this.clear();
   }
 
+  /** @returns number */
   bottom() {
     return this.data.length;
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {string}
+   */
   cell(x, y) {
     if (this.data[y - 1] == null) {
       return '';
@@ -51,6 +65,7 @@ class GridData {
     this.maxColCount = 1;
   }
 
+  /** @param {Range} range */
   clearCells(range) {
     for (let y = range.top; y <= range.bottom; y++) {
       const row = this.data[y - 1];
@@ -63,6 +78,7 @@ class GridData {
     }
   }
 
+  /** @param {Range} range */
   copy(range) {
     const gridData = new GridData();
     gridData.data = [];
@@ -78,6 +94,7 @@ class GridData {
     return gridData;
   }
 
+  /** @param {Range} range */
   deleteCellLeft(range) {
     const cols = range.right - range.left + 1;
     for (let y = range.top; y <= range.bottom; y++) {
@@ -87,6 +104,7 @@ class GridData {
     }
   }
 
+  /** @param {Range} range */
   deleteCellUp(range) {
     const rows = range.bottom - range.top + 1;
     const bottom = this.bottom();
@@ -97,6 +115,10 @@ class GridData {
     }
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   deleteCol(l, r) {
     this.maxColCount -= (r - l + 1);
     for (let y = 1; y <= this.data.length; y++) {
@@ -108,10 +130,15 @@ class GridData {
     }
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   deleteRow(t, b) {
     this.data.splice(t - 1, b - t + 1);
   }
 
+  /** @param {Range} range */
   insertCellDown(range) {
     const rows = range.bottom - range.top + 1;
     for (let x = range.left; x <= range.right; x++) {
@@ -124,6 +151,7 @@ class GridData {
     }
   }
 
+  /** @param {Range} range */
   insertCellRight(range) {
     const cols = range.right - range.left + 1;
     for (let y = range.top; y <= range.bottom; y++) {
@@ -136,6 +164,10 @@ class GridData {
     }
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   insertCol(l, r) {
     this.maxColCount += (r - l + 1);
     const newCells = [];
@@ -151,12 +183,20 @@ class GridData {
     }
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   insertRow(t, b) {
     for (let y = t; y <= b; y++) {
       this.data.splice(y - 1, 0, []);
     }
   }
 
+  /**
+   * @param {GridData} clipData
+   * @param {Range} range
+   */
   paste(clipData, range) {
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
@@ -165,6 +205,10 @@ class GridData {
     }
   }
 
+  /**
+   * @param {GridData} clipData
+   * @param {Range} range
+   */
   pasteRepeat(clipData, range) {
     const clipCols = clipData.right();
     const clipRows = clipData.bottom();
@@ -175,14 +219,23 @@ class GridData {
     }
   }
 
+  /** @returns {Range} */
   range() {
     return new Range(1, 1, this.maxColCount, this.data.length);
   }
 
-  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
+  /**
+   * @param {string} str1
+   * @param {string} str2
+   * @param {boolean} ignoreCase
+   * @param {boolean} wholeCell
+   * @param {boolean} isRegex
+   * @param {Range} range
+   */
+  replaceAll(str1, str2, ignoreCase, wholeCell, isRegex, range) {
     str1 = str1.toString();
     str2 = str2.toString();
-    const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, regex);
+    const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, isRegex);
     for (let y = range.top; y <= range.bottom; y++) {
       if (this.data[y - 1] == null) {
         continue;
@@ -197,10 +250,12 @@ class GridData {
     }
   }
 
+  /** @returns {number} */
   right() {
     return this.maxColCount;
   }
 
+  /** @param {Range} range */
   sequenceC(range) {
     for (let x = range.left; x <= range.right; x++) {
       const value = this.cell(x, range.top);
@@ -210,6 +265,7 @@ class GridData {
     }
   }
 
+  /** @param {Range} range */
   sequenceS(range) {
     for (let x = range.left; x <= range.right; x++) {
       const first = this.cell(x, range.top);
@@ -228,6 +284,7 @@ class GridData {
     }
   }
 
+  /** @param {number} b */
   setBottom(b) {
     while (this.data.length < b) {
       this.data.push([]);
@@ -237,9 +294,14 @@ class GridData {
     }
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {any} value
+   */
   setCell(x, y, value) {
     if (value != '' && x > this.maxColCount) {
-      this.maxColCount = x - 0;
+      this.maxColCount = x;
     }
     if (this.data[y - 1] == null) {
       if (value == '') {
@@ -250,8 +312,8 @@ class GridData {
     this.data[y - 1][x - 1] = value.toString();
   }
 
+  /** @param {number} r */
   setRight(r) {
-    r = r - 0;
     if (this.maxColCount <= r) {
       this.maxColCount = r;
       return;
@@ -264,6 +326,14 @@ class GridData {
     }
   }
 
+  /**
+   * @param {Range} range
+   * @param {number} p
+   * @param {boolean} dir
+   * @param {boolean} num
+   * @param {boolean} ignoreCase
+   * @param {boolean} zenhan
+   */
   sort(range, p, dir, num, ignoreCase, zenhan) {
     const rangeData = [];
     for (let y = range.top; y <= range.bottom; y++) {
@@ -307,6 +377,7 @@ class GridData {
     }
   }
 
+  /** @param {Range} range */
   sumAndAvr(range) {
     let sum = 0;
     let count = 0;

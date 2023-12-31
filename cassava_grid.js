@@ -280,8 +280,10 @@ class Grid {
     this.mouseDownX = 1;
     this.mouseDownY = 1;
     this.defaultColWidth = 48;
+    /** @type {Map<number, number>} */
     this.colWidths = new Map();
     this.defaultRowHeight = 32;
+    /** @type {Map<number, number>} */
     this.rowHeights = new Map();
     this.anchorX = 1;
     this.anchorY = 1;
@@ -362,7 +364,7 @@ class Grid {
   }
 
   getRowHeight(y) {
-    const rowHeight = this.rowHeights.get(y - 0);
+    const rowHeight = this.rowHeights.get(Number(y));
     return rowHeight != null ? rowHeight : this.defaultRowHeight;
   }
 
@@ -740,21 +742,32 @@ class Grid {
         Math.max(this.anchorY, this.y));
   }
 
+  /** @param {number} b */
   setBottom(b) {
     this.#undoGrid.setBottom(b);
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {any} value
+   */
   setCell(x, y, value) {
     this.#undoGrid.setCell(x, y, value);
     this.render();
   }
 
+  /** @param {number} r */
   setRight(r) {
     this.#undoGrid.setRight(r);
   }
 
+  /**
+   * @param {number} y
+   * @param {number} h
+   */
   setRowHeight(y, h) {
-    this.rowHeights.set(y - 0, h - 0);
+    this.rowHeights.set(Number(y), Number(h));
   }
 
   sequenceC(range) {
@@ -973,8 +986,8 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       && cellNode.dataset != null
       && cellNode.dataset.x != null
       && cellNode.dataset.y != null) {
-    x = cellNode.dataset.x - 0;
-    y = cellNode.dataset.y - 0;
+    x = Number(cellNode.dataset.x);
+    y = Number(cellNode.dataset.y);
   }
 
   switch (event.key) {
@@ -1635,7 +1648,7 @@ class CassavaGridElement extends HTMLElement {
 
   #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
-    'Bottom=/1': a => this.#grid.setBottom(a),
+    'Bottom=/1': a => this.#grid.setBottom(Number(a)),
     'Col=/0': () => this.#grid.x,
     'Col=/1': a => this.#grid.moveTo(a, this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
@@ -1662,7 +1675,7 @@ class CassavaGridElement extends HTMLElement {
     'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
-        a => this.#grid.colWidths.get(a - 0) ?? this.#grid.defaultColWidth,
+        a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
     'GetDataTypes/0': () => 'CSV',
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
@@ -1707,7 +1720,7 @@ class CassavaGridElement extends HTMLElement {
     'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) =>
         this.#grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)),
     'Right=/0': () => this.#grid.right(),
-    'Right=/1': a => this.#grid.setRight(a),
+    'Right=/1': a => this.#grid.setRight(Number(a)),
     'Row=/0': () => this.#grid.y,
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
     'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
@@ -1752,12 +1765,12 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.colWidths.clear();
       this.#grid.defaultColWidth = a;
     },
-    'SetColWidth/2': (a, b) => this.#grid.colWidths.set(a - 0, b - 0),
+    'SetColWidth/2': (a, b) => this.#grid.colWidths.set(Number(a), Number(b)),
     'SetRowHeight/1': a => {
       this.#grid.rowHeights.clear();
-      this.#grid.defaultRowHeight = a;
+      this.#grid.defaultRowHeight = Number(a);
     },
-    'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(a, b),
+    'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(a),
     'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(a, b, c),
     'SetStatusBarText/2': (a, b) => this.#statusBarPanel.setText(a, b),
@@ -1776,15 +1789,14 @@ class CassavaGridElement extends HTMLElement {
     'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).avr,
     'cell/2': (a, b) => {
       const value = this.#grid.cell(a, b);
-      if ((value - 0).toString() == value) {
-        return value - 0;
+      if ((Number(value)).toString() == value) {
+        return Number(value);
       }
       return value;
     },
-    'cell=/3': (a, b, c) => this.#grid.setCell(a, b, c),
+    'cell=/3': (a, b, c) => this.#grid.setCell(Number(a), Number(b), c),
     'move/2': (a, b) => this.#grid.moveTo(this.#grid.x + a, this.#grid.y + b),
     'moveto/2': (a, b) => this.#grid.moveTo(a, b),
-    'random/1': a => Math.floor(Math.random() * a),
     'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).sum,
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
