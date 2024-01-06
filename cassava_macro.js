@@ -13,36 +13,64 @@ function functionId(name, arity, varArgs, fileName) {
          + name + (varArgs ? '/+' : '/') + arity;
 }
 
-const SwapFunction = {};
+class SwapFunction {}
+const swapFunction = new SwapFunction();
+
+/** @typedef {number|string|Function|ObjectValue|ReturnValue|SwapFunction} ValueType */
 
 const builtInFunctions = new Map(Object.entries({
+  // @ts-ignore
   'acos/1': a => Math.acos(a),
+  // @ts-ignore
   'ascW/1': a => a.toString().charCodeAt(0),
+  // @ts-ignore
   'asin/1': a => Math.asin(a),
+  // @ts-ignore
   'atan/1': a => Math.atan(a),
+  // @ts-ignore
   'atan2/2': (a, b) => Math.atan2(a, b),
+  // @ts-ignore
   'chrW/1': a => String.fromCharCode(Number(a)),
+  // @ts-ignore
   'cos/1': a => Math.cos(a),
+  // @ts-ignore
   'double/1': a => Number(a),
+  // @ts-ignore
   'int/1': a => Math.trunc(a),
+  // @ts-ignore
   'left/2': (a, b) => a.toString().slice(0, b),
+  // @ts-ignore
   'len/1': a => a.toString().length,
+  // @ts-ignore
   'max/+1': (...a) => Math.max(...a),
+  // @ts-ignore
   'mid/2': (a, b) => a.toString().substring(b - 1),
+  // @ts-ignore
   'mid/3': (a, b, c) =>
       a.toString().substring(Number(b) - 1, Number(b) - 1 + Number(c)),
+  // @ts-ignore
   'min/+1': (...a) => Math.min(...a),
+  // @ts-ignore
   'pos/2': (a, b) => a.toString().indexOf(b) + 1,
+  // @ts-ignore
   'pow/2': (a, b) => Math.pow(a, b),
+  // @ts-ignore
   'random/1': a => Math.floor(Math.random() * a),
+  // @ts-ignore
   'replace/+3': (str1, str2, str3, ignoreCase, regex) => createReplacer(
       str2.toString(), str3.toString(), ignoreCase, false, regex)(
           str1.toString()),
+  // @ts-ignore
   'right/2': (a, b) => a.toString().slice(-b),
+  // @ts-ignore
   'sin/1': a => Math.sin(a),
+  // @ts-ignore
   'sqrt/1': a => Math.sqrt(a),
+  // @ts-ignore
   'str/1': a => a.toString(),
-  'swap/2': SwapFunction,
+  // @ts-ignore
+  'swap/2': swapFunction,
+  // @ts-ignore
   'tan/1': a => Math.tan(a),
   'GetDate/0': () => new Date().getDate(),
   'GetHours/0': () => new Date().getHours(),
@@ -53,7 +81,7 @@ const builtInFunctions = new Map(Object.entries({
 }));
 
 /**
- * @param {Map<string, any>} map
+ * @param {Map<string, ValueType>} map
  * @param {string} name
  * @param {number} arity
  * @param {string=} fileName
@@ -74,17 +102,19 @@ function findFunction(map, name, arity, fileName) {
 }
 
 class Environment {
+    /** @type {Set<string>} */
+    #constants = new Set();
+    /** @type {Map<string, Function>} */
+    #functions;
+
   /**
    * @param {Environment} parent
-   * @param {Map<string, any>=} api
+   * @param {Map<string, Function>=} api
    */
   constructor(parent, api) {
-    /** @type {Map<string, any>} */
+    this.#functions = (parent != null) ? parent.#functions : new Map(api);
+    /** @type {Map<string, ValueType>} */
     this.variables = new Map();
-    /** @type {Set<string>} */
-    this.constants = new Set();
-    /** @type {Map<string, Function>} */
-    this.functions = (parent != null) ? parent.functions : new Map(api);
     /** @type {number} */
     this.loop = (parent != null) ? parent.loop - 1: 1000000;
   }
@@ -98,25 +128,25 @@ class Environment {
    * @param {string} name
    * @param {number=} arity
    * @param {string=} fileName
-   * @returns {any}
+   * @returns {ValueType}
    */
   get(name, arity, fileName) {
     if (this.variables.has(name)) {
       return this.variables.get(name);
     }
     if (arity == null) {
-      if (this.functions.has(name + '=/0')) {
-        return this.functions.get(name + '=/0')();
+      if (this.#functions.has(name + '=/0')) {
+        return this.#functions.get(name + '=/0')();
       }
       throw 'Undefined variable: ' + name;
     }
     if (fileName) {
-      const func = findFunction(this.functions, name, arity, fileName);
+      const func = findFunction(this.#functions, name, arity, fileName);
       if (func) {
         return func;
       }
     }
-    const func = findFunction(this.functions, name, arity);
+    const func = findFunction(this.#functions, name, arity);
     if (func) {
       return func;
     }
@@ -132,52 +162,72 @@ class Environment {
     if (name.indexOf('/') == -1) {
       return this.variables.has(name);
     } else {
-      return this.functions.has(name);
+      return this.#functions.has(name);
     }
   }
 
   /**
    * @param {string} name
-   * @param {any} value
+   * @param {ValueType} value
    * @param {''|'const'|'let'|'var'=} type
    */
   set(name, value, type) {
-    if (this.functions.has(name + '=/1')) {
-      this.functions.get(name + '=/1')(value);
+    if (this.#functions.has(name + '=/1')) {
+      this.#functions.get(name + '=/1')(value);
       return;
     }
-    if (this.constants.has(name)) {
+    if (this.#constants.has(name)) {
       throw 'Cannot modify constant: ' + name;
     }
     if (type == 'const') {
-      this.constants.add(name);
+      this.#constants.add(name);
     }
     if (name.indexOf('/') == -1) {
       this.variables.set(name, value);
     } else {
-      this.functions.set(name, value);
+      this.#functions.set(name, /** @type {Function} */(value));
     }
   }
 }
 
+/**
+ * @param {string} c
+ * @returns {boolean}
+ */
 function isNumChar(c) {
   return c >= '0' && c <= '9';
 }
 
+/**
+ * @param {string} c
+ * @returns {boolean}
+ */
 function isNumCharOrDot(c) {
   return isNumChar(c) || c == '.';
 }
 
+/**
+ * @param {string} c
+ * @returns {boolean}
+ */
 function isAlphaChar(c) {
   return (c >= 'A' && c <= 'Z')
       || (c >= 'a' && c <= 'z')
       || c == '_';
 }
 
+/**
+ * @param {string} c
+ * @returns {boolean}
+ */
 function isAlphaNumChar(c) {
   return isAlphaChar(c) || isNumChar(c);
 }
 
+/**
+ * @param {string} data
+ * @returns {Array<string>}
+ */
 function tokenize(data) {
   const result = [];
   let hasValue = false;
@@ -275,17 +325,28 @@ function tokenize(data) {
 }
 
 class FunctionValue {
+  /** @type {Array<string>} */
+  #paramNames;
+  /** @type {Array<Node>} */
+  #defaultValues;
+  /** @type {boolean} */
+  #varArgs;
+  /** @type {Node} */
+  #bodyNode;
+  /** @type {Map<String, ValueType>} */
+  #envMap;
+
   /**
    * @param {Array<Node>} paramNodes
    * @param {Node} bodyNode
-   * @param {Map<String, any>=} envMap
+   * @param {Map<String, ValueType>=} envMap
    */
   constructor(paramNodes, bodyNode, envMap) {
-    this.paramNames = paramNodes.map(p => (p.left || p).name);
-    this.defaultValues = paramNodes.map(p => p.children[0]);
-    this.varArgs = paramNodes.length > 0 && paramNodes.at(-1).varArgs;
-    this.bodyNode = bodyNode;
-    this.envMap = envMap || new Map();
+    this.#paramNames = paramNodes.map(p => (p.left || p).name);
+    this.#defaultValues = paramNodes.map(p => p.children[0]);
+    this.#varArgs = paramNodes.length > 0 && paramNodes.at(-1).varArgs;
+    this.#bodyNode = bodyNode;
+    this.#envMap = envMap || new Map();
   }
 
   /**
@@ -294,17 +355,17 @@ class FunctionValue {
    * @returns {string}
    */
   id(name, fileName) {
-    let arity = this.paramNames.length - (this.varArgs ?  1 : 0);
-    while (arity > 0 && this.defaultValues[arity - 1] != null) {
+    let arity = this.#paramNames.length - (this.#varArgs ?  1 : 0);
+    while (arity > 0 && this.#defaultValues[arity - 1] != null) {
       arity--;
     }
-    return functionId(name, arity, this.varArgs, fileName);
+    return functionId(name, arity, this.#varArgs, fileName);
   }
 
   /**
-   * @param {Array<any>} params
+   * @param {Array<ValueType>} params
    * @param {Environment} env
-   * @returns {Promise<any>}
+   * @returns {Promise<ValueType>}
    */
   async run(params, env) {
     const newEnv = new Environment(env);
@@ -312,70 +373,76 @@ class FunctionValue {
       throw 'Too deep recursion.';
     }
     newEnv.init();
-    for (const [name, value] of this.envMap) {
+    for (const [name, value] of this.#envMap) {
       newEnv.set(name, value);
     }
-    for (let i = 0; i < this.paramNames.length; i++) {
-      if (this.varArgs && i == this.paramNames.length - 1) {
+    for (let i = 0; i < this.#paramNames.length; i++) {
+      if (this.#varArgs && i == this.#paramNames.length - 1) {
         const array = new ObjectValue();
         const length = Math.max(params.length - i, 0);
         array.set('length', length);
         for (let j = 0; j < length; j++) {
           array.set(j, params[i + j]);
         }
-        newEnv.set(this.paramNames[i], array);
+        newEnv.set(this.#paramNames[i], array);
       } else if (params.length > i) {
-        newEnv.set(this.paramNames[i], params[i]);
-      } else if (this.defaultValues[i] == null) {
+        newEnv.set(this.#paramNames[i], params[i]);
+      } else if (this.#defaultValues[i] == null) {
         throw 'Not enough parameters to call function.';
       } else {
-        newEnv.set(this.paramNames[i],
-            await this.defaultValues[i].run(newEnv));
+        newEnv.set(this.#paramNames[i],
+            await this.#defaultValues[i].run(newEnv));
       }
     }
-    const value = await this.bodyNode.run(newEnv);
+    const value = await this.#bodyNode.run(newEnv);
     if (value instanceof ReturnValue) {
       return value.value;
     }
     return value;
   }
 
+  /**
+   * @param {ObjectValue} value
+   * @returns {FunctionValue}
+   */
   setThis(value) {
-    this.envMap.set('this', value);
+    this.#envMap.set('this', value);
     return this;
   }
 }
 
 class ObjectValue {
-  constructor() {
-    this.value = new Map();
-  }
+  /** @type {Map<string, ValueType>} */
+  #value = new Map();
 
-  /** @param {string|number} name */
+  /** @param {ValueType} name */
   get(name) {
     const key = name.toString();
-    if (this.value.has(key)) {
-      return this.value.get(key);
+    if (this.#value.has(key)) {
+      return this.#value.get(key);
     }
-    throw 'Undefined member: ' + name
-          + '\nObject: ' + this.toString();
+    throw 'Undefined member: ' + name + '\nObject: ' + this.toString();
   }
 
-  /** @param {string|number} name */
+  /** @param {ValueType} name */
   has(name) {
-    return this.value.has(name.toString());
+    return this.#value.has(name.toString());
   }
 
-  /** @param {string|number} name */
+  /**
+   * @param {ValueType} name
+   * @param {ValueType} value
+   */
   set(name, value) {
-    this.value.set(name.toString(), value);
+    this.#value.set(name.toString(), value);
   }
 
+  /** @returns {string} */
   toString() {
     let result = '{';
     let first = true;
-    for (const [key, value] of this.value) {
-     if (first) {
+    for (const [key, value] of this.#value) {
+      if (first) {
         first = false;
       } else {
         result += ', ';
@@ -399,23 +466,28 @@ class ObjectValue {
 }
 
 class ReturnValue {
+  /**
+   * @param {ValueType} value
+   * @param {'break'|'continue'|'return'} type
+   */
   constructor(value, type) {
+    /** @type {ValueType} */
     this.value = value;
+    /** @type {'break'|'continue'|'return'} */
     this.type = type;
   }
 }
 
 class Node {
-  /** @type {(env: Environment, left: Node?, children: Array<Node>) => any} */
+  /** @type {(env: Environment, left: Node?, children: Array<Node>) => (ValueType|Promise<ValueType>)} */
   #runner
-  /** @type {(env: Environment, value: any, left: Node?) => any} */
+  /** @type {(env: Environment, value: ValueType, left: Node?) => (void|Promise<void>)?} */
   #assigner
 
   /**
    * @param {number} precedence
-   * @param {(env: Environment, left: Node?, children: Array<Node>) => any}
-   *     runner
-   * @param {(env: Environment, value: any, left: Node?) => any=} assigner
+   * @param {(env: Environment, left: Node?, children: Array<Node>) => (ValueType|Promise<ValueType>)} runner
+   * @param {(env: Environment, value: ValueType, left: Node?) => (void|Promise<void>)=} assigner
    * @param {string=} name
    * @param {boolean=} varArgs
    */
@@ -443,18 +515,22 @@ class Node {
     this.precedence = 100;
   }
 
+  /** @returns {boolean} */
   isValue() {
     return this.precedence >= 100;
   }
 
-  /** @param {Environment} env */
+  /**
+   * @param {Environment} env
+   * @returns {ValueType|Promise<ValueType>}
+   */
   run(env) {
     return this.#runner(env, this.left, this.children);
   }
 
   /**
    * @param {Environment} env
-   * @param {any} value
+   * @param {ValueType} value
    */
   async assign(env, value) {
     if (this.#assigner == null) {
@@ -464,6 +540,7 @@ class Node {
   }
 }
 
+/** @returns {Node} */
 function blockNode() {
   return new Node(0, async (env, left, children) => {
     let result;
@@ -479,7 +556,7 @@ function blockNode() {
 
 /**
  * @param {number} precedence
- * @param {(left: any, right: any) => any} runner
+ * @param {(left: ValueType, right: ValueType) => ValueType} runner
  * @returns
  */
 function operatorNode(precedence, runner) {
@@ -496,6 +573,10 @@ function operatorNode(precedence, runner) {
   });
 }
 
+/**
+ * @param {ValueType} value
+ * @returns {Node}
+ */
 function valueNode(value) {
   return new Node(100, () => value);
 }
@@ -514,24 +595,36 @@ function variableNode(name, type, varArgs) {
       name, varArgs);
 }
 
+/**
+ * @param {Node} x
+ * @param {Node} y
+ * @returns {Node}
+ */
 function cellNode(x, y) {
   return new Node(
       100,
-      async env => /** @type {(x, y) => any} */(
+      async env => /** @type {(x: ValueType, y: ValueType) => ValueType} */(
           env.get('cell', 2))(await x.run(env), await y.run(env)),
-      async (env, value) => /** @type {(x, y, value) => void} */(
-          env.get('cell=', 3))(await x.run(env), await y.run(env), value));
+      async (env, value) =>
+          /** @type {(x: ValueType, y: ValueType, value: ValueType) => void} */(
+              env.get('cell=', 3))(await x.run(env), await y.run(env), value));
 }
 
 class NodeStack {
+  /** @type {Array<Node>} */
+  #stack;
+
   /** @param {Node} root */
   constructor(root) {
-    /** @type {Array<Node>} */
-    this.stack = [root];
+    this.#stack = [root];
   }
 
+  /**
+   * @param {Node} node
+   * @returns {boolean}
+   */
   isLowerPrecedence(node) {
-    const current = this.stack.at(-1).precedence;
+    const current = this.#stack.at(-1).precedence;
     return node.precedence < current
         || (node.precedence == current
             && current != 3
@@ -541,38 +634,44 @@ class NodeStack {
   /** @param {Node} node */
   push(node) {
     if (node.isValue()
-        && this.stack.at(-1).isValue()) {
+        && this.#stack.at(-1).isValue()) {
       this.pushAll(); // ASI
     }
-    while (this.stack.length > 1
+    while (this.#stack.length > 1
         && this.isLowerPrecedence(node)) {
-      const popped = this.stack.pop();
+      const popped = this.#stack.pop();
       if (this.isLowerPrecedence(node)) {
-        this.stack.at(-1).add(popped);
+        this.#stack.at(-1).add(popped);
       } else {
         node.left = popped;
         break;
       }
     }
-    this.stack.push(node);
+    this.#stack.push(node);
   }
 
   pushAll() {
-    while (this.stack.length > 1) {
-      const popped = this.stack.pop();
-      this.stack.at(-1).add(popped);
+    while (this.#stack.length > 1) {
+      const popped = this.#stack.pop();
+      this.#stack.at(-1).add(popped);
     }
   }
 
+  /** @returns {boolean} */
   isEmpty() {
-    return this.stack.length == 1;
+    return this.#stack.length == 1;
   }
 
+  /** @returns {boolean} */
   hasValueNode() {
-    return this.stack.at(-1).isValue();
+    return this.#stack.at(-1).isValue();
   }
 }
 
+/**
+ * @param {string} token
+ * @returns {string}
+ */
 function parseString(token) {
   let value = '';
   for (let i = 1; i < token.length - 1; i++) {
@@ -594,6 +693,10 @@ function parseString(token) {
   return value;
 }
 
+/**
+ * @param {string} token
+ * @returns {RegExp}
+ */
 function parseRegExp(token) {
   const p = token.lastIndexOf('/');
   return new RegExp(
@@ -602,14 +705,25 @@ function parseRegExp(token) {
 }
 
 class TreeBuilder {
+  /**
+   * @param {string} fileName
+   * @param {string} script
+   * @param {Environment} globalEnv
+   */
   constructor(fileName, script, globalEnv) {
+    /** @type {string} */
     this.fileName = fileName;
+    /** @type {Array<string>} */
     this.tokens = tokenize(script);
+    /** @type {Environment} */
     this.globalEnv = globalEnv;
+    /** @type {Map<string, string>} */
     this.imports = new Map();
+    /** @type {Array<string>} */
     this.dependencies = [];
   }
 
+  /** @param {string} expected */
   shiftExpected(expected) {
     const token = this.tokens.shift();
     if (token != expected) {
@@ -618,6 +732,7 @@ class TreeBuilder {
     }
   }
 
+  /** @returns {Node} */
   buildFunctionCallNode() {
     const params = this.buildTree(')').children;
     const node = new Node(18,
@@ -631,7 +746,9 @@ class TreeBuilder {
           for (const p of params) {
             const paramResult = await p.run(env);
             if (paramResult instanceof FunctionValue) {
-              paramResults.push((...a) => paramResult.run(a, env));
+              paramResults.push(
+                /** @type {(a: Array<ValueType>) => Promise<ValueType>} */(
+                    (...a) => paramResult.run(a, env)));
             } else {
               paramResults.push(paramResult);
             }
@@ -640,7 +757,7 @@ class TreeBuilder {
             return func.run(paramResults, env);
           } else if (typeof func == 'function') {
             return func(...paramResults);
-          } else if (func === SwapFunction) {
+          } else if (func === swapFunction) {
             await params[0].assign(env, paramResults[1]);
             await params[1].assign(env, paramResults[0]);
           } else {
@@ -651,7 +768,7 @@ class TreeBuilder {
           if (l.name == 'cell') {
             const x = await params[0].run(env);
             const y = await params[1].run(env);
-            /** @type {(x, y, value) => void}*/(
+            /** @type {(x: ValueType, y: ValueType, value: ValueType) => void}*/(
                 env.get('cell=', 3))(x, y, value);
           } else if (l.name == 'mid') {
             const str = (await params[0].run(env)).toString();
@@ -667,6 +784,10 @@ class TreeBuilder {
     return node;
   }
 
+  /**
+   * @param {Node} child
+   * @returns {Node}
+   */
   buildMemberAccessNode(child) {
     return new Node(
         18,
@@ -682,33 +803,45 @@ class TreeBuilder {
           }
           const str = /** @type {string} */(obj.toString());
           if (name == 'endsWith') {
+            // @ts-ignore
             return (a, b) =>
                 str.endsWith(a, b) ? 1 : 0;
           } else if (name == 'includes') {
+            // @ts-ignore
             return (a, b) =>
                 str.includes(a, b) ? 1 : 0;
           } else if (name == 'indexOf') {
+            // @ts-ignore
             return (a, b) => str.indexOf(a, b);
           } else if (name == 'lastIndexOf') {
+            // @ts-ignore
             return (a, b) => str.lastIndexOf(a, b);
           } else if (name == 'length') {
             return str.length;
           } else if (name == 'padEnd') {
+            // @ts-ignore
             return (a, b) => str.padEnd(a, b);
           } else if (name == 'padStart') {
+            // @ts-ignore
             return (a, b) => str.padStart(a, b);
           } else if (name == 'repeat') {
+            // @ts-ignore
             return a => str.repeat(a);
           } else if (name == 'replace') {
+            // @ts-ignore
             return (a, b) => str.replace(a, b);
           } else if (name == 'replaceAll') {
+            // @ts-ignore
             return (a, b) => str.replaceAll(a, b);
           } else if (name == 'search') {
+            // @ts-ignore
             return a => str.search(a);
           } else if (name == 'startsWith') {
+            // @ts-ignore
             return (a, b) =>
                 str.startsWith(a, b) ? 1 : 0;
           } else if (name == 'substring') {
+            // @ts-ignore
             return (a, b) => str.substring(a, b);
           } else if (name == 'toLowerCase') {
             return () => str.toLowerCase();
@@ -752,7 +885,7 @@ class TreeBuilder {
       if (name[0] == '"' || name[0] == "'") {
         name = parseString(name);
       } else if (isNumCharOrDot(name[0])) {
-        name = Number(name);
+        name = Number(name).toString();
       }
       const token = this.tokens.shift();
       if (token == ':') {
@@ -782,14 +915,17 @@ class TreeBuilder {
   buildClassValue() {
     const objectNode = this.buildObjectNode();
     const constructorNode = new Node(100, async env => {
-      const obj = await objectNode.run(env);
+      const obj = /** @type {ObjectValue} */(await objectNode.run(env));
       if (obj.has('constructor')) {
-        const p = /** @type {ObjectValue} */(env.get('$p'));
-        const params = [];
-        for (let i = 0; i < p.get('length'); i++) {
-          params.push(p.get(i));
+        const constructor = obj.get('constructor');
+        if (constructor instanceof FunctionValue) {
+          const p = /** @type {ObjectValue} */(env.get('$p'));
+          const params = [];
+          for (let i = 0; i < Number(p.get('length')); i++) {
+            params.push(p.get(i));
+          }
+          constructor.setThis(obj).run(params, env);
         }
-        obj.get('constructor').setThis(obj).run(params, env);
       }
       return obj;
     });
@@ -844,7 +980,9 @@ class TreeBuilder {
         this.tokens.shift();
         const condNode = this.buildTree(')');
         const thenNode = this.buildTree(';');
+        /** @type {Node?} */
         let elseNode = null;
+        // @ts-ignore
         if (this.tokens[0] == 'else') {
           this.tokens.shift();
           elseNode = this.buildTree(';');
@@ -894,8 +1032,8 @@ class TreeBuilder {
           const arrayNode = this.buildTree(')');
           const bodyNode = this.buildTree(';');
           stack.push(new Node(100, async env => {
-            const obj = await arrayNode.run(env);
-            for (let i = 0; i < obj.get('length'); i++) {
+            const obj = /** @type {ObjectValue} */(await arrayNode.run(env));
+            for (let i = 0; i < Number(obj.get('length')); i++) {
               env.loop--;
               if (env.loop <= 0) {
                 throw 'Too many loops.';
@@ -976,7 +1114,13 @@ class TreeBuilder {
       } else if (token == 'import') {
         this.readImport();
       } else if (token == 'in' && stack.hasValueNode()) {
-        stack.push(operatorNode(10, (a, b) => b.has(a)));
+        stack.push(operatorNode(10, (a, b) => {
+          if (b instanceof ObjectValue) {
+            return b.has(a.toString()) ? 1 : 0;
+          } else {
+            throw 'right-hand side of "in" should be an object. Found: ' + b;
+          }
+        }));
       } else if (token[0] == '"' || token[0] == "'") {
         stack.push(valueNode(parseString(token)));
       } else if (isNumChar(token[0])) {
@@ -1039,30 +1183,31 @@ class TreeBuilder {
       } else if (token == '++') {
         stack.push(new Node(15, async (env, left, children) => {
           const child = left || children[0];
-          const value = await child.run(env) + 1;
+          const value = Number(await child.run(env)) + 1;
           await child.assign(env, value);
           return value;
         }));
       } else if (token == '--') {
         stack.push(new Node(15, async (env, left, children) => {
           const child = left || children[0];
-          const value = await child.run(env) - 1;
+          const value = Number(await child.run(env)) - 1;
           await child.assign(env, value);
           return value;
         }));
       } else if (token == '*') {
-        stack.push(operatorNode(13, (a, b) => a * b));
+        stack.push(operatorNode(13, (a, b) => Number(a) * Number(b)));
       } else if (token == '/') {
-        stack.push(operatorNode(13, (a, b) => a / b));
+        stack.push(operatorNode(13, (a, b) => Number(a) / Number(b)));
       } else if (token == '%') {
-        stack.push(operatorNode(13, (a, b) => a % b));
+        stack.push(operatorNode(13, (a, b) => Number(a) % Number(b)));
       } else if (token == '+') {
         if (stack.hasValueNode()) {
-          stack.push(operatorNode(12, (a, b) => a + b));
+          stack.push(operatorNode(
+              12, (a, b) => /** @type {any} */(a) + /** @type {any} */(b)));
         }
       } else if (token == '-') {
         if (stack.hasValueNode()) {
-          stack.push(operatorNode(12, (a, b) => a - b));
+          stack.push(operatorNode(12, (a, b) => Number(a) - Number(b)));
         } else {
           stack.push(operatorNode(15, (a, b) => -b));
         }
@@ -1110,25 +1255,29 @@ class TreeBuilder {
         }));
       } else if (token == '+=') {
         stack.push(new Node(2, async (env, left, children) => {
-          const value = await left.run(env) + await children[0].run(env);
+          const value = /** @type {any} */(await left.run(env)) +
+              /** @type {any} */(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '-=') {
         stack.push(new Node(2, async (env, left, children) => {
-          const value = await left.run(env) - await children[0].run(env);
+          const value =
+              Number(await left.run(env)) - Number(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '*=') {
         stack.push(new Node(2, async (env, left, children) => {
-          const value = await left.run(env) * await children[0].run(env);
+          const value =
+              Number(await left.run(env)) * Number(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '/=') {
         stack.push(new Node(2, async (env, left, children) => {
-          const value = await left.run(env) / await children[0].run(env);
+          const value =
+              Number(await left.run(env)) / Number(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
@@ -1159,6 +1308,12 @@ class TreeBuilder {
   }
 }
 
+/**
+ * @param {string} fileName
+ * @param {*} env
+ * @param {*} macroMap
+ * @returns {Array<string>}
+ */
 function load(fileName, env, macroMap) {
   if (macroMap == null || !macroMap.has(fileName)) {
     throw 'Imported library not found: ' + fileName;
@@ -1173,6 +1328,12 @@ function load(fileName, env, macroMap) {
   return treeBuilder.dependencies;
 }
 
+/**
+ * @param {string} script
+ * @param {Environment} env
+ * @param {Map<string, string>} macroMap
+ * @returns {ValueType|Promise<ValueType>}
+ */
 function run(script, env, macroMap) {
   const treeBuilder =
       new TreeBuilder('', script, env);

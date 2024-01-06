@@ -14,18 +14,28 @@ class Action {
 
 /** @extends {Action} */
 class BatchUndoAction {
+  /**
+   * @param {Array<Action>} actions
+   * @param {Range} undoRange
+   * @param {Range} redoRange
+   */
   constructor(actions, undoRange, redoRange) {
+    /** @type {Array<Action>} */
     this.actions = actions;
+    /** @type {Range} */
     this.undoRange = undoRange;
+    /** @type {Range} */
     this.redoRange = redoRange;
   }
 
+  /** @param {GridData} gridData */
   redo(gridData) {
     for (const action of this.actions) {
       action.redo(gridData);
     }
   }
 
+  /** @param {GridData} gridData */
   undo(gridData) {
     for (let i = this.actions.length - 1; i >= 0; i--) {
       this.actions[i].undo(gridData);
@@ -35,22 +45,40 @@ class BatchUndoAction {
 
 /** @extends {Action} */
 class SetCellUndoAction {
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {string} from
+   * @param {string} to
+   * @param {number} right
+   * @param {number} bottom
+   */
   constructor(x, y, from, to, right, bottom) {
+    /** @type {number} */
     this.x = x;
+    /** @type {number} */
     this.y = y;
+    /** @type {string} */
     this.from = from;
+    /** @type {string} */
     this.to = to;
+    /** @type {number} */
     this.right = right;
+    /** @type {number} */
     this.bottom = bottom;
     const range = new Range(this.x, this.y, this.x, this.y);
+    /** @type {Range} */
     this.undoRange = range;
+    /** @type {Range} */
     this.redoRange = range;
   }
 
+  /** @param {GridData} gridData */
   redo(gridData) {
     gridData.setCell(this.x, this.y, this.to);
   }
 
+  /** @param {GridData} gridData */
   undo(gridData) {
     gridData.setRight(this.right);
     gridData.setBottom(this.bottom);
@@ -60,26 +88,46 @@ class SetCellUndoAction {
 
 /** @extends {Action} */
 class UndoAction {
+  /**
+   * @param {(gridData: GridData) => void} undo
+   * @param {(gridData: GridData) => void} redo
+   * @param {Range} range
+   */
   constructor(undo, redo, range) {
+    /** @type {(gridData: GridData) => void} */
     this.undo = undo;
+    /** @type {(gridData: GridData) => void} */
     this.redo = redo;
+    /** @type {Range} */
     this.undoRange = range;
+    /** @type {Range} */
     this.redoRange = range;
   }
 }
 
 class UndoGrid {
+  /** @param {GridData} gridData */
   constructor(gridData) {
+    /** @type {GridData} */
     this.gridData = gridData;
+    /** @type {Array<Action>} */
     this.redoList = [];
+    /** @type {Array<Action>} */
     this.undoList = [];
+    /** @type {Array<Array<Action>>} */
     this.undoGroups = [];
   }
 
+  /** @returns {number} */
   bottom() {
     return this.gridData.bottom();
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {string}
+   */
   cell(x, y) {
     return this.gridData.cell(x, y);
   }
@@ -91,6 +139,7 @@ class UndoGrid {
     this.undoGroups = [];
   }
 
+  /** @param {Range} range */
   clearCells(range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -99,6 +148,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Range} range */
   deleteCellLeft(range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -110,6 +160,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Range} range */
   deleteCellUp(range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -121,6 +172,10 @@ class UndoGrid {
         range));
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   deleteCol(l, r) {
     const range = new Range(l, 1, r, this.gridData.bottom());
     const deletedData = this.gridData.copy(range);
@@ -133,6 +188,10 @@ class UndoGrid {
         range));
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   deleteRow(t, b) {
     const range = new Range(1, t, this.gridData.right(), b);
     const deletedData = this.gridData.copy(range);
@@ -152,6 +211,7 @@ class UndoGrid {
     this.redoList = [];
   }
 
+  /** @param {Range} range */
   insertCellDown(range) {
     this.do(new UndoAction(
         gridData => gridData.deleteCellUp(range),
@@ -159,6 +219,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Range} range */
   insertCellRight(range) {
     this.do(new UndoAction(
         gridData => gridData.deleteCellLeft(range),
@@ -166,6 +227,10 @@ class UndoGrid {
         range));
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   insertCol(l, r) {
     this.do(new UndoAction(
         gridData => gridData.deleteCol(l, r),
@@ -173,6 +238,10 @@ class UndoGrid {
         new Range(l, 1, r, this.gridData.bottom())));
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   insertRow(t, b) {
     this.do(new UndoAction(
         gridData => gridData.deleteRow(t, b),
@@ -180,6 +249,10 @@ class UndoGrid {
         new Range(1, t, this.gridData.right(), b)));
   }
 
+  /**
+   * @param {GridData} clipData
+   * @param {Range} range
+   */
   paste(clipData, range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -188,6 +261,10 @@ class UndoGrid {
         range));
   }
 
+  /**
+   * @param {GridData} clipData
+   * @param {Range} range
+   */
   pasteRepeat(clipData, range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -196,6 +273,10 @@ class UndoGrid {
         range));
   }
 
+  /**
+   * @param {Range} undoRange
+   * @param {Range} redoRange
+   */
   pop(undoRange, redoRange) {
     if (this.undoList.length == 0) {
       this.undoList = this.undoGroups.pop() || [];
@@ -211,6 +292,7 @@ class UndoGrid {
     this.undoList = [];
   }
 
+  /** @returns {Range} */
   range() {
     return this.gridData.range();
   }
@@ -226,18 +308,29 @@ class UndoGrid {
     return action.redoRange;
   }
 
-  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
+  /**
+   * @param {string} str1 
+   * @param {string} str2 
+   * @param {boolean} ignoreCase 
+   * @param {boolean} wholeCell 
+   * @param {boolean} isRegex 
+   * @param {Range} range 
+   */
+  replaceAll(str1, str2, ignoreCase, wholeCell, isRegex, range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
         gridData => gridData.paste(deletedData, range),
-        gridData => gridData.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range),
+        gridData => gridData.replaceAll(
+            str1, str2, ignoreCase, wholeCell, isRegex, range),
         range));
   }
 
+  /** @returns {number} */
   right() {
     return this.gridData.right();
   }
 
+  /** @param {Range} range */
   sequenceC(range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -246,6 +339,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Range} range */
   sequenceS(range) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -254,6 +348,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {number} b */
   setBottom(b) {
     const originalBottom = this.gridData.bottom();
     if (b < originalBottom) {
@@ -263,6 +358,11 @@ class UndoGrid {
     }
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {any} value
+   */
   setCell(x, y, value) {
     const stringValue = value.toString();
     const prevAction = this.undoList.at(-1);
@@ -276,6 +376,7 @@ class UndoGrid {
     }
   }
 
+  /** @param {number} r */
   setRight(r) {
     const originalRight = this.gridData.right();
     if (r < originalRight) {
@@ -285,6 +386,14 @@ class UndoGrid {
     }
   }
 
+  /**
+   * @param {Range} range
+   * @param {number} p
+   * @param {boolean} dir
+   * @param {boolean} num
+   * @param {boolean} ignoreCase
+   * @param {boolean} zenhan
+   */
   sort(range, p, dir, num, ignoreCase, zenhan) {
     const deletedData = this.gridData.copy(range);
     this.do(new UndoAction(
@@ -293,6 +402,7 @@ class UndoGrid {
         range));
   }
 
+  /** @param {Range} range */
   sumAndAvr(range) {
     return this.gridData.sumAndAvr(range);
   }

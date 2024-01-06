@@ -2,7 +2,7 @@
 PUSHD ..
 FOR %%F IN (cassava_*.js) DO CALL perl %~DP0toModule.pl < %%F > %~DP0src\%%F
 POPD
-CALL tsc src/cassava_menu.js --target es2022 --checkJs --noEmit
+CALL tsc src/cassava_menu.js --target es2022 --checkJs --noEmit --noImplicitAny
 CALL webpack
 
 SET FILENAME=cassava_min_%date:/=%.js

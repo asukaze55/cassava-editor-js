@@ -1,10 +1,18 @@
 (() => {
 const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
 
+/**
+ * @param {string} value 
+ * @returns {boolean}
+ */
 function isNumber(value) {
   return value != '' && !isNaN(Number(value));
 }
 
+/**
+ * @param {string} value 
+ * @returns {string}
+ */
 function increment(value) {
   const c = value.at(-1);
   if (c >= '0' && c < '9') {

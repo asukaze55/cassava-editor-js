@@ -11,6 +11,7 @@ function createElement(name, attributes, children) {
   const element = document.createElement(name);
   if (attributes) {
     for (const key of Object.keys(attributes)) {
+      // @ts-ignore
       element[key] = attributes[key];
     }
   }
@@ -81,6 +82,7 @@ function dialog(children) {
     const x = element.offsetLeft - event.clientX;
     const y = element.offsetTop - event.clientY;
 
+    /** @type {(e: MouseEvent) => void} */
     const onMouseMove = e => {
       element.style.left = (x + e.clientX) + 'px';
       element.style.top = (y + e.clientY) + 'px';
@@ -100,6 +102,7 @@ function dialog(children) {
     const x = element.offsetLeft - touch.screenX;
     const y = element.offsetTop - touch.screenY;
 
+    /** @type {(e: TouchEvent) => void} */
     const onTouchMove = e => {
       const touch = e.changedTouches[0];
       element.style.left = (x + touch.screenX) + 'px';

@@ -7,6 +7,7 @@ const { button, createElement, dialog, div, label, titleBar } = net.asukaze.impo
 const { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
 
 class Clipboard {
+  /** @type {string} */
   #clipText = '';
 
   /** @returns {Promise<string>} */
@@ -27,12 +28,13 @@ class Clipboard {
   }
 }
 
-let clipboard = new Clipboard();
+const clipboard = new Clipboard();
 
 function blurActiveElement() {
   /** @type {HTMLElement} */(document.activeElement).blur();
 }
 
+/** @param {string} text */
 function sanitize(text) {
   if (text == null) {
     return '';
@@ -253,10 +255,15 @@ class Grid {
     this.#suppressRender++;
   }
 
+  /** @returns {number} */
   bottom() {
     return this.#undoGrid.bottom();
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   */
   cell(x, y) {
     return this.#undoGrid.cell(x, y);
   }
@@ -285,6 +292,7 @@ class Grid {
     this.defaultRowHeight = 32;
     /** @type {Map<number, number>} */
     this.rowHeights = new Map();
+    /** @type {number} */
     this.anchorX = 1;
     this.anchorY = 1;
     this.x = 1;
@@ -341,18 +349,28 @@ class Grid {
     }
   }
 
+  /** @param {Range} range */
   deleteCellUp(range) {
     this.#undoGrid.deleteCellUp(range);
   }
 
+  /** @param {Range} range */
   deleteCellLeft(range) {
     this.#undoGrid.deleteCellLeft(range);
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   deleteCol(l, r) {
     this.#undoGrid.deleteCol(l, r);
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   deleteRow(t, b) {
     this.#undoGrid.deleteRow(t, b);
   }
@@ -363,8 +381,12 @@ class Grid {
     this.#suppressRender--;
   }
 
+  /**
+   * @param {number} y
+   * @returns {number}
+   */
   getRowHeight(y) {
-    const rowHeight = this.rowHeights.get(Number(y));
+    const rowHeight = this.rowHeights.get(y);
     return rowHeight != null ? rowHeight : this.defaultRowHeight;
   }
 
@@ -373,14 +395,21 @@ class Grid {
     return this.#undoGrid.gridData;
   }
 
+  /** @param {Range} range */
   insertCellDown(range) {
     this.#undoGrid.insertCellDown(range);
   }
 
+  /** @param {Range} range */
   insertCellRight(range) {
     this.#undoGrid.insertCellRight(range);
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   * @param {boolean} move
+   */
   insertCol(l, r, move) {
     this.#undoGrid.insertCol(l, r);
     if (move) {
@@ -395,6 +424,11 @@ class Grid {
     }
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   * @param {boolean} move
+   */
   insertRow(t, b, move) {
     this.#undoGrid.insertRow(t, b);
     if (move) {
@@ -409,6 +443,10 @@ class Grid {
     }
   }
 
+  /**
+   * @param {number} selAnchor
+   * @param {number} selFocus
+   */
   insertRowAtCursor(selAnchor, selFocus) {
     const isEditing = this.isEditing;
     const t = this.selTop();
@@ -457,6 +495,12 @@ class Grid {
             childrenCountWithoutBr(cellNode)));
   }
 
+  /**
+   * @param {string} clipText
+   * @param {GridData} clipData
+   * @param {Range} range
+   * @param {number} way
+   */
   paste(clipText, clipData, range, way) {
     const l = range.left;
     const t = range.top;
@@ -636,30 +680,50 @@ class Grid {
     }
   }
 
-  replaceAll(str1, str2, ignoreCase, wholeCell, regex, range) {
-    this.#undoGrid.replaceAll(str1, str2, ignoreCase, wholeCell, regex, range);
+  /**
+   * @param {string} str1
+   * @param {string} str2
+   * @param {boolean} ignoreCase
+   * @param {boolean} wholeCell
+   * @param {boolean} isRegex
+   * @param {Range} range
+   */
+  replaceAll(str1, str2, ignoreCase, wholeCell, isRegex, range) {
+    this.#undoGrid.replaceAll(
+        str1, str2, ignoreCase, wholeCell, isRegex, range);
   }
 
+  /** @returns {number} */
   right() {
     return this.#undoGrid.right();
   }
 
+  /** @returns {number} */
   selBottom() {
     return Math.max(this.anchorY, this.y);
   }
 
+  /** @returns {number} */
   selLeft() {
     return Math.min(this.anchorX, this.x);
   }
 
+  /** @returns {number} */
   selRight() {
     return Math.max(this.anchorX, this.x);
   }
 
+  /** @returns {number} */
   selTop() {
     return Math.min(this.anchorY, this.y);
   }
 
+  /**
+   * @param {number} x1
+   * @param {number} y1
+   * @param {number} x2
+   * @param {number} y2
+   */
   select(x1, y1, x2, y2) {
     if (x1 == this.anchorX && x2 == this.anchorY && x2 == this.x && y2 == this.y) {
       return;
@@ -682,10 +746,18 @@ class Grid {
     this.select(1, 1, this.#undoGrid.right(), this.#undoGrid.bottom());
   }
 
+  /**
+   * @param {number} l
+   * @param {number} r
+   */
   selectCol(l, r) {
     this.select(l, 1, r, this.#undoGrid.bottom());
   }
 
+  /**
+   * @param {number} t
+   * @param {number} b
+   */
   selectRow(t, b) {
     this.select(1, t, this.#undoGrid.right(), b);
   }
@@ -767,21 +839,32 @@ class Grid {
    * @param {number} h
    */
   setRowHeight(y, h) {
-    this.rowHeights.set(Number(y), Number(h));
+    this.rowHeights.set(y, h);
   }
 
+  /** @param {Range} range */
   sequenceC(range) {
     this.#undoGrid.sequenceC(range);
   }
 
+  /** @param {Range} range */
   sequenceS(range) {
     this.#undoGrid.sequenceS(range);
   }
 
+  /**
+   * @param {Range} range
+   * @param {number} p
+   * @param {boolean} dir
+   * @param {boolean} num
+   * @param {boolean} ignoreCase
+   * @param {boolean} zenhan
+   */
   sort(range, p, dir, num, ignoreCase, zenhan) {
     this.#undoGrid.sort(range, p, dir, num, ignoreCase, zenhan);
   }
 
+  /** @param {Range} range */
   sumAndAvr(range) {
     return this.#undoGrid.sumAndAvr(range);
   }
@@ -795,6 +878,7 @@ class Grid {
     }
   }
 
+  /** @param {(value: string) => string} callback */
   updateSelectedCells(callback) {
     const range = this.selection();
     this.#undoGrid.push();
@@ -807,17 +891,29 @@ class Grid {
   }
 }
 
+/**
+ * @param {Element} node
+ * @returns {HTMLTableCellElement?}
+ */
 function getCellNode(node) {
   while (node != null && node.tagName != 'TD' && node.tagName != 'TH') {
     node = node.parentElement;
   }
-  return node;
+  return /** @type {HTMLTableCellElement?} */(node);
 }
 
+/**
+ * @param {Event|Touch} event
+ * @returns {HTMLTableCellElement?}
+ */
 function getEventTarget(event) {
-  return getCellNode(event.target);
+  return getCellNode(/** @type {Element} */(event.target));
 }
 
+/**
+ * @param {Event} event
+ * @param {Grid} grid
+ */
 function gridFocusIn(event, grid) {
   const target = getEventTarget(event);
   if (target == null) {
@@ -829,6 +925,10 @@ function gridFocusIn(event, grid) {
   grid.renderCell(target, x, y);
 }
 
+/**
+ * @param {Event} event
+ * @param {Grid} grid
+ */
 function gridFocusOut(event, grid) {
   const target = getEventTarget(event);
   if (target == null) {
@@ -840,6 +940,10 @@ function gridFocusOut(event, grid) {
   grid.renderCell(target, x, y);
 }
 
+/**
+ * @param {Element} cellNode
+ * @returns {string}
+ */
 function parseCellInput(cellNode) {
   return cellNode.innerHTML
       .replaceAll(/<\/div>/gi, '\n')
@@ -853,6 +957,10 @@ function parseCellInput(cellNode) {
       .replaceAll(/\n$/g, '');
 }
 
+/**
+ * @param {Event} event
+ * @param {Grid} grid
+ */
 function gridInput(event, grid) {
   const target = getEventTarget(event);
   if (target == null) {
@@ -863,13 +971,22 @@ function gridInput(event, grid) {
   grid.setCell(x, y, parseCellInput(target));
 }
 
+/**
+ * @param {Node} node
+ * @returns {string}
+ */
 function getTextContent(node) {
-  if (node.tagName == 'BR') {
+  if (/** @type {Element} */(node).tagName == 'BR') {
     return '\n';
   }
   return node.textContent;
 }
 
+/**
+ * @param {Element} node
+ * @param {number} offset
+ * @returns {number}
+ */
 function getInCellOffset(node, offset) {
   const cellNode = getCellNode(node);
   if (node == cellNode) {
@@ -890,24 +1007,38 @@ function getInCellOffset(node, offset) {
   }
 }
 
+/**
+ * @param {Node} cellNode
+ * @returns {number}
+ */
 function childrenCountWithoutBr(cellNode) {
   if (cellNode.childNodes.length == 0) {
     return 0;
   }
-  return cellNode.lastChild.tagName == 'BR'
+  return /** @type {Element} */(cellNode.lastChild).tagName == 'BR'
       ? cellNode.childNodes.length - 1
       : cellNode.childNodes.length;
 }
 
+/**
+ * @param {Node} cellNode
+ * @returns {Node?}
+ */
 function lastChildWithoutBr(cellNode) {
   if (cellNode.childNodes.length == 0) {
-    return 0;
+    return null;
   }
-  return cellNode.lastChild.tagName == 'BR'
+  return /** @type {Element} */(cellNode.lastChild).tagName == 'BR'
       ? cellNode.lastChild.previousSibling
       : cellNode.lastChild;
 }
 
+/**
+ * @param {Node} node
+ * @param {number} offset
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function isFirstLine(node, offset, cellNode) {
   if (node == cellNode) {
     return offset == 0;
@@ -916,6 +1047,11 @@ function isFirstLine(node, offset, cellNode) {
   }
 }
 
+/**
+ * @param {Selection} selection
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function containsFirstLine(selection, cellNode) {
   return isFirstLine(selection.focusNode,
           selection.focusOffset, cellNode)
@@ -923,12 +1059,23 @@ function containsFirstLine(selection, cellNode) {
           selection.anchorOffset, cellNode);
 }
 
+/**
+ * @param {Node} node
+ * @param {number} offset
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function isFirstPosition(node, offset, cellNode) {
   return offset == 0
       && (node == cellNode
           || node == cellNode.firstChild);
 }
 
+/**
+ * @param {Selection} selection
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function containsFirstPosition(selection, cellNode) {
   return isFirstPosition(selection.focusNode,
           selection.focusOffset, cellNode)
@@ -936,6 +1083,12 @@ function containsFirstPosition(selection, cellNode) {
           selection.anchorOffset, cellNode);
 }
 
+/**
+ * @param {Node} node
+ * @param {number} offset
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function isLastLine(node, offset, cellNode) {
   if (node == cellNode) {
     return offset
@@ -945,6 +1098,11 @@ function isLastLine(node, offset, cellNode) {
   }
 }
 
+/**
+ * @param {Selection} selection
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function containsLastLine(selection, cellNode) {
   return isLastLine(selection.focusNode,
           selection.focusOffset, cellNode)
@@ -952,6 +1110,12 @@ function containsLastLine(selection, cellNode) {
           selection.anchorOffset, cellNode);
 }
 
+/**
+ * @param {Node} node
+ * @param {number} offset
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function isLastPosition(node, offset, cellNode) {
   if (node == cellNode) {
     return offset
@@ -962,6 +1126,11 @@ function isLastPosition(node, offset, cellNode) {
   }
 }
 
+/**
+ * @param {Selection} selection
+ * @param {Node} cellNode
+ * @returns {boolean}
+ */
 function containsLastPosition(selection, cellNode) {
   return isLastPosition(selection.focusNode,
           selection.focusOffset, cellNode)
@@ -1206,6 +1375,10 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
   }
 }
 
+/**
+ * @param {MouseEvent} event
+ * @param {Grid} grid
+ */
 function gridMouseDown(event, grid) {
   const target = getEventTarget(event);
   if (target == null) {
@@ -1219,6 +1392,10 @@ function gridMouseDown(event, grid) {
   gridMouseMove(event, grid);
 }
 
+/**
+ * @param {MouseEvent} event
+ * @param {Grid} grid
+ */
 function gridMouseMove(event, grid) {
   if (!grid.isMouseDown) {
     return;
@@ -1248,6 +1425,10 @@ function gridMouseMove(event, grid) {
   }
 }
 
+/**
+ * @param {MouseEvent} event
+ * @param {Grid} grid
+ */
 function gridMouseUp(event, grid) {
   gridMouseMove(event, grid);
   grid.isMouseDown = false;
@@ -1275,6 +1456,10 @@ function touchedCell(touch, table) {
   return null;
 }
 
+/**
+ * @param {TouchEvent} event
+ * @param {Grid} grid
+ */
 function gridTouchMove(event, grid) {
   const touch = event.changedTouches[0];
   const from = getEventTarget(touch);
@@ -1340,6 +1525,10 @@ function inputBoxMultiLine(message, title, defaultValue) {
   });
 }
 
+/**
+ * @param {string} data
+ * @param {GridData} gridData
+ */
 function parseCsv(data, gridData) {
   gridData.clear();
   let x = 1;
@@ -1387,6 +1576,11 @@ function parseCsv(data, gridData) {
   }
 }
 
+/**
+ * @param {GridData} gridData
+ * @param {Range} range
+ * @returns {string}
+ */
 function toCsv(gridData, range) {
   let result = '';
   for (let y = range.top; y <= range.bottom; y++) {
@@ -1423,7 +1617,7 @@ class OpenDialog {
     });
   }
 
-  /**  @returns {Promise?} */
+  /**  @returns {Promise<void>?} */
   load() {
     const file = this.#fileInput.files[0];
     if (!file) {
@@ -1434,7 +1628,7 @@ class OpenDialog {
       reader.readAsText(file, this.#encoding);
       reader.addEventListener('load', () => {
         this.#grid.clear(file.name);
-        parseCsv(reader.result, this.#grid.gridData());
+        parseCsv(/** @type {string} */(reader.result), this.#grid.gridData());
         this.#grid.render();
         resolve();
       });
@@ -1447,7 +1641,7 @@ class OpenDialog {
     await this.load();
   }
 
-  /**  @returns {Promise} */
+  /**  @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
       this.#fileInput.value = '';
@@ -1491,7 +1685,7 @@ function saveAs(fileName, grid) {
  * @param {Grid} grid
  * @param {string} clipText
  * @param {GridData} clipData
- * @returns {Promise}
+ * @returns {Promise<void>}
  */
 function showPasteDialog(grid, clipText, clipData) {
   return new Promise((resolve, reject) => {
@@ -1502,6 +1696,7 @@ function showPasteDialog(grid, clipText, clipData) {
       rows: 10,
       value: clipText
     })
+    /** @type {(c: any) => HTMLInputElement} */
     const radioInput = c => createElement('input', {
       checked: !!c,
       name: 'cassava-paste',
@@ -1648,8 +1843,10 @@ class CassavaGridElement extends HTMLElement {
 
   #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
+    // @ts-ignore
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
     'Col=/0': () => this.#grid.x,
+    // @ts-ignore
     'Col=/1': a => this.#grid.moveTo(a, this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
@@ -1665,7 +1862,9 @@ class CassavaGridElement extends HTMLElement {
     'DeleteCellLeft/0': () =>
         this.#grid.deleteCellLeft(this.#grid.selection()),
     'DeleteCellUp/0': () => this.#grid.deleteCellUp(this.#grid.selection()),
+    // @ts-ignore
     'DeleteCol/1': a => this.#grid.deleteCol(a, a),
+    // @ts-ignore
     'DeleteRow/1': a => this.#grid.deleteRow(a, a),
     'Enter/0': () => this.#grid.insertRowAtCursor(0, 0),
     'Find/0': () => this.#findDialog.show(),
@@ -1675,16 +1874,23 @@ class CassavaGridElement extends HTMLElement {
     'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
+        // @ts-ignore
         a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
     'GetDataTypes/0': () => 'CSV',
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
-    'GetRowHeight/1': a => this.#grid.getRowHeight(a),
+    // @ts-ignore
+    'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
+    // @ts-ignore
     'InputBox/1': a => prompt(a),
+    // @ts-ignore
     'InputBox/2': (a, b) => prompt(a, b),
+    // @ts-ignore
     'InputBoxMultiLine/1': a => inputBoxMultiLine(a),
+    // @ts-ignore
     'InputBoxMultiLine/2': (a, b) => inputBoxMultiLine(a, null, b),
+    // @ts-ignore
     'InputBoxMultiLine/3': (a, b, c) => inputBoxMultiLine(a, b, c),
     'InsCol/0': () => this.#grid.insertCol(
         this.#grid.selLeft(), this.#grid.selRight(), true),
@@ -1694,34 +1900,45 @@ class CassavaGridElement extends HTMLElement {
         () => this.#grid.insertCellDown(this.#grid.selection()),
     'InsertCellRight/0':
         () => this.#grid.insertCellRight(this.#grid.selection()),
+    // @ts-ignore
     'InsertCol/1': a => this.#grid.insertCol(a, a, false),
+    // @ts-ignore
     'InsertCol/2': (a, b) => this.#grid.insertCol(a, b, false),
+    // @ts-ignore
     'InsertRow/1': a => this.#grid.insertRow(a, a, false),
+    // @ts-ignore
     'InsertRow/2': (a, b) => this.#grid.insertRow(a, b, false),
     'MacroTerminate/0': () => {
       throw macroTerminated;
     },
+    // @ts-ignore
     'MessageBox/1': a => alert(a),
     'New/0': () => this.#grid.clear(),
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
     'Open/0': () => this.#openDialog.show(),
     'Open/1': () => this.#openDialog.show(),
     'Paste/0': () => paste(this.#grid, -1),
+    // @ts-ignore
     'Paste/1': a => paste(this.#grid, a),
     'QuickFind/0': () => this.#findPanel.show(),
     'Redo/0': () => this.#grid.redo(),
     'Refresh/0': () => this.#grid.refresh(),
     'ReloadCodeShiftJIS/0': () => this.#openDialog.reload('Shift_JIS'),
     'ReloadCodeUTF8/0': () => this.#openDialog.reload('UTF-8'),
+    // @ts-ignore
     'ReplaceAll/2': (a, b) => this.#grid.replaceAll(
         a, b, false, false, false, this.#grid.allCells()),
+    // @ts-ignore
     'ReplaceAll/5': (a, b, c, d, e) =>
         this.#grid.replaceAll(a, b, c, d, e, this.#grid.allCells()),
+    // @ts-ignore
     'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) =>
         this.#grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)),
     'Right=/0': () => this.#grid.right(),
+    // @ts-ignore
     'Right=/1': a => this.#grid.setRight(Number(a)),
     'Row=/0': () => this.#grid.y,
+    // @ts-ignore
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
     'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
     'SaveAs/0': () => {
@@ -1730,19 +1947,25 @@ class CassavaGridElement extends HTMLElement {
         saveAs(fileName, this.#grid);
       }
     },
+    // @ts-ignore
     'SaveAs/1': a => saveAs(a, this.#grid),
     'SelBottom=/0': () => this.#grid.selBottom(),
+    // @ts-ignore
     'SelBottom=/1': a => this.#grid.select(this.#grid.selLeft(),
         Math.min(a, this.#grid.selTop()), this.#grid.selRight(), a),
     'SelLeft=/0': () => this.#grid.selLeft(),
+    // @ts-ignore
     'SelLeft=/1': a => this.#grid.select(a, this.#grid.selTop(),
         Math.max(a, this.#grid.selRight()), this.#grid.selBottom()),
     'SelRight=/0': () => this.#grid.selRight(),
+    // @ts-ignore
     'SelRight=/1': a => this.#grid.select(Math.min(a, this.#grid.selLeft()),
         this.#grid.selTop(), a, this.#grid.selBottom()),
     'SelTop=/0': () => this.#grid.selTop(),
+    // @ts-ignore
     'SelTop=/1': a => this.#grid.select(this.#grid.selLeft(), a,
         this.#grid.selRight(), Math.max(a, this.#grid.selBottom())),
+    // @ts-ignore
     'Select/4': (a, b, c, d) => this.#grid.select(a, b, c, d),
     'SelectAll/0': () => this.#grid.selectAll(),
     'SelectCol/0': () =>
@@ -1751,30 +1974,41 @@ class CassavaGridElement extends HTMLElement {
         this.#grid.selectRow(this.#grid.selTop(), this.#grid.selBottom()),
     'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
     'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
+    // @ts-ignore
     'SetActiveDataType/1': dataType => {
       if (dataType != 'CSV') {
         throw 'Unsupported data type: ' + dataType;
       }
     },
+    // @ts-ignore
     'SetCharCode/1': charCode => {
       if (charCode != 'UTF-8') {
         throw 'Unsupported encoding: ' + charCode;
       }
     },
+    // @ts-ignore
     'SetColWidth/1': a => {
       this.#grid.colWidths.clear();
       this.#grid.defaultColWidth = a;
     },
+    // @ts-ignore
     'SetColWidth/2': (a, b) => this.#grid.colWidths.set(Number(a), Number(b)),
+    // @ts-ignore
     'SetRowHeight/1': a => {
       this.#grid.rowHeights.clear();
       this.#grid.defaultRowHeight = Number(a);
     },
+    // @ts-ignore
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
+    // @ts-ignore
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(a),
+    // @ts-ignore
     'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(a, b, c),
+    // @ts-ignore
     'SetStatusBarText/2': (a, b) => this.#statusBarPanel.setText(a, b),
+    // @ts-ignore
     'SetStatusBarWidth/2': (a, b) => this.#statusBarPanel.setWidth(a, b),
+    // @ts-ignore
     'Sort/9': (a, b, c, d, e, f, g, h, i) =>
         this.#grid.sort(new Range(a, b, c, d), e, f, g, h, i),
     'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
@@ -1786,7 +2020,9 @@ class CassavaGridElement extends HTMLElement {
     'TransChar4/0': () => this.#grid.updateSelectedCells(toHankakuKana),
     'TransChar5/0': () => this.#grid.updateSelectedCells(toZenkakuKana),
     'Undo/0': () => this.#grid.undo(),
+    // @ts-ignore
     'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).avr,
+    // @ts-ignore
     'cell/2': (a, b) => {
       const value = this.#grid.cell(a, b);
       if ((Number(value)).toString() == value) {
@@ -1794,14 +2030,20 @@ class CassavaGridElement extends HTMLElement {
       }
       return value;
     },
+    // @ts-ignore
     'cell=/3': (a, b, c) => this.#grid.setCell(Number(a), Number(b), c),
+    // @ts-ignore
     'move/2': (a, b) => this.#grid.moveTo(this.#grid.x + a, this.#grid.y + b),
+    // @ts-ignore
     'moveto/2': (a, b) => this.#grid.moveTo(a, b),
+    // @ts-ignore
     'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).sum,
+    // @ts-ignore
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(this.#grid.x + 1, this.#grid.y);
     },
+    // @ts-ignore
     'writeln/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(1, this.#grid.y + 1);

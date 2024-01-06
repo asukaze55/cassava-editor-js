@@ -101,10 +101,15 @@ class MacroDialog {
     }
   }
 
+  /**
+   * @param {string} macroName 
+   * @returns {string}
+   */
   #key(macroName) {
     return 'Macro/' + macroName;
   }
 
+  /** @param {string} macroName */
   #load(macroName) {
     this.#macroName = macroName;
     this.#macroNameInput.value = macroName;
@@ -122,6 +127,7 @@ class MacroDialog {
     }
   }
 
+  /** @param {string} newName */
   #rename(newName) {
     if (newName == '') {
       this.#warningDiv.innerText = '名前を入力してください。';

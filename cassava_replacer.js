@@ -1,5 +1,10 @@
 (() => {
 
+/**
+ * @param {string} replaceText
+ * @param {Array<string>} match
+ * @returns {string}
+ */
 function stringForReplace(replaceText, match) {
   let result = '';
   for (let i = 0; i < replaceText.length; i++) {
@@ -108,14 +113,26 @@ function createReplacer(findText, replaceText, ignoreCase, wholeCell, isRegex) {
   }
 }
 
+/**
+ * @param {string} c
+ * @returns {number}
+ */
 function asc(c) {
   return c.codePointAt(0);
 }
 
+/**
+ * @param {number} c
+ * @returns {string}
+ */
 function chr(c) {
   return String.fromCodePoint(Math.floor(c));
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function toHankakuAlphabet(value) {
   const d = asc('Ａ') - asc('A');
   let result = '';
@@ -137,6 +154,10 @@ function toHankakuAlphabet(value) {
   return result;
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function toZenkakuAlphabet(value) {
   const d = asc('Ａ') - asc('A');
   let result = '';
@@ -158,6 +179,10 @@ function toZenkakuAlphabet(value) {
   return result;
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function toHankakuKana(value) {
   let result = '';
   for (const c of value) {
@@ -234,6 +259,10 @@ function toHankakuKana(value) {
   return result;
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function toZenkakuKana(value) {
   let result = '';
   for (let i = 0; i < value.length; i++) {

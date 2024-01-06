@@ -3,6 +3,14 @@ const { createElement } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 const { MacroDialog } = net.asukaze.import('./cassava_macro_dialog.js');
 
+/** @typedef {[string, (event: Event) => void, Array<MenuItemType>?]} MenuItemType */
+
+/**
+ * @param {string} label
+ * @param {(event: Event) => void} onclick
+ * @param {Array<MenuItemType>=} children
+ * @returns {HTMLLIElement}
+ */
 function menuItem(label, onclick, children) {
   const li = createElement('li', {}, [label]);
   if (onclick) {
@@ -15,6 +23,10 @@ function menuItem(label, onclick, children) {
   return li;
 }
 
+/**
+ * @param {Array<MenuItemType>} items
+ * @returns {Array<HTMLLIElement>}
+ */
 function menuItems(items) {
   return items.map(item => menuItem(...item));
 }
@@ -62,10 +74,10 @@ class CassavaMenuElement extends HTMLElement {
         document.getElementById(this.getAttribute('for')));
     const macroDialog = new MacroDialog(grid);
 
-    const toggleSubMenu = event => this.toggleSubMenu(event);
-    const command = command => () => {
-      grid.runMacro(command + '()');
-    };
+    const toggleSubMenu = /** @type {(event: Event) => void} */(
+        event => this.toggleSubMenu(event));
+    const command = /** @type {(command: string) => () => void} */(
+        command => () => grid.runMacro(command + '()'));
 
     const ul = createElement('ul', {className: 'top-menu'}, menuItems([
       ['ファイル', toggleSubMenu, [
@@ -146,10 +158,11 @@ class CassavaMenuElement extends HTMLElement {
     }
   }
 
+  /** @param {Event} event */
   toggleSubMenu(event) {
     event.stopPropagation();
-    const currentTarget = event.currentTarget;
-    let subMenu = currentTarget.lastElementChild;
+    const currentTarget = /** @type {Element} */(event.currentTarget);
+    let subMenu = /** @type {HTMLElement} */(currentTarget.lastElementChild);
     const open = subMenu.style.display == 'none';
     this.closeMenus();
     if (open) {
@@ -164,8 +177,13 @@ class CassavaMenuElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {Event} event
+   * @param {CassavaGridElement} grid
+   * @param {Array<MenuItemType>} items
+   */
   toggleMacroMenu(event, grid, items) {
-    const currentTarget = event.currentTarget;
+    const currentTarget = /** @type {Element} */(event.currentTarget);
     const subMenu = currentTarget.lastElementChild;
     subMenu.innerHTML = '';
     subMenu.append(...menuItems(items));
