@@ -1310,8 +1310,8 @@ class TreeBuilder {
 
 /**
  * @param {string} fileName
- * @param {*} env
- * @param {*} macroMap
+ * @param {Environment} env
+ * @param {Map<string, string>} macroMap
  * @returns {Array<string>}
  */
 function load(fileName, env, macroMap) {
