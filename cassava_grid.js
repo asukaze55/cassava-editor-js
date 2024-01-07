@@ -1827,6 +1827,11 @@ td, th {
 }
 `;
 
+/**
+ * @typedef {number|string|MacroFunction|RegExp} ValueType
+ * @typedef {((a: ValueType?, b: ValueType?, c: ValueType?, d: ValueType?, e: ValueType?, f: ValueType?, g: ValueType?, h: ValueType?, i: ValueType?) => ValueType|Promise<ValueType>|void|Promise<void>)} MacroFunction
+ */
+
 class CassavaGridElement extends HTMLElement {
   /** @type {FindDialog} */
   #findDialog;
@@ -1841,13 +1846,12 @@ class CassavaGridElement extends HTMLElement {
   /** @type {CassavaStatusBarElement} */
   #statusBarPanel;
 
-  #api = new Map(Object.entries({
+/** @type {Map<string, MacroFunction>} */
+#api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
-    // @ts-ignore
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
     'Col=/0': () => this.#grid.x,
-    // @ts-ignore
-    'Col=/1': a => this.#grid.moveTo(a, this.#grid.y),
+    'Col=/1': a => this.#grid.moveTo(Number(a), this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
     'CopyAvr/0': () => clipboard.writeText(
@@ -1862,10 +1866,8 @@ class CassavaGridElement extends HTMLElement {
     'DeleteCellLeft/0': () =>
         this.#grid.deleteCellLeft(this.#grid.selection()),
     'DeleteCellUp/0': () => this.#grid.deleteCellUp(this.#grid.selection()),
-    // @ts-ignore
-    'DeleteCol/1': a => this.#grid.deleteCol(a, a),
-    // @ts-ignore
-    'DeleteRow/1': a => this.#grid.deleteRow(a, a),
+    'DeleteCol/1': a => this.#grid.deleteCol(Number(a), Number(a)),
+    'DeleteRow/1': a => this.#grid.deleteRow(Number(a), Number(a)),
     'Enter/0': () => this.#grid.insertRowAtCursor(0, 0),
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
@@ -1874,24 +1876,19 @@ class CassavaGridElement extends HTMLElement {
     'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
-        // @ts-ignore
         a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
     'GetDataTypes/0': () => 'CSV',
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
-    // @ts-ignore
     'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
-    // @ts-ignore
-    'InputBox/1': a => prompt(a),
-    // @ts-ignore
-    'InputBox/2': (a, b) => prompt(a, b),
-    // @ts-ignore
-    'InputBoxMultiLine/1': a => inputBoxMultiLine(a),
-    // @ts-ignore
-    'InputBoxMultiLine/2': (a, b) => inputBoxMultiLine(a, null, b),
-    // @ts-ignore
-    'InputBoxMultiLine/3': (a, b, c) => inputBoxMultiLine(a, b, c),
+    'InputBox/1': a => prompt(a.toString()),
+    'InputBox/2': (a, b) => prompt(a.toString(), b.toString()),
+    'InputBoxMultiLine/1': a => inputBoxMultiLine(a.toString()),
+    'InputBoxMultiLine/2': (a, b) =>
+        inputBoxMultiLine(a.toString(), /* title= */null, b.toString()),
+    'InputBoxMultiLine/3': (a, b, c) =>
+        inputBoxMultiLine(a.toString(), b.toString(), c.toString()),
     'InsCol/0': () => this.#grid.insertCol(
         this.#grid.selLeft(), this.#grid.selRight(), true),
     'InsRow/0': () => this.#grid.insertRow(
@@ -1900,46 +1897,36 @@ class CassavaGridElement extends HTMLElement {
         () => this.#grid.insertCellDown(this.#grid.selection()),
     'InsertCellRight/0':
         () => this.#grid.insertCellRight(this.#grid.selection()),
-    // @ts-ignore
-    'InsertCol/1': a => this.#grid.insertCol(a, a, false),
-    // @ts-ignore
-    'InsertCol/2': (a, b) => this.#grid.insertCol(a, b, false),
-    // @ts-ignore
-    'InsertRow/1': a => this.#grid.insertRow(a, a, false),
-    // @ts-ignore
-    'InsertRow/2': (a, b) => this.#grid.insertRow(a, b, false),
+    'InsertCol/1': a => this.#grid.insertCol(Number(a), Number(a), false),
+    'InsertCol/2': (a, b) => this.#grid.insertCol(Number(a), Number(b), false),
+    'InsertRow/1': a => this.#grid.insertRow(Number(a), Number(a), false),
+    'InsertRow/2': (a, b) => this.#grid.insertRow(Number(a), Number(b), false),
     'MacroTerminate/0': () => {
       throw macroTerminated;
     },
-    // @ts-ignore
     'MessageBox/1': a => alert(a),
     'New/0': () => this.#grid.clear(),
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
     'Open/0': () => this.#openDialog.show(),
     'Open/1': () => this.#openDialog.show(),
     'Paste/0': () => paste(this.#grid, -1),
-    // @ts-ignore
-    'Paste/1': a => paste(this.#grid, a),
+    'Paste/1': a => paste(this.#grid, Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
     'Redo/0': () => this.#grid.redo(),
     'Refresh/0': () => this.#grid.refresh(),
     'ReloadCodeShiftJIS/0': () => this.#openDialog.reload('Shift_JIS'),
     'ReloadCodeUTF8/0': () => this.#openDialog.reload('UTF-8'),
-    // @ts-ignore
     'ReplaceAll/2': (a, b) => this.#grid.replaceAll(
-        a, b, false, false, false, this.#grid.allCells()),
-    // @ts-ignore
-    'ReplaceAll/5': (a, b, c, d, e) =>
-        this.#grid.replaceAll(a, b, c, d, e, this.#grid.allCells()),
-    // @ts-ignore
-    'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) =>
-        this.#grid.replaceAll(a, b, c, d, e, new Range(f, g, h, i)),
+        a.toString(), b.toString(), false, false, false, this.#grid.allCells()),
+    'ReplaceAll/5': (a, b, c, d, e) => this.#grid.replaceAll(
+        a.toString(), b.toString(), !!c, !!d, !!e, this.#grid.allCells()),
+    'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) => this.#grid.replaceAll(
+        a.toString(), b.toString(), !!c, !!d, !!e,
+        new Range(Number(f), Number(g), Number(h), Number(i))),
     'Right=/0': () => this.#grid.right(),
-    // @ts-ignore
     'Right=/1': a => this.#grid.setRight(Number(a)),
     'Row=/0': () => this.#grid.y,
-    // @ts-ignore
-    'Row=/1': a => this.#grid.moveTo(this.#grid.x, a),
+    'Row=/1': a => this.#grid.moveTo(this.#grid.x, Number(a)),
     'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
     'SaveAs/0': () => {
       const fileName = prompt("ファイル名を入力してください。");
@@ -1947,26 +1934,23 @@ class CassavaGridElement extends HTMLElement {
         saveAs(fileName, this.#grid);
       }
     },
-    // @ts-ignore
-    'SaveAs/1': a => saveAs(a, this.#grid),
+    'SaveAs/1': a => saveAs(a.toString(), this.#grid),
     'SelBottom=/0': () => this.#grid.selBottom(),
-    // @ts-ignore
-    'SelBottom=/1': a => this.#grid.select(this.#grid.selLeft(),
-        Math.min(a, this.#grid.selTop()), this.#grid.selRight(), a),
+    'SelBottom=/1': a => this.#grid.select(
+        this.#grid.selLeft(), Math.min(Number(a), this.#grid.selTop()),
+        this.#grid.selRight(), Number(a)),
     'SelLeft=/0': () => this.#grid.selLeft(),
-    // @ts-ignore
-    'SelLeft=/1': a => this.#grid.select(a, this.#grid.selTop(),
-        Math.max(a, this.#grid.selRight()), this.#grid.selBottom()),
+    'SelLeft=/1': a => this.#grid.select(Number(a), this.#grid.selTop(),
+        Math.max(Number(a), this.#grid.selRight()), this.#grid.selBottom()),
     'SelRight=/0': () => this.#grid.selRight(),
-    // @ts-ignore
-    'SelRight=/1': a => this.#grid.select(Math.min(a, this.#grid.selLeft()),
-        this.#grid.selTop(), a, this.#grid.selBottom()),
+    'SelRight=/1': a => this.#grid.select(
+        Math.min(Number(a), this.#grid.selLeft()), this.#grid.selTop(),
+        Number(a), this.#grid.selBottom()),
     'SelTop=/0': () => this.#grid.selTop(),
-    // @ts-ignore
-    'SelTop=/1': a => this.#grid.select(this.#grid.selLeft(), a,
-        this.#grid.selRight(), Math.max(a, this.#grid.selBottom())),
-    // @ts-ignore
-    'Select/4': (a, b, c, d) => this.#grid.select(a, b, c, d),
+    'SelTop=/1': a => this.#grid.select(this.#grid.selLeft(), Number(a),
+        this.#grid.selRight(), Math.max(Number(a), this.#grid.selBottom())),
+    'Select/4': (a, b, c, d) =>
+        this.#grid.select(Number(a), Number(b), Number(c), Number(d)),
     'SelectAll/0': () => this.#grid.selectAll(),
     'SelectCol/0': () =>
         this.#grid.selectCol(this.#grid.selLeft(), this.#grid.selRight()),
@@ -1974,43 +1958,38 @@ class CassavaGridElement extends HTMLElement {
         this.#grid.selectRow(this.#grid.selTop(), this.#grid.selBottom()),
     'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
     'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
-    // @ts-ignore
     'SetActiveDataType/1': dataType => {
       if (dataType != 'CSV') {
         throw 'Unsupported data type: ' + dataType;
       }
     },
-    // @ts-ignore
     'SetCharCode/1': charCode => {
       if (charCode != 'UTF-8') {
         throw 'Unsupported encoding: ' + charCode;
       }
     },
-    // @ts-ignore
     'SetColWidth/1': a => {
       this.#grid.colWidths.clear();
-      this.#grid.defaultColWidth = a;
+      this.#grid.defaultColWidth = Number(a);
     },
-    // @ts-ignore
-    'SetColWidth/2': (a, b) => this.#grid.colWidths.set(Number(a), Number(b)),
-    // @ts-ignore
+    'SetColWidth/2': (a, b) => {
+      this.#grid.colWidths.set(Number(a), Number(b));
+    },
     'SetRowHeight/1': a => {
       this.#grid.rowHeights.clear();
       this.#grid.defaultRowHeight = Number(a);
     },
-    // @ts-ignore
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
-    // @ts-ignore
-    'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(a),
-    // @ts-ignore
-    'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(a, b, c),
-    // @ts-ignore
-    'SetStatusBarText/2': (a, b) => this.#statusBarPanel.setText(a, b),
-    // @ts-ignore
-    'SetStatusBarWidth/2': (a, b) => this.#statusBarPanel.setWidth(a, b),
-    // @ts-ignore
-    'Sort/9': (a, b, c, d, e, f, g, h, i) =>
-        this.#grid.sort(new Range(a, b, c, d), e, f, g, h, i),
+    'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(Number(a)),
+    'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(
+        Number(a), b.toString(), /** @type {(item: string) => any} */(c)),
+    'SetStatusBarText/2':
+        (a, b) => this.#statusBarPanel.setText(Number(a), b.toString()),
+    'SetStatusBarWidth/2':
+        (a, b) => this.#statusBarPanel.setWidth(Number(a), Number(b)),
+    'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
+        new Range(Number(a), Number(b), Number(c), Number(d)),
+        Number(e), !!f, !!g, !!h, !!i),
     'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
     'TransChar1/0': () => this.#grid.updateSelectedCells(toZenkakuAlphabet),
     'TransChar2/0':
@@ -2020,30 +1999,25 @@ class CassavaGridElement extends HTMLElement {
     'TransChar4/0': () => this.#grid.updateSelectedCells(toHankakuKana),
     'TransChar5/0': () => this.#grid.updateSelectedCells(toZenkakuKana),
     'Undo/0': () => this.#grid.undo(),
-    // @ts-ignore
-    'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).avr,
-    // @ts-ignore
+    'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d))).avr,
     'cell/2': (a, b) => {
-      const value = this.#grid.cell(a, b);
+      const value = this.#grid.cell(Number(a), Number(b));
       if ((Number(value)).toString() == value) {
         return Number(value);
       }
       return value;
     },
-    // @ts-ignore
     'cell=/3': (a, b, c) => this.#grid.setCell(Number(a), Number(b), c),
-    // @ts-ignore
-    'move/2': (a, b) => this.#grid.moveTo(this.#grid.x + a, this.#grid.y + b),
-    // @ts-ignore
-    'moveto/2': (a, b) => this.#grid.moveTo(a, b),
-    // @ts-ignore
-    'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(new Range(a, b, c, d)).sum,
-    // @ts-ignore
+    'move/2': (a, b) =>
+        this.#grid.moveTo(this.#grid.x + Number(a), this.#grid.y + Number(b)),
+    'moveto/2': (a, b) => this.#grid.moveTo(Number(a), Number(b)),
+    'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d))).sum,
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(this.#grid.x + 1, this.#grid.y);
     },
-    // @ts-ignore
     'writeln/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(1, this.#grid.y + 1);

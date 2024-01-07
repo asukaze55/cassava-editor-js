@@ -16,62 +16,43 @@ function functionId(name, arity, varArgs, fileName) {
 class SwapFunction {}
 const swapFunction = new SwapFunction();
 
-/** @typedef {number|string|Function|ObjectValue|ReturnValue|SwapFunction} ValueType */
+/**
+ * @typedef {number|string|FunctionValue|MacroFunction|ObjectValue|RegExp|ReturnValue} ValueType
+ * @typedef {((a: ValueType?, b: ValueType?, c: ValueType?, d: ValueType?, e: ValueType?) => ValueType|Promise<ValueType>|void|Promise<void>)|SwapFunction} MacroFunction
+ */
 
+/** @type {Map<string, MacroFunction>} */
 const builtInFunctions = new Map(Object.entries({
-  // @ts-ignore
-  'acos/1': a => Math.acos(a),
-  // @ts-ignore
+  'acos/1': a => Math.acos(Number(a)),
   'ascW/1': a => a.toString().charCodeAt(0),
-  // @ts-ignore
-  'asin/1': a => Math.asin(a),
-  // @ts-ignore
-  'atan/1': a => Math.atan(a),
-  // @ts-ignore
-  'atan2/2': (a, b) => Math.atan2(a, b),
-  // @ts-ignore
+  'asin/1': a => Math.asin(Number(a)),
+  'atan/1': a => Math.atan(Number(a)),
+  'atan2/2': (a, b) => Math.atan2(Number(a), Number(b)),
   'chrW/1': a => String.fromCharCode(Number(a)),
-  // @ts-ignore
-  'cos/1': a => Math.cos(a),
-  // @ts-ignore
+  'cos/1': a => Math.cos(Number(a)),
   'double/1': a => Number(a),
-  // @ts-ignore
-  'int/1': a => Math.trunc(a),
-  // @ts-ignore
-  'left/2': (a, b) => a.toString().slice(0, b),
-  // @ts-ignore
+  'int/1': a => Math.trunc(Number(a)),
+  'left/2': (a, b) => a.toString().slice(0, Number(b)),
   'len/1': a => a.toString().length,
   // @ts-ignore
   'max/+1': (...a) => Math.max(...a),
-  // @ts-ignore
-  'mid/2': (a, b) => a.toString().substring(b - 1),
-  // @ts-ignore
+  'mid/2': (a, b) => a.toString().substring(Number(b) - 1),
   'mid/3': (a, b, c) =>
       a.toString().substring(Number(b) - 1, Number(b) - 1 + Number(c)),
   // @ts-ignore
   'min/+1': (...a) => Math.min(...a),
-  // @ts-ignore
-  'pos/2': (a, b) => a.toString().indexOf(b) + 1,
-  // @ts-ignore
-  'pow/2': (a, b) => Math.pow(a, b),
-  // @ts-ignore
-  'random/1': a => Math.floor(Math.random() * a),
-  // @ts-ignore
-  'replace/+3': (str1, str2, str3, ignoreCase, regex) => createReplacer(
-      str2.toString(), str3.toString(), ignoreCase, false, regex)(
+  'pos/2': (a, b) => a.toString().indexOf(b.toString()) + 1,
+  'pow/2': (a, b) => Math.pow(Number(a), Number(b)),
+  'random/1': a => Math.floor(Math.random() * Number(a)),
+  'replace/+3': (str1, str2, str3, ignoreCase, isRegex) => createReplacer(
+      str2.toString(), str3.toString(), !!ignoreCase, false, !!isRegex)(
           str1.toString()),
-  // @ts-ignore
   'right/2': (a, b) => a.toString().slice(-b),
-  // @ts-ignore
-  'sin/1': a => Math.sin(a),
-  // @ts-ignore
-  'sqrt/1': a => Math.sqrt(a),
-  // @ts-ignore
+  'sin/1': a => Math.sin(Number(a)),
+  'sqrt/1': a => Math.sqrt(Number(a)),
   'str/1': a => a.toString(),
-  // @ts-ignore
   'swap/2': swapFunction,
-  // @ts-ignore
-  'tan/1': a => Math.tan(a),
+  'tan/1': a => Math.tan(Number(a)),
   'GetDate/0': () => new Date().getDate(),
   'GetHours/0': () => new Date().getHours(),
   'GetMinutes/0': () => new Date().getMinutes(),
@@ -704,6 +685,30 @@ function parseRegExp(token) {
       token.substring(p + 1));
 }
 
+/**
+ * @param {ValueType?} value
+ * @returns {number?}
+ */
+function optionalNumber(value) {
+  return value == undefined ? undefined : Number(value);
+}
+
+/**
+ * @param {ValueType?} value
+ * @returns {string?}
+ */
+function optionalString(value) {
+  return value == undefined ? undefined : value.toString();
+}
+
+/**
+ * @param {ValueType} value
+ * @returns {string|RegExp}
+ */
+function stringOrRegExp(value) {
+  return value instanceof RegExp ? value : value.toString();
+}
+
 class TreeBuilder {
   /**
    * @param {string} fileName
@@ -756,6 +761,7 @@ class TreeBuilder {
           if (func instanceof FunctionValue) {
             return func.run(paramResults, env);
           } else if (typeof func == 'function') {
+            // @ts-ignore
             return func(...paramResults);
           } else if (func === swapFunction) {
             await params[0].assign(env, paramResults[1]);
@@ -803,46 +809,33 @@ class TreeBuilder {
           }
           const str = /** @type {string} */(obj.toString());
           if (name == 'endsWith') {
-            // @ts-ignore
             return (a, b) =>
-                str.endsWith(a, b) ? 1 : 0;
+                str.endsWith(a.toString(), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'includes') {
-            // @ts-ignore
             return (a, b) =>
-                str.includes(a, b) ? 1 : 0;
+                str.includes(a.toString(), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'indexOf') {
-            // @ts-ignore
-            return (a, b) => str.indexOf(a, b);
+            return (a, b) => str.indexOf(a.toString(), optionalNumber(b));
           } else if (name == 'lastIndexOf') {
-            // @ts-ignore
-            return (a, b) => str.lastIndexOf(a, b);
+            return (a, b) => str.lastIndexOf(a.toString(), optionalNumber(b));
           } else if (name == 'length') {
             return str.length;
           } else if (name == 'padEnd') {
-            // @ts-ignore
-            return (a, b) => str.padEnd(a, b);
+            return (a, b) => str.padEnd(Number(a), optionalString(b));
           } else if (name == 'padStart') {
-            // @ts-ignore
-            return (a, b) => str.padStart(a, b);
+            return (a, b) => str.padStart(Number(a), optionalString(b));
           } else if (name == 'repeat') {
-            // @ts-ignore
-            return a => str.repeat(a);
+            return a => str.repeat(Number(a));
           } else if (name == 'replace') {
-            // @ts-ignore
-            return (a, b) => str.replace(a, b);
+            return (a, b) => str.replace(stringOrRegExp(a), b.toString());
           } else if (name == 'replaceAll') {
-            // @ts-ignore
-            return (a, b) => str.replaceAll(a, b);
+            return (a, b) => str.replaceAll(stringOrRegExp(a), b.toString());
           } else if (name == 'search') {
-            // @ts-ignore
-            return a => str.search(a);
+            return a => str.search(stringOrRegExp(a));
           } else if (name == 'startsWith') {
-            // @ts-ignore
-            return (a, b) =>
-                str.startsWith(a, b) ? 1 : 0;
+            return (a, b) => str.startsWith(a.toString(), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'substring') {
-            // @ts-ignore
-            return (a, b) => str.substring(a, b);
+            return (a, b) => str.substring(Number(a), optionalNumber(b));
           } else if (name == 'toLowerCase') {
             return () => str.toLowerCase();
           } else if (name == 'toString') {

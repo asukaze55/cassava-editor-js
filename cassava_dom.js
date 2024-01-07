@@ -3,22 +3,21 @@
 /**
  * @template {string} K
  * @param {K} name
- * @param {{}=} attributes
+ * @param {{[key: string]: any}=} attributes
  * @param {Array<Node|string>=} children
  * @returns {HTMLElementTagNameMap[K]}
  */
 function createElement(name, attributes, children) {
-  const element = document.createElement(name);
+  const element = /** @type {any} */(document.createElement(name));
   if (attributes) {
     for (const key of Object.keys(attributes)) {
-      // @ts-ignore
       element[key] = attributes[key];
     }
   }
   if (children) {
     element.append(...children);
   }
-  return /** @type {any} */(element);
+  return element;
 }
 
 /**
