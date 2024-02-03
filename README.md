@@ -27,7 +27,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 <!-- グリッドを表示 -->
 <cassava-grid id="cassava-grid" style="max-height: 90vh;"></cassava-grid>
 <!-- JavaScript を読み込む -->
-<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20231224.js"></script>
+<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20240203.js"></script>
 </body>
 </html>
 ```

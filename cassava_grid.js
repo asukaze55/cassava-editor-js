@@ -947,7 +947,7 @@ function gridFocusOut(event, grid) {
 function parseCellInput(cellNode) {
   return cellNode.innerHTML
       .replaceAll(/<\/div>/gi, '\n')
-      .replaceAll(/<br>/gi, '\n')
+      .replaceAll(/<br(\s[^>]*)?>/gi, '\n')
       .replaceAll(/<.*?>/g, '')
       .replaceAll('&nbsp;', ' ')
       .replaceAll('&quot;', '"')
@@ -1846,8 +1846,8 @@ class CassavaGridElement extends HTMLElement {
   /** @type {CassavaStatusBarElement} */
   #statusBarPanel;
 
-/** @type {Map<string, MacroFunction>} */
-#api = new Map(Object.entries({
+  /** @type {Map<string, MacroFunction>} */
+  #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
     'Col=/0': () => this.#grid.x,
