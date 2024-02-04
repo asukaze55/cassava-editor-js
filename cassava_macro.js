@@ -18,7 +18,7 @@ const swapFunction = new SwapFunction();
 
 /**
  * @typedef {number|string|FunctionValue|MacroFunction|ObjectValue|RegExp|ReturnValue} ValueType
- * @typedef {((a: ValueType?, b: ValueType?, c: ValueType?, d: ValueType?, e: ValueType?) => ValueType|Promise<ValueType>|void|Promise<void>)|SwapFunction} MacroFunction
+ * @typedef {((...args: ValueType[]) => ValueType|Promise<ValueType>|void|Promise<void>)|SwapFunction} MacroFunction
  */
 
 /** @type {Map<string, MacroFunction>} */
@@ -34,13 +34,11 @@ const builtInFunctions = new Map(Object.entries({
   'int/1': a => Math.trunc(Number(a)),
   'left/2': (a, b) => a.toString().slice(0, Number(b)),
   'len/1': a => a.toString().length,
-  // @ts-ignore
-  'max/+1': (...a) => Math.max(...a),
+  'max/+1': (...a) => Math.max(...a.map(Number)),
   'mid/2': (a, b) => a.toString().substring(Number(b) - 1),
   'mid/3': (a, b, c) =>
       a.toString().substring(Number(b) - 1, Number(b) - 1 + Number(c)),
-  // @ts-ignore
-  'min/+1': (...a) => Math.min(...a),
+  'min/+1': (...a) => Math.min(...a.map(Number)),
   'pos/2': (a, b) => a.toString().indexOf(b.toString()) + 1,
   'pow/2': (a, b) => Math.pow(Number(a), Number(b)),
   'random/1': a => Math.floor(Math.random() * Number(a)),
@@ -761,7 +759,6 @@ class TreeBuilder {
           if (func instanceof FunctionValue) {
             return func.run(paramResults, env);
           } else if (typeof func == 'function') {
-            // @ts-ignore
             return func(...paramResults);
           } else if (func === swapFunction) {
             await params[0].assign(env, paramResults[1]);
@@ -975,7 +972,7 @@ class TreeBuilder {
         const thenNode = this.buildTree(';');
         /** @type {Node?} */
         let elseNode = null;
-        // @ts-ignore
+        // @ts-ignore https://github.com/microsoft/TypeScript/issues/31334
         if (this.tokens[0] == 'else') {
           this.tokens.shift();
           elseNode = this.buildTree(';');
