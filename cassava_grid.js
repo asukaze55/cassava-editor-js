@@ -1829,7 +1829,7 @@ td, th {
 
 /**
  * @typedef {number|string|MacroFunction|RegExp} ValueType
- * @typedef {((a: ValueType?, b: ValueType?, c: ValueType?, d: ValueType?, e: ValueType?, f: ValueType?, g: ValueType?, h: ValueType?, i: ValueType?) => ValueType|Promise<ValueType>|void|Promise<void>)} MacroFunction
+ * @typedef {((...args: ValueType[]) => ValueType|Promise<ValueType>|void|Promise<void>)} MacroFunction
  */
 
 class CassavaGridElement extends HTMLElement {
@@ -2090,13 +2090,13 @@ class CassavaGridElement extends HTMLElement {
 
   /**
    * @param {string} macroName
-   * @returns {string}
+   * @returns {string?}
    */
   getMacro(macroName) {
     return this.#macroMap.get(macroName);
   }
 
-  /** @returns IterableIterator<string> */
+  /** @returns {IterableIterator<string>} */
   getMacroNames() {
     return this.#macroMap.keys();
   }

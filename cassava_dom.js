@@ -3,7 +3,10 @@
 /**
  * @template {string} K
  * @param {K} name
- * @param {{[key: string]: any}=} attributes
+ * @param {Omit<Partial<HTMLElementTagNameMap[K]>, 'style'> & {
+ *         onmousedown?: (event: MouseEvent) => void,
+ *         onmousemove?: (event: MouseEvent) => void,
+ *         style?: string}=} attributes
  * @param {Array<Node|string>=} children
  * @returns {HTMLElementTagNameMap[K]}
  */
@@ -11,7 +14,7 @@ function createElement(name, attributes, children) {
   const element = /** @type {any} */(document.createElement(name));
   if (attributes) {
     for (const key of Object.keys(attributes)) {
-      element[key] = attributes[key];
+      element[key] = /** @type {any} */(attributes)[key];
     }
   }
   if (children) {
