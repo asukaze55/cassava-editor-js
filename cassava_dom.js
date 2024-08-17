@@ -4,6 +4,7 @@
  * @template {string} K
  * @param {K} name
  * @param {Omit<Partial<HTMLElementTagNameMap[K]>, 'style'> & {
+ *         onclick?: (event: PointerEvent) => void,
  *         onmousedown?: (event: MouseEvent) => void,
  *         onmousemove?: (event: MouseEvent) => void,
  *         style?: string}=} attributes
