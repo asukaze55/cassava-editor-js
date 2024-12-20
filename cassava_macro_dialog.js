@@ -2,12 +2,92 @@
 const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 
+class MacroManager {
+  /** @type {CassavaGridElement} */
+  #grid;
+  /** @type {Set<string>} */
+  #managedMacroNames = new Set();
+
+  /** @param {CassavaGridElement} grid */
+  constructor(grid) {
+    this.#grid = grid;
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('Macro/')) {
+          const macroName = key.substring(6);
+          grid.addMacro(macroName, localStorage.getItem(key));
+          this.#managedMacroNames.add(macroName);
+        }
+      }
+    } catch {}
+  }
+
+  /**
+   * @param {string} macroName
+   * @returns {string?}
+   */
+  getMacro(macroName) {
+    return this.#grid.getMacro(macroName);
+  }
+
+  /**
+   * @param {string} macroName
+   * @returns {boolean}
+   */
+  isManaged(macroName) {
+    return this.#managedMacroNames.has(macroName);
+  }
+
+  /** @returns {Array<string>} */
+  userMacroNames() {
+    return Array.from(this.#managedMacroNames).sort();
+  }
+
+  /** @returns {Array<string>} */
+  appMacroNames() {
+    return Array.from(this.#grid.getMacroNames())
+        .filter(name => !this.#managedMacroNames.has(name))
+        .sort();
+  }
+
+  /**
+   * @param {string} macroName
+   * @param {string} macroText
+   */
+  save(macroName, macroText) {
+    this.#grid.addMacro(macroName, macroText);
+    this.#managedMacroNames.add(macroName);
+    try {
+      localStorage.setItem(this.#key(macroName), macroText);
+    } catch {}
+  }
+
+  /** @param {string} macroName */
+  delete(macroName) {
+    this.#grid.addMacro(macroName, '');
+    this.#managedMacroNames.delete(macroName);
+    try {
+      localStorage.removeItem(this.#key(macroName));
+    } catch {}
+  }
+
+  /**
+   * @param {string} macroName
+   * @returns {string}
+   */
+  #key(macroName) {
+    return 'Macro/' + macroName;
+  }
+}
+
 /**
  * @param {string} defaultName
- * @param {Set<string>} managedMacroNames
+ * @param {MacroManager} manager
  * @returns {Promise<string>}
  */
-function showRenameDialog(defaultName, managedMacroNames) {
+function showRenameDialog(defaultName, manager) {
   return new Promise(resolve => {
     const warningDiv =
         createElement('div', {style: 'color: #f00; font-size: 70%'});
@@ -28,7 +108,7 @@ function showRenameDialog(defaultName, managedMacroNames) {
               event.preventDefault();
               return;
             }
-            if (managedMacroNames.has(newName)) {
+            if (manager.isManaged(newName)) {
               warningDiv.innerText =
                   '同名のマクロがあります。他の名前を入力してください。';
               event.preventDefault();
@@ -54,8 +134,8 @@ function showRenameDialog(defaultName, managedMacroNames) {
 }
 
 class MacroDialog {
-  /** @type {CassavaGridElement} */
-  #grid;
+  /** @type {MacroManager} */
+  #manager;
   /** @type {string} */
   #macroName = '';
   /** @type {HTMLButtonElement} */
@@ -66,13 +146,11 @@ class MacroDialog {
   #macroSelect;
   /** @type {HTMLTextAreaElement} */
   #macroTextarea;
-  /** @type {Set<string>} */
-  #managedMacroNames = new Set();
 
   /** @param {CassavaGridElement} grid */
   constructor(grid) {
     const smallScreen = document.documentElement.clientWidth <= 480;
-    this.#grid = grid;
+    this.#manager = new MacroManager(grid);
     this.#macroSelect = createElement('select', {
       size: smallScreen ? 0: 10,
       style: 'width: 100%;',
@@ -99,17 +177,6 @@ class MacroDialog {
             div(button('実行', () => grid.runMacro(this.#macroTextarea.value))))
       ])
     ]);
-
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('Macro/')) {
-          const macroName = key.substring(6);
-          grid.addMacro(macroName, localStorage.getItem(key));
-          this.#managedMacroNames.add(macroName);
-        }
-      }
-    } catch {}
   }
 
   show() {
@@ -121,13 +188,13 @@ class MacroDialog {
 
   async #addNew() {
     const newName =
-        await showRenameDialog(this.#newName(), this.#managedMacroNames);
+        await showRenameDialog(this.#newName(), this.#manager);
     if (!newName) {
       return;
     }
     this.#macroName = newName;
-    this.#managedMacroNames.add(newName);
     this.#macroTextarea.value = '';
+    this.#manager.save(newName, '');
     this.#render();
     this.#macroTextarea.focus();
   }
@@ -135,41 +202,30 @@ class MacroDialog {
   #newName() {
     for (let i = 1;; i++) {
       const name = '新規マクロ' + i;
-      if (!this.#grid.getMacro(name)) {
+      if (!this.#manager.getMacro(name)) {
         return name;
       }
     }
   }
 
-  /**
-   * @param {string} macroName 
-   * @returns {string}
-   */
-  #key(macroName) {
-    return 'Macro/' + macroName;
-  }
-
   /** @param {string} macroName */
   #load(macroName) {
     this.#macroName = macroName;
-    this.#macroTextarea.value = this.#grid.getMacro(macroName) || '';
+    this.#macroTextarea.value = this.#manager.getMacro(macroName) || '';
     this.#render();
   }
 
   async #rename() {
     const oldName = this.#macroName;
-    const newName = await showRenameDialog(oldName, this.#managedMacroNames);
+    const newName = await showRenameDialog(oldName, this.#manager);
     if (!newName || newName == oldName) {
       return;
     }
 
-    if (this.#managedMacroNames.has(oldName)) {
-      this.#managedMacroNames.delete(oldName);
-    }
-    this.#managedMacroNames.add(newName);
-    this.#grid.addMacro(oldName, '');
+    this.#manager.delete(oldName);
     this.#macroName = newName;
-    this.#save();
+    this.#manager.save(newName, this.#macroTextarea.value);
+    this.#render();
     this.#macroTextarea.focus();
   }
 
@@ -182,19 +238,15 @@ class MacroDialog {
       return;
     }
     this.#macroSelect.innerHTML = '';
-    const userMacroNames = Array.from(this.#managedMacroNames).sort();
-    const appMacroNames = Array.from(this.#grid.getMacroNames())
-        .filter(name => !this.#managedMacroNames.has(name))
-        .sort();
     this.#macroSelect.append(createElement('option', {value: ''}, ['📂 ユーザー']));
-    for (const name of userMacroNames) {
+    for (const name of this.#manager.userMacroNames()) {
       this.#macroSelect.append(
           createElement('option', {selected: name == this.#macroName}, [name]));
     }
     this.#macroSelect.append(createElement('option'));
     this.#macroSelect.append(
         createElement('option', {value: ''}, ['📂 アプリケーション']));
-    for (const name of appMacroNames) {
+    for (const name of this.#manager.appMacroNames()) {
       this.#macroSelect.append(
           createElement('option', {selected: name == this.#macroName}, [name]));
     }
@@ -205,15 +257,11 @@ class MacroDialog {
     if (macroText && !this.#macroName) {
       this.#macroName = this.#newName();
     }
-    this.#grid.addMacro(this.#macroName, macroText);    
-    try {
-      if (macroText == '') {
-        localStorage.removeItem(this.#key(this.#macroName));
-      } else {
-        this.#managedMacroNames.add(this.#macroName);
-        localStorage.setItem(this.#key(this.#macroName), macroText);
-      }
-    } catch {}
+    if (macroText == '') {
+      this.#manager.save(this.#macroName, macroText);
+    } else {
+      this.#manager.delete(this.#macroName);
+    }
     this.#render();
   }
 
@@ -222,8 +270,7 @@ class MacroDialog {
       return;
     }
     this.#macroTextarea.value = '';
-    this.#save();
-    this.#managedMacroNames.delete(this.#macroName);
+    this.#manager.delete(this.#macroName);
     this.#macroName = '';
     this.#render();
   }
