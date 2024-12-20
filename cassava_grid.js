@@ -540,11 +540,11 @@ class Grid {
     }
   }
 
-  redo() {
+  async redo() {
     blurActiveElement();
     const range = this.#undoGrid.redo();
     if (range) {
-      this.render();
+      await this.render();
       this.select(range.left, range.top, range.right, range.bottom);
     }
   }
@@ -869,11 +869,11 @@ class Grid {
     return this.#undoGrid.sumAndAvr(range);
   }
 
-  undo() {
+  async undo() {
     blurActiveElement();
     const range = this.#undoGrid.undo();
     if (range) {
-      this.render();
+      await this.render();
       this.select(range.left, range.top, range.right, range.bottom);
     }
   }
