@@ -1,7 +1,8 @@
 (() => {
 const { CassavaStatusBarElement } = net.asukaze.import('./cassava_status_bar.js');
+const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
 const { Environment, run } = net.asukaze.import('./cassava_macro.js');
-const { GridData, Range, isNumber } = net.asukaze.import('./cassava_grid_data.js');
+const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
 const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
 const { createFinder, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
@@ -278,9 +279,13 @@ class Grid {
     return this.element.rows[i].cells[x];
   }
 
-  /** @param {string=} fileName */
-  clear(fileName = '') {
+  /**
+   * @param {string=} fileName
+   * @param {DataFormat=} dataFormat
+   */
+  clear(fileName = '', dataFormat = DataFormat.CSV) {
     this.#undoGrid.clear();
+    this.dataFormat = dataFormat;
     this.fileName = fileName;
     this.isEditing = false;
     this.isMouseDown = false;
@@ -826,6 +831,17 @@ class Grid {
    */
   setCell(x, y, value) {
     this.#undoGrid.setCell(x, y, value);
+    this.render();
+  }
+
+  /**
+   * @param {GridData} gridData
+   * @param {string} fileName
+   * @param {DataFormat} dataFormat
+   */
+  setGridData(gridData, fileName, dataFormat) {
+    this.clear(fileName, dataFormat);
+    this.#undoGrid = new UndoGrid(gridData);
     this.render();
   }
 
@@ -1525,82 +1541,6 @@ function inputBoxMultiLine(message, title, defaultValue) {
   });
 }
 
-/**
- * @param {string} data
- * @param {GridData} gridData
- */
-function parseCsv(data, gridData) {
-  gridData.clear();
-  let x = 1;
-  let y = 1;
-  let current = '';
-  let quoted = false;
-  for (let i = 0; i < data.length; i++) {
-    const c = data[i];
-    if (quoted) {
-      if (c == '"') {
-        if (data[i + 1] == '"') {
-          current += '"';
-          i++;
-        } else {
-          quoted = false;
-        }
-      } else if (c == '\r') {
-        current += '\n';
-        if (data[i + 1] == '\n') {
-          i++;
-        }
-      } else {
-        current += c;
-      }
-    } else if (c == '"') {
-      quoted = true;
-    } else if (c == ',') {
-      gridData.setCell(x, y, current);
-      current = '';
-      x++;
-    } else if (c == '\r' || c == '\n') {
-      gridData.setCell(x, y, current);
-      current = '';
-      x = 1;
-      y++;
-      if (c == '\r' && data[i + 1] == '\n') {
-        i++;
-      }
-    } else {
-      current += c;
-    }
-  }
-  if (current != '') {
-    gridData.setCell(x, y, current);
-  }
-}
-
-/**
- * @param {GridData} gridData
- * @param {Range} range
- * @returns {string}
- */
-function toCsv(gridData, range) {
-  let result = '';
-  for (let y = range.top; y <= range.bottom; y++) {
-    for (let x = range.left; x <= range.right; x++) {
-      if (x > range.left) {
-        result += ',';
-      }
-      const cell = gridData.cell(x, y);
-      if (cell == '' || isNumber(cell)) {
-        result += cell;
-      } else {
-        result += '"' + cell.replaceAll('"', '""')
-                  + '"';
-      }
-    }
-    result += '\n';
-  }
-  return result;
-}
-
 class OpenDialog {
   #encoding = 'UTF-8';
   /** @type {HTMLInputElement} */
@@ -1627,9 +1567,10 @@ class OpenDialog {
       const reader = new FileReader();
       reader.readAsText(file, this.#encoding);
       reader.addEventListener('load', () => {
-        this.#grid.clear(file.name);
-        parseCsv(/** @type {string} */(reader.result), this.#grid.gridData());
-        this.#grid.render();
+        const dataFormat = DataFormat.forFileName(file.name);
+        this.#grid.setGridData(
+            dataFormat.parse(/** @type {string} */(reader.result)),
+            file.name, dataFormat);
         resolve();
       });
     });
@@ -1664,7 +1605,7 @@ function saveAs(fileName, grid) {
   grid.fileName = fileName;
   const gridData = grid.gridData();
   const blob = new Blob(
-      [toCsv(gridData, gridData.range())],
+      [grid.dataFormat.stringify(gridData, gridData.range())],
       {type: "text/csv"});
   if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
     /** @type {any} */(navigator).msSaveOrOpenBlob(blob, fileName);
@@ -1732,8 +1673,7 @@ function showPasteDialog(grid, clipText, clipData) {
       ])),
       div(button('OK', async () => {
         const text = textarea.value;
-        const data = new GridData();
-        parseCsv(text, data);
+        const data =  grid.dataFormat.parse(text);
         const option = option1Input.checked ? 1
                      : option2Input.checked ? 2
                      : option3Input.checked ? 3
@@ -1757,7 +1697,7 @@ function showPasteDialog(grid, clipText, clipData) {
  */
 async function copy(grid, cut) {
   const range = grid.selection();
-  await clipboard.writeText(toCsv(grid.gridData(), range));
+  await clipboard.writeText(grid.dataFormat.stringify(grid.gridData(), range));
   if (cut) {
     grid.clearCells(range);
     grid.render();
@@ -1770,8 +1710,7 @@ async function copy(grid, cut) {
  */
 async function paste(grid, option) {
   const clipText = await clipboard.readText();
-  const clipData = new GridData();
-  parseCsv(clipText, clipData);
+  const clipData = grid.dataFormat.parse(clipText);
   const selection = grid.selection();
   if (option >= 0) {
     grid.paste(clipText, clipData, selection, option);
