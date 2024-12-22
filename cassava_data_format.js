@@ -11,10 +11,13 @@ const QuoteType = {
 
 class DataFormat {
   /**
+   * @param {string} name
    * @param {string} separators
    * @param {QuoteType} quoteType
    */
-  constructor(separators, quoteType) {
+  constructor(name, separators, quoteType) {
+    /** @type {string} */
+    this.name = name;
     /** @type {string} */
     this.separators = separators;
     /** @type {QuoteType} */
@@ -126,8 +129,8 @@ class DataFormat {
   }
 }
 
-DataFormat.CSV = new DataFormat(',', QuoteType.ONLY_IF_NEEDED);
-DataFormat.TSV = new DataFormat('\t', QuoteType.NONE);
+DataFormat.CSV = new DataFormat('CSV', ',', QuoteType.ONLY_IF_NEEDED);
+DataFormat.TSV = new DataFormat('TSV', '\t', QuoteType.NONE);
 
 /** @type {(fileName: string) => DataFormat} */
 DataFormat.forFileName =

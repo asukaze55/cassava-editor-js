@@ -240,6 +240,7 @@ class Grid {
    */
   constructor(gridData, onRender) {
     this.element = createElement('table', {tabIndex: -1});
+    this.dataFormats = [DataFormat.CSV, DataFormat.TSV];
     this.#undoGrid = new UndoGrid(gridData);
     this.#suppressRender = 0;
     this.#onRender = onRender;
@@ -283,7 +284,7 @@ class Grid {
    * @param {string=} fileName
    * @param {DataFormat=} dataFormat
    */
-  clear(fileName = '', dataFormat = DataFormat.CSV) {
+  clear(fileName = '', dataFormat = this.dataFormats[0]) {
     this.#undoGrid.clear();
     this.dataFormat = dataFormat;
     this.fileName = fileName;
@@ -1811,12 +1812,12 @@ class CassavaGridElement extends HTMLElement {
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
     'FindNext/0': () => this.#findDialog.findNext(1),
-    'GetActiveDataType/0': () => 'CSV',
+    'GetActiveDataType/0': () => this.#grid.dataFormat.name,
     'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
         a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
-    'GetDataTypes/0': () => 'CSV',
+    'GetDataTypes/0': () => this.#grid.dataFormats.map(f => f.name).join('\n'),
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
@@ -1898,9 +1899,14 @@ class CassavaGridElement extends HTMLElement {
     'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
     'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
     'SetActiveDataType/1': dataType => {
-      if (dataType != 'CSV') {
-        throw 'Unsupported data type: ' + dataType;
+      for (const dataFormat of this.#grid.dataFormats) {
+        if (dataFormat.name == dataType) {
+          this.#grid.dataFormat = dataFormat;
+          this.#grid.render();
+          return;
+        }
       }
+      throw 'Unsupported data type: ' + dataType;
     },
     'SetCharCode/1': charCode => {
       if (charCode != 'UTF-8') {
