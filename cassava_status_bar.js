@@ -78,6 +78,7 @@ class CassavaStatusBarElement extends HTMLElement {
    */
   setPopUp(index, items, onclick) {
     const panel = this.#panel(index);
+    panel.style.cursor = 'default';
     panel.onclick = event => {
       const ul = createElement('ul');
       const hide = () => {
