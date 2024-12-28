@@ -238,18 +238,14 @@ class MacroDialog {
       return;
     }
     this.#macroSelect.innerHTML = '';
-    this.#macroSelect.append(createElement('option', {value: ''}, ['📂 ユーザー']));
-    for (const name of this.#manager.userMacroNames()) {
-      this.#macroSelect.append(
-          createElement('option', {selected: name == this.#macroName}, [name]));
-    }
-    this.#macroSelect.append(createElement('option'));
+    const userMacroOptions = this.#manager.userMacroNames().map(name =>
+        createElement('option', {selected: name == this.#macroName}, [name]));
+    userMacroOptions.push(createElement('option'));
+    const appMacroOptions = this.#manager.appMacroNames().map(name =>
+        createElement('option', {selected: name == this.#macroName}, [name]));
     this.#macroSelect.append(
-        createElement('option', {value: ''}, ['📂 アプリケーション']));
-    for (const name of this.#manager.appMacroNames()) {
-      this.#macroSelect.append(
-          createElement('option', {selected: name == this.#macroName}, [name]));
-    }
+        createElement('optgroup', {label: '📂 ユーザー'}, userMacroOptions),
+        createElement('optgroup', {label: '📂 アプリケーション'}, appMacroOptions));
   }
 
   #save() {
