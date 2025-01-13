@@ -253,7 +253,7 @@ class MacroDialog {
     if (macroText && !this.#macroName) {
       this.#macroName = this.#newName();
     }
-    if (macroText == '') {
+    if (macroText) {
       this.#manager.save(this.#macroName, macroText);
     } else {
       this.#manager.delete(this.#macroName);
