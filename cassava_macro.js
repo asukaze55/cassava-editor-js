@@ -1331,9 +1331,9 @@ function load(fileName, env, macroMap) {
  * @param {string} script
  * @param {Environment} env
  * @param {Map<string, string>} macroMap
- * @returns {ValueType|Promise<ValueType>}
+ * @returns {Promise<ValueType>}
  */
-function run(script, env, macroMap) {
+async function run(script, env, macroMap) {
   const treeBuilder =
       new TreeBuilder('', script, env);
   let tree;
@@ -1354,7 +1354,8 @@ function run(script, env, macroMap) {
         load(fileName, env, macroMap));
   }
   env.init();
-  return tree.run(env);
+  const result = await tree.run(env);
+  return (result instanceof ReturnValue) ? result.value : result;
 }
 
 net.asukaze.export({ Environment, run });
