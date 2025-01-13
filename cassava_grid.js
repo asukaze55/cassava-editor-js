@@ -483,7 +483,7 @@ class Grid {
     if (this.isEditing && x == this.x && y == this.y) {
       this.#updateCellColor(cell, x, y);
       return;
-    }   
+    }
     if (x <= this.right() && y <= this.bottom()) {
       this.#suppressRender++;
       let cellToRender = await this.#onRenderCell(x, y);
@@ -548,7 +548,7 @@ class Grid {
       cell.style.backgroundColor = '#fff';
       cell.style.color = '#000';
     }
-  } 
+  }
 
   /**
    * @param {string} str1
@@ -1943,7 +1943,7 @@ class CassavaGridElement extends HTMLElement {
     if (!macro) {
       return;
     }
-    return this.runMacro(`x=${x};y=${y};${macro}`);
+    return this.runMacro(`x=${x};y=${y};${macro}`, /* ignoreErrors= */ true);
   }
 
   /**
@@ -1971,7 +1971,7 @@ class CassavaGridElement extends HTMLElement {
     await this.#grid.render();
     return result;
   }
-  
+
   /** @returns {number} */
   right() {
     return this.#grid.right();
