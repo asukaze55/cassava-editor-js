@@ -59,17 +59,21 @@ class Grid {
   #renderedBottom;
   /** @type {Function} */
   #onRender;
+  /** @type {(x: number, y: number) => Promise<ValueType?>} */
+  #onRenderCell;
 
   /**
    * @param {GridData} gridData
    * @param {Function} onRender
+   * @param {(x: number, y: number) => Promise<ValueType?>} onRenderCell
    */
-  constructor(gridData, onRender) {
+  constructor(gridData, onRender, onRenderCell) {
     this.element = createElement('table', {tabIndex: -1});
     this.dataFormats = [DataFormat.CSV, DataFormat.TSV];
     this.#undoGrid = new UndoGrid(gridData);
     this.#suppressRender = 0;
     this.#onRender = onRender;
+    this.#onRenderCell = onRenderCell;
     this.clear();
   }
 
@@ -402,7 +406,7 @@ class Grid {
     }
     const headerRow = (table.rows.length > 0) ? table.rows[0] : table.insertRow();
     const right = Math.max(4, this.#undoGrid.right() + 1, this.x, this.anchorX);
-    this.renderRow(headerRow, 0, right);
+    await this.renderRow(headerRow, 0, right);
     const tableTop = table.getBoundingClientRect().top;
     this.#renderedBottom = bottom;
     for (let y = this.#renderedTop; y <= bottom; y++) {
@@ -421,14 +425,14 @@ class Grid {
       if (row.getBoundingClientRect().bottom < tableTop) {
         continue;
       }
-      this.renderRow(row, y, right);
+      await this.renderRow(row, y, right);
     }
     if (table.rows[1].getBoundingClientRect().bottom > tableTop) {
       const count = Math.min(10, this.#renderedTop - 1);
       let prerenderedHeight = 0;
       for (let i = 1; i <= count; i++) {
         const row = table.insertRow(1);
-        this.renderRow(row, this.#renderedTop - i, right);
+        await this.renderRow(row, this.#renderedTop - i, right);
         prerenderedHeight += row.getBoundingClientRect().height;
       }
       this.#renderedTop -= count;
@@ -443,7 +447,7 @@ class Grid {
    * @param {number} y
    * @param {number} right
    */
-  renderRow(row, y, right) {
+  async renderRow(row, y, right) {
     while (row.cells.length > right + 1) {
       row.deleteCell(-1);
     }
@@ -466,7 +470,7 @@ class Grid {
         row.appendChild(cell);
       }
       cell.dataset.y = String(y);
-      this.renderCell(cell, x, y);
+      await this.renderCell(cell, x, y);
     }
   }
 
@@ -475,31 +479,64 @@ class Grid {
    * @param {number} x
    * @param {number} y
    */
-  renderCell(cell, x, y) {
+  async renderCell(cell, x, y) {
+    if (this.isEditing && x == this.x && y == this.y) {
+      this.#updateCellColor(cell, x, y);
+      return;
+    }   
+    if (x <= this.right() && y <= this.bottom()) {
+      this.#suppressRender++;
+      let cellToRender = await this.#onRenderCell(x, y);
+      this.#suppressRender--;
+      if (cellToRender) {
+        const html = cellToRender.toString().split('\n')
+            .map(line => sanitize(line) + '<br>')
+            .join('');
+        if (cell.innerHTML !== html) {
+          cell.innerHTML = html;
+        }
+        this.#updateCellColor(cell, x, y);
+        return;
+      }
+    }
+    this.renderRawCell(cell, x, y);
+  }
+
+  /**
+   * @param {HTMLTableCellElement} cell
+   * @param {number} x
+   * @param {number} y
+   */
+  async renderRawCell(cell, x, y) {
+    let html = '';
+    if (x == 0 && y == 0) {
+    } else if (y == 0) {
+      html = (x <= this.#undoGrid.right()) ? x.toString() : '&nbsp;';
+    } else if (x == 0) {
+      html = (y <= this.#undoGrid.bottom()) ? y.toString() : '&nbsp;';
+    } else {
+      html = this.#undoGrid.cell(x, y).split('\n')
+          .map(line => sanitize(line) + '<br>')
+          .join('')
+    }
+    if (cell.innerHTML !== html) {
+      cell.innerHTML = html;
+    }
+    this.#updateCellColor(cell, x, y);
+  }
+
+  /**
+   * @param {HTMLTableCellElement} cell
+   * @param {number} x
+   * @param {number} y
+   */
+  #updateCellColor(cell, x, y) {
     const isFixed = x == 0 || y == 0;
     const isSelected = x >= this.selLeft()
         && x <= this.selRight()
         && y >= this.selTop()
         && y <= this.selBottom();
-    const isEditing = this.isEditing
-        && x == this.x && y == this.y;
-
-    if (!isEditing) {
-      let html = '';
-      if (x == 0 && y == 0) {
-      } else if (y == 0) {
-        html = (x <= this.#undoGrid.right()) ? x.toString() : '&nbsp;';
-      } else if (x == 0) {
-        html = (y <= this.#undoGrid.bottom()) ? y.toString() : '&nbsp;';
-      } else if (!isEditing) {
-        html = this.#undoGrid.cell(x, y).split('\n')
-            .map(line => sanitize(line) + '<br>')
-            .join('')
-      }
-      if (cell.innerHTML !== html) {
-        cell.innerHTML = html;
-      }
-    }
+    const isEditing = this.isEditing && x == this.x && y == this.y;
 
     if (isFixed) {
       cell.style.backgroundColor = '#eee';
@@ -511,7 +548,7 @@ class Grid {
       cell.style.backgroundColor = '#fff';
       cell.style.color = '#000';
     }
-  }
+  } 
 
   /**
    * @param {string} str1
@@ -608,7 +645,7 @@ class Grid {
     this.y = y;
     this.render();
     const cellNode = this.cellNode(x, y);
-    this.renderCell(cellNode, x, y);
+    this.renderRawCell(cellNode, x, y);
     cellNode.focus();
     setTimeout(() => {
       let anchorNode = null;
@@ -766,7 +803,7 @@ function gridFocusIn(event, grid) {
   const x = parseInt(target.dataset.x, 10);
   const y = parseInt(target.dataset.y, 10);
   grid.isEditing = true;
-  grid.renderCell(target, x, y);
+  grid.renderRawCell(target, x, y);
 }
 
 /**
@@ -1800,7 +1837,8 @@ class CassavaGridElement extends HTMLElement {
     super();
 
     this.#grid = new Grid(new GridData(),
-        /* onRender= */ () => this.runNamedMacro('!statusbar.cms'));
+        /* onRender= */ () => this.runNamedMacro('!statusbar.cms'),
+        /* onRenderCell= */ (x, y) => this.#runFormatMacro(x, y));
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
     this.#macroMap = new Map();
@@ -1893,6 +1931,19 @@ class CassavaGridElement extends HTMLElement {
    */
   runNamedMacro(macroName) {
     return this.runMacro(this.#macroMap.get(macroName));
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {Promise<ValueType?>}
+   */
+  #runFormatMacro(x, y) {
+    const macro = this.#macroMap.get('!format.cms');
+    if (!macro) {
+      return;
+    }
+    return this.runMacro(`x=${x};y=${y};${macro}`);
   }
 
   /**
