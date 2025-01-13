@@ -18,10 +18,10 @@ const swapFunction = new SwapFunction();
 
 /**
  * @typedef {number|string|FunctionValue|MacroFunction|ObjectValue|RegExp|ReturnValue} ValueType
- * @typedef {((...args: ValueType[]) => ValueType|Promise<ValueType>|void|Promise<void>)|SwapFunction} MacroFunction
+ * @typedef {(...args: ValueType[]) => ValueType|Promise<ValueType>|void|Promise<void>} MacroFunction
  */
 
-/** @type {Map<string, MacroFunction>} */
+/** @type {Map<string, MacroFunction|SwapFunction>} */
 const builtInFunctions = new Map(Object.entries({
   'acos/1': a => Math.acos(Number(a)),
   'ascW/1': a => a.toString().charCodeAt(0),
@@ -60,11 +60,11 @@ const builtInFunctions = new Map(Object.entries({
 }));
 
 /**
- * @param {Map<string, ValueType>} map
+ * @param {Map<string, MacroFunction|SwapFunction>} map
  * @param {string} name
  * @param {number} arity
  * @param {string=} fileName
- * @returns {Function|SwapFunction?}
+ * @returns {MacroFunction|SwapFunction?}
  */
 function findFunction(map, name, arity, fileName) {
   let id = functionId(name, arity, false, fileName);
@@ -105,19 +105,27 @@ class Environment {
 
   /**
    * @param {string} name
-   * @param {number=} arity
-   * @param {string=} fileName
    * @returns {ValueType}
    */
-  get(name, arity, fileName) {
+  get(name) {
     if (this.variables.has(name)) {
       return this.variables.get(name);
     }
-    if (arity == null) {
-      if (this.#functions.has(name + '=/0')) {
-        return this.#functions.get(name + '=/0')();
-      }
-      throw 'Undefined variable: ' + name;
+    if (this.#functions.has(name + '=/0')) {
+      return this.#functions.get(name + '=/0')();
+    }
+    throw 'Undefined variable: ' + name;
+  }
+
+  /**
+   * @param {string} name
+   * @param {number} arity
+   * @param {string=} fileName
+   * @returns {ValueType|SwapFunction}
+   */
+  getFunction(name, arity, fileName) {
+    if (this.variables.has(name)) {
+      return this.variables.get(name);
     }
     if (fileName) {
       const func = findFunction(this.#functions, name, arity, fileName);
@@ -446,11 +454,11 @@ class ObjectValue {
 
 class ReturnValue {
   /**
-   * @param {ValueType} value
+   * @param {ValueType|Promise<ValueType>} value
    * @param {'break'|'continue'|'return'} type
    */
   constructor(value, type) {
-    /** @type {ValueType} */
+    /** @type {ValueType|Promise<ValueType>} */
     this.value = value;
     /** @type {'break'|'continue'|'return'} */
     this.type = type;
@@ -536,7 +544,7 @@ function blockNode() {
 /**
  * @param {number} precedence
  * @param {(left: ValueType, right: ValueType) => ValueType} runner
- * @returns
+ * @returns {Node}
  */
 function operatorNode(precedence, runner) {
   return new Node(precedence, async (env, left, children) => {
@@ -583,10 +591,11 @@ function cellNode(x, y) {
   return new Node(
       100,
       async env => /** @type {(x: ValueType, y: ValueType) => ValueType} */(
-          env.get('cell', 2))(await x.run(env), await y.run(env)),
+          env.getFunction('cell', 2))(await x.run(env), await y.run(env)),
       async (env, value) =>
           /** @type {(x: ValueType, y: ValueType, value: ValueType) => void} */(
-              env.get('cell=', 3))(await x.run(env), await y.run(env), value));
+              env.getFunction('cell=', 3))(
+                  await x.run(env), await y.run(env), value));
 }
 
 class NodeStack {
@@ -742,15 +751,15 @@ class TreeBuilder {
         async (env, l) => {
           const func = l.name
               ? this.imports.has(l.name)
-                  ? env.get(this.imports.get(l.name), params.length)
-                  : env.get(l.name, params.length, this.fileName)
+                  ? env.getFunction(this.imports.get(l.name), params.length)
+                  : env.getFunction(l.name, params.length, this.fileName)
               : await l.run(env);
           let paramResults = [];
           for (const p of params) {
             const paramResult = await p.run(env);
             if (paramResult instanceof FunctionValue) {
               paramResults.push(
-                /** @type {(a: Array<ValueType>) => Promise<ValueType>} */(
+                /** @type {(...a: ValueType[]) => Promise<ValueType>} */(
                     (...a) => paramResult.run(a, env)));
             } else {
               paramResults.push(paramResult);
@@ -772,7 +781,7 @@ class TreeBuilder {
             const x = await params[0].run(env);
             const y = await params[1].run(env);
             /** @type {(x: ValueType, y: ValueType, value: ValueType) => void}*/(
-                env.get('cell=', 3))(x, y, value);
+                env.getFunction('cell=', 3))(x, y, value);
           } else if (l.name == 'mid') {
             const str = (await params[0].run(env)).toString();
             const start = Number(await params[1].run(env)) - 1;

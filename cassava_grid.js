@@ -1595,8 +1595,8 @@ td, th {
 `;
 
 /**
- * @typedef {number|string|MacroFunction|RegExp} ValueType
- * @typedef {((...args: ValueType[]) => ValueType|Promise<ValueType>|void|Promise<void>)} MacroFunction
+ * @typedef {import("./cassava_macro.js").ValueType} ValueType
+ * @typedef {import("./cassava_macro.js").MacroFunction} MacroFunction
  */
 
 class CassavaGridElement extends HTMLElement {
@@ -1887,7 +1887,10 @@ class CassavaGridElement extends HTMLElement {
     return this.#macroMap.keys();
   }
 
-  /** @param {string} macroName */
+  /**
+   * @param {string} macroName
+   * @returns {Promise<ValueType?>}
+   */
   runNamedMacro(macroName) {
     return this.runMacro(this.#macroMap.get(macroName));
   }
@@ -1895,15 +1898,17 @@ class CassavaGridElement extends HTMLElement {
   /**
    * @param {string} macro
    * @param {boolean=} ignoreErrors
+   * @returns {Promise<ValueType?>}
    */
   async runMacro(macro, ignoreErrors) {
     if (!macro) {
-      return;
+      return null;
     }
     this.#grid.beginMacro();
+    let result = null;
     try {
       const env = new Environment(/* parent= */ null, this.#api);
-      await run(macro, env, this.#macroMap);
+      result = await run(macro, env, this.#macroMap);
     } catch(e) {
       if (e != macroTerminated && !ignoreErrors) {
         alert(e);
@@ -1913,6 +1918,7 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.endMacro();
     }
     await this.#grid.render();
+    return result;
   }
   
   /** @returns {number} */
