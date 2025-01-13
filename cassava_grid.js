@@ -91,6 +91,7 @@ class Grid {
   /**
    * @param {number} x
    * @param {number} y
+   * @returns {string}
    */
   cell(x, y) {
     return this.#undoGrid.cell(x, y);
@@ -1859,6 +1860,20 @@ class CassavaGridElement extends HTMLElement {
     }
   }
 
+  /** @returns {number} */
+  bottom() {
+    return this.#grid.bottom();
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {string}
+   */
+  cell(x, y) {
+    return this.#grid.cell(x, y);
+  }
+
   /**
    * @param {string} macroName
    * @returns {string?}
@@ -1898,6 +1913,20 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.endMacro();
     }
     await this.#grid.render();
+  }
+  
+  /** @returns {number} */
+  right() {
+    return this.#grid.right();
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {any} value
+   */
+  setCell(x, y, value) {
+    this.#grid.setCell(x, y, value);
   }
 }
 
