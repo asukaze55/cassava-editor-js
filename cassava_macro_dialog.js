@@ -240,7 +240,8 @@ class MacroDialog {
     this.#macroSelect.innerHTML = '';
     const userMacroOptions = this.#manager.userMacroNames().map(name =>
         createElement('option', {selected: name == this.#macroName}, [name]));
-    userMacroOptions.push(createElement('option'));
+    userMacroOptions.push(createElement('option',
+        {selected: this.#macroSelect.size == 0 && this.#macroName == ''}));
     const appMacroOptions = this.#manager.appMacroNames().map(name =>
         createElement('option', {selected: name == this.#macroName}, [name]));
     this.#macroSelect.append(
