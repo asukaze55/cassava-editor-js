@@ -1082,19 +1082,12 @@ class TreeBuilder {
         const paramNodes = this.buildTree(')').children;
         const bodyNode = this.buildTree(';');
         const func = new FunctionValue(paramNodes, bodyNode);
-        this.globalEnv.set(
-            func.id(name, this.fileName), func);
+        this.globalEnv.set(func.id(name, this.fileName), func);
         stack.pushAll();
-      } else if (token == 'return'
-                 || token == 'break'
-                 || token == 'continue') {
-        const bodyNode = this.buildTree(';');
-        stack.push(new Node(100,
-            env => new ReturnValue(bodyNode.run(env), token)));
-      } else if (stack.isEmpty()
-                 && (token == 'const'
-                     || token == 'let'
-                     || token == 'var')) {
+      } else if (token == 'return' || token == 'break' || token == 'continue') {
+        stack.push(operatorNode(2, (a, b) => new ReturnValue(b, token)));
+      } else if (stack.isEmpty() &&
+          (token == 'const' || token == 'let' || token == 'var')) {
         const name = this.tokens.shift();
         stack.push(variableNode(name, token));
       } else if (token == 'class'

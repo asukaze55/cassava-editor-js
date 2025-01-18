@@ -757,6 +757,10 @@ class ObjectTest {
     return "ObjectTest";
   }
 
+  createObject() {
+    return {a: 5};
+  }
+
   test(assert) {
     obj = {a: 1, b: 2, c: 3};
     assert.that(obj.a + obj.b * obj.c).isEqualTo(7);
@@ -774,6 +778,8 @@ class ObjectTest {
     obj[1][2] = {};
     obj[1][2][3] = "123";
     assert.that(obj[1][2][3]).isEqualTo("123");
+
+    assert.that(this.createObject().a).isEqualTo(5);
   }
 }
 
