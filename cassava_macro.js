@@ -402,13 +402,16 @@ class ObjectValue {
   /** @type {Map<string, ValueType>} */
   #value = new Map();
 
-  /** @param {ValueType} name */
+  /**
+   * @param {ValueType} name
+   * @returns {ValueType?}
+   */
   get(name) {
     const key = name.toString();
     if (this.#value.has(key)) {
       return this.#value.get(key);
     }
-    throw 'Undefined member: ' + name + '\nObject: ' + this.toString();
+    return null;
   }
 
   /** @param {ValueType} name */
@@ -808,6 +811,9 @@ class TreeBuilder {
           const name = await child.run(env);
           if (obj instanceof ObjectValue) {
             const result = obj.get(name);
+            if (result == null) {
+              throw 'Undefined member: ' + name + '\nObject: ' + obj.toString();
+            }
             if (result instanceof FunctionValue) {
               result.setThis(obj);
             }
@@ -1351,5 +1357,5 @@ async function run(script, env, macroMap) {
   return (result instanceof ReturnValue) ? result.value : result;
 }
 
-net.asukaze.export({ Environment, run });
+net.asukaze.export({ Environment, ObjectValue, run });
 })();

@@ -1,7 +1,7 @@
 (() => {
 const { CassavaStatusBarElement } = net.asukaze.import('./cassava_status_bar.js');
 const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
-const { Environment, run } = net.asukaze.import('./cassava_macro.js');
+const { Environment, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
 const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
 const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
@@ -481,25 +481,27 @@ class Grid {
    */
   async renderCell(cell, x, y) {
     if (this.isEditing && x == this.x && y == this.y) {
-      this.#updateCellColor(cell, x, y);
       return;
     }
     if (x <= this.right() && y <= this.bottom()) {
       this.#suppressRender++;
       let cellToRender = await this.#onRenderCell(x, y);
       this.#suppressRender--;
-      if (cellToRender) {
-        const html = cellToRender.toString().split('\n')
-            .map(line => sanitize(line) + '<br>')
-            .join('');
-        if (cell.innerHTML !== html) {
-          cell.innerHTML = html;
-        }
-        this.#updateCellColor(cell, x, y);
+      if (cellToRender instanceof ObjectValue) {
+        /** @type {(value: ValueType?) => string?} */
+        const toString = value => value != null ? value.toString() : null;
+        this.#renderCell(cell, x, y,
+            toString(cellToRender.get('text')),
+            toString(cellToRender.get('align')),
+            toString(cellToRender.get('color')),
+            toString(cellToRender.get('background')));
+        return;
+      } else if (cellToRender) {
+        this.#renderCell(cell, x, y, cellToRender.toString());
         return;
       }
     }
-    this.renderRawCell(cell, x, y);
+    this.#renderCell(cell, x, y, /* value= */ null);
   }
 
   /**
@@ -507,36 +509,44 @@ class Grid {
    * @param {number} x
    * @param {number} y
    */
-  async renderRawCell(cell, x, y) {
-    let html = '';
-    if (x == 0 && y == 0) {
-    } else if (y == 0) {
-      html = (x <= this.#undoGrid.right()) ? x.toString() : '&nbsp;';
-    } else if (x == 0) {
-      html = (y <= this.#undoGrid.bottom()) ? y.toString() : '&nbsp;';
-    } else {
-      html = this.#undoGrid.cell(x, y).split('\n')
-          .map(line => sanitize(line) + '<br>')
-          .join('')
-    }
-    if (cell.innerHTML !== html) {
-      cell.innerHTML = html;
-    }
-    this.#updateCellColor(cell, x, y);
+  renderRawCell(cell, x, y) {
+    this.#renderCell(cell, x, y, /* value= */ null);
   }
 
   /**
    * @param {HTMLTableCellElement} cell
    * @param {number} x
    * @param {number} y
+   * @param {string?} value
+   * @param {string=} align
+   * @param {string=} color
+   * @param {string=} background
    */
-  #updateCellColor(cell, x, y) {
+  #renderCell(cell, x, y, value, align, color, background) {
     const isFixed = x == 0 || y == 0;
     const isSelected = x >= this.selLeft()
         && x <= this.selRight()
         && y >= this.selTop()
         && y <= this.selBottom();
     const isEditing = this.isEditing && x == this.x && y == this.y;
+
+    if (value == null) {
+      if (x == 0 && y == 0) {
+        value = '';
+      } else if (y == 0) {
+        value = (x <= this.#undoGrid.right()) ? x.toString() : ' ';
+      } else if (x == 0) {
+        value = (y <= this.#undoGrid.bottom()) ? y.toString() : ' ';
+      } else {
+        value = this.#undoGrid.cell(x, y);
+      }
+    }
+    const html =
+        value.split('\n').map(line => sanitize(line) + '<br>').join('');
+    if (cell.innerHTML !== html) {
+      cell.innerHTML = html;
+    }
+    cell.style.textAlign = align || '';
 
     if (isFixed) {
       cell.style.backgroundColor = '#eee';
@@ -545,8 +555,8 @@ class Grid {
       cell.style.backgroundColor = '#00f';
       cell.style.color = '#fff';
     } else {
-      cell.style.backgroundColor = '#fff';
-      cell.style.color = '#000';
+      cell.style.backgroundColor = background || '#fff';
+      cell.style.color = color || '#000';
     }
   }
 
