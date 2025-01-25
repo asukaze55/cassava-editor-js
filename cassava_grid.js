@@ -51,6 +51,12 @@ function sanitize(text) {
 class Grid {
   /** @type {UndoGrid} */
   #undoGrid;
+  /** @type {boolean} */
+  #isMouseDown;
+  /** @type {number} */
+  #mouseDownX;
+  /** @type {number} */
+  #mouseDownY;
   /** @type {number} */
   #suppressRender;
   /** @type {number} */
@@ -75,6 +81,20 @@ class Grid {
     this.#onRender = onRender;
     this.#onRenderCell = onRenderCell;
     this.clear();
+
+    this.element.addEventListener('focusin', event => this.#onFocusIn(event));
+    this.element.addEventListener('focusout', event => this.#onFocusOut(event));
+    this.element.addEventListener('input', event => this.#onInput(event));
+    this.element.addEventListener(
+        'mousedown', event => this.#onMouseDown(event));
+    this.element.addEventListener(
+        'mousemove', event => this.#onMouseMove(event));
+    this.element.addEventListener('mouseup', event => this.#onMouseUp(event));
+    this.element.addEventListener('scroll', () => this.render());
+    this.element.addEventListener(
+        'touchend', event => this.#onTouchMove(event));
+    this.element.addEventListener(
+        'touchmove', event => this.#onTouchMove(event), {passive: true});
   }
 
   /** @returns {Range} */
@@ -120,9 +140,9 @@ class Grid {
     this.dataFormat = dataFormat;
     this.fileName = fileName;
     this.isEditing = false;
-    this.isMouseDown = false;
-    this.mouseDownX = 1;
-    this.mouseDownY = 1;
+    this.#isMouseDown = false;
+    this.#mouseDownX = 1;
+    this.#mouseDownY = 1;
     this.defaultColWidth = 48;
     /** @type {Map<number, number>} */
     this.colWidths = new Map();
@@ -470,7 +490,7 @@ class Grid {
         row.appendChild(cell);
       }
       cell.dataset.y = String(y);
-      await this.renderCell(cell, x, y);
+      await this.#renderFormattedCell(cell, x, y);
     }
   }
 
@@ -479,7 +499,7 @@ class Grid {
    * @param {number} x
    * @param {number} y
    */
-  async renderCell(cell, x, y) {
+  async #renderFormattedCell(cell, x, y) {
     if (this.isEditing && x == this.x && y == this.y) {
       return;
     }
@@ -509,7 +529,7 @@ class Grid {
    * @param {number} x
    * @param {number} y
    */
-  renderRawCell(cell, x, y) {
+  #renderRawCell(cell, x, y) {
     this.#renderCell(cell, x, y, /* value= */ null);
   }
 
@@ -655,7 +675,7 @@ class Grid {
     this.y = y;
     this.render();
     const cellNode = this.cellNode(x, y);
-    this.renderRawCell(cellNode, x, y);
+    this.#renderRawCell(cellNode, x, y);
     cellNode.focus();
     setTimeout(() => {
       let anchorNode = null;
@@ -780,6 +800,137 @@ class Grid {
     }
     this.#undoGrid.pop(range, range);
   }
+
+  /** @param {Event} event */
+  #onFocusIn(event) {
+    const target = getEventTarget(event);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    this.isEditing = true;
+    this.#renderRawCell(target, x, y);
+  }
+
+  /** @param {Event} event */
+  #onFocusOut(event) {
+    const target = getEventTarget(event);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    this.isEditing = false;
+    this.#renderFormattedCell(target, x, y);
+  }
+
+  /** @param {Event} event */
+  #onInput(event) {
+    const target = getEventTarget(event);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    this.setCell(x, y, parseCellInput(target));
+  }
+
+  /** @param {MouseEvent} event */
+  #onMouseDown(event) {
+    const target = getEventTarget(event);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    this.#isMouseDown = true;
+    this.#mouseDownX = x;
+    this.#mouseDownY = y;
+    this.#onMouseMove(event);
+  }
+
+  /** @param {MouseEvent} event */
+  #onMouseMove(event) {
+    if (!this.#isMouseDown) {
+      return;
+    }
+    const target = getEventTarget(event);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    const anchorX = event.shiftKey ? this.anchorX : this.#mouseDownX;
+    const anchorY = event.shiftKey ? this.anchorY : this.#mouseDownY;
+    if (x != this.x || y != this.y) {
+      if (x == 0 && y == 0) {
+        this.selectAll();
+        event.preventDefault();
+      } else if (x == 0) {
+        this.selectRow(anchorY, y);
+        event.preventDefault();
+      } else if (y == 0) {
+        this.selectCol(anchorX, x);
+        event.preventDefault();
+      } else {
+        this.select(anchorX, anchorY, x, y);
+        event.preventDefault();
+      }
+    }
+  }
+
+  /** @param {MouseEvent} event */
+  #onMouseUp(event) {
+    this.#onMouseMove(event);
+    this.#isMouseDown = false;
+  }
+ 
+  /** @param {TouchEvent} event */
+  #onTouchMove(event) {
+    const touch = event.changedTouches[0];
+    const from = getEventTarget(touch);
+    const to = this.#touchedCell(touch, this.element);
+    if (from == null || to == null) {
+      return;
+    }
+    const x1 = parseInt(from.dataset.x, 10);
+    const y1 = parseInt(from.dataset.y, 10);
+    const x2 = parseInt(to.dataset.x, 10);
+    const y2 = parseInt(to.dataset.y, 10);
+    if (x1 != x2 || y1 != y2) {
+      blurActiveElement();
+    }
+    if ((x1 == 0 || x2 == 0) && (y1 == 0 || y2 == 0)) {
+      this.selectAll();
+    } else if (x1 == 0 || x2 == 0) {
+      this.selectRow(y1, y2);
+    } else if (y1 == 0 || y2 == 0) {
+      this.selectCol(x1, x2);
+    } else {
+      this.select(x1, y1, x2, y2);
+    }
+  }
+
+  /**
+   * @param {Touch} touch
+   * @param {HTMLTableElement} table
+   * @returns {HTMLTableCellElement?}
+   */
+  #touchedCell(touch, table) {
+    let y = 0;
+    for (const row of table.rows) {
+      if (touch.clientY <= row.getBoundingClientRect().bottom) {
+        for (const cell of row.cells) {
+          if (touch.clientX <= cell.getBoundingClientRect().right) {
+            return cell;
+          }
+        }
+        return null;
+      }
+    }
+    return null;
+  }
 }
 
 /**
@@ -802,36 +953,6 @@ function getEventTarget(event) {
 }
 
 /**
- * @param {Event} event
- * @param {Grid} grid
- */
-function gridFocusIn(event, grid) {
-  const target = getEventTarget(event);
-  if (target == null) {
-    return;
-  }
-  const x = parseInt(target.dataset.x, 10);
-  const y = parseInt(target.dataset.y, 10);
-  grid.isEditing = true;
-  grid.renderRawCell(target, x, y);
-}
-
-/**
- * @param {Event} event
- * @param {Grid} grid
- */
-function gridFocusOut(event, grid) {
-  const target = getEventTarget(event);
-  if (target == null) {
-    return;
-  }
-  const x = parseInt(target.dataset.x, 10);
-  const y = parseInt(target.dataset.y, 10);
-  grid.isEditing = false;
-  grid.renderCell(target, x, y);
-}
-
-/**
  * @param {Element} cellNode
  * @returns {string}
  */
@@ -846,20 +967,6 @@ function parseCellInput(cellNode) {
       .replaceAll('&lt;', '<')
       .replaceAll('&amp;', '&')
       .replaceAll(/\n$/g, '');
-}
-
-/**
- * @param {Event} event
- * @param {Grid} grid
- */
-function gridInput(event, grid) {
-  const target = getEventTarget(event);
-  if (target == null) {
-    return;
-  }
-  const x = parseInt(target.dataset.x, 10);
-  const y = parseInt(target.dataset.y, 10);
-  grid.setCell(x, y, parseCellInput(target));
 }
 
 /**
@@ -1263,117 +1370,6 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
         event.preventDefault();
       }
       return;
-  }
-}
-
-/**
- * @param {MouseEvent} event
- * @param {Grid} grid
- */
-function gridMouseDown(event, grid) {
-  const target = getEventTarget(event);
-  if (target == null) {
-    return;
-  }
-  const x = parseInt(target.dataset.x, 10);
-  const y = parseInt(target.dataset.y, 10);
-  grid.isMouseDown = true;
-  grid.mouseDownX = x;
-  grid.mouseDownY = y;
-  gridMouseMove(event, grid);
-}
-
-/**
- * @param {MouseEvent} event
- * @param {Grid} grid
- */
-function gridMouseMove(event, grid) {
-  if (!grid.isMouseDown) {
-    return;
-  }
-  const target = getEventTarget(event);
-  if (target == null) {
-    return;
-  }
-  const x = parseInt(target.dataset.x, 10);
-  const y = parseInt(target.dataset.y, 10);
-  const anchorX = event.shiftKey ? grid.anchorX : grid.mouseDownX;
-  const anchorY = event.shiftKey ? grid.anchorY : grid.mouseDownY;
-  if (x != grid.x || y != grid.y) {
-    if (x == 0 && y == 0) {
-      grid.selectAll();
-      event.preventDefault();
-    } else if (x == 0) {
-      grid.selectRow(anchorY, y);
-      event.preventDefault();
-    } else if (y == 0) {
-      grid.selectCol(anchorX, x);
-      event.preventDefault();
-    } else {
-      grid.select(anchorX, anchorY, x, y);
-      event.preventDefault();
-    }
-  }
-}
-
-/**
- * @param {MouseEvent} event
- * @param {Grid} grid
- */
-function gridMouseUp(event, grid) {
-  gridMouseMove(event, grid);
-  grid.isMouseDown = false;
-}
-
-/**
- * @param {Touch} touch
- * @param {HTMLTableElement} table
- * @returns {HTMLTableCellElement?}
- */
-function touchedCell(touch, table) {
-  let y = 0;
-  for (const row of table.rows) {
-    if (touch.clientY
-        <= row.getBoundingClientRect().bottom) {
-      for (const cell of row.cells) {
-        if (touch.clientX
-            <= cell.getBoundingClientRect().right) {
-          return cell;
-        }
-      }
-      return null;
-    }
-  }
-  return null;
-}
-
-/**
- * @param {TouchEvent} event
- * @param {Grid} grid
- */
-function gridTouchMove(event, grid) {
-  const touch = event.changedTouches[0];
-  const from = getEventTarget(touch);
-  const to = touchedCell(touch, grid.element);
-  if (from == null || to == null) {
-    return;
-  }
-  const x1 = parseInt(from.dataset.x, 10);
-  const y1 = parseInt(from.dataset.y, 10);
-  const x2 = parseInt(to.dataset.x, 10);
-  const y2 = parseInt(to.dataset.y, 10);
-  if (x1 != x2 || y1 != y2) {
-    blurActiveElement();
-  }
-  if ((x1 == 0 || x2 == 0)
-      && (y1 == 0 || y2 == 0)) {
-    grid.selectAll();
-  } else if (x1 == 0 || x2 == 0) {
-    grid.selectRow(y1, y2);
-  } else if (y1 == 0 || y2 == 0) {
-    grid.selectCol(x1, x2);
-  } else {
-    grid.select(x1, y1, x2, y2);
   }
 }
 
@@ -1866,22 +1862,8 @@ class CassavaGridElement extends HTMLElement {
         this.#findDialog.element,
         this.#statusBarPanel);
 
-    table.addEventListener('focusin', event => gridFocusIn(event, this.#grid));
-    table.addEventListener('focusout',
-        event => gridFocusOut(event, this.#grid));
-    table.addEventListener('input', event => gridInput(event, this.#grid));
     table.addEventListener('keydown', event => gridKeyDown(event, this.#grid,
         this.#findDialog, this.#findPanel, shadow));
-    table.addEventListener('mousedown',
-        event => gridMouseDown(event, this.#grid));
-    table.addEventListener('mousemove',
-        event => gridMouseMove(event, this.#grid));
-    table.addEventListener('mouseup', event => gridMouseUp(event, this.#grid));
-    table.addEventListener('scroll', () => this.#grid.render());
-    table.addEventListener('touchend',
-        event => gridTouchMove(event, this.#grid));
-    table.addEventListener('touchmove',
-        event => gridTouchMove(event, this.#grid), {passive: true});
     this.#grid.render();
   }
 
