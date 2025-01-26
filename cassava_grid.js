@@ -885,7 +885,7 @@ class Grid {
     this.#onMouseMove(event);
     this.#isMouseDown = false;
   }
- 
+
   /** @param {TouchEvent} event */
   #onTouchMove(event) {
     const touch = event.changedTouches[0];
@@ -1637,11 +1637,10 @@ td, th {
 }
 `;
 
-/**
- * @typedef {import("./cassava_macro.js").ValueType} ValueType
- * @typedef {import("./cassava_macro.js").MacroFunction} MacroFunction
- */
+/** @typedef {import("./cassava_macro.js").ValueType} ValueType */
+/** @typedef {import("./cassava_macro.js").MacroFunction} MacroFunction */
 
+/** The custom element used for <cassava-grid>. */
 class CassavaGridElement extends HTMLElement {
   /** @type {FindDialog} */
   #findDialog;
@@ -1868,6 +1867,14 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /**
+   * Registers a new macro. If macroText is empty, the macro will be deleted.
+   *
+   * If the macroName is '!statusbar.cms', a status bar will be shown and the
+   * macro will be executed every time the status bar may need to be updated.
+   *
+   * If the macroName is '!format.cms', the macro will be executed for each cell
+   * rendering, and the result will be displayed instead of the raw data.
+   *
    * @param {string} macroName
    * @param {string} macroText
    */
@@ -1882,7 +1889,7 @@ class CassavaGridElement extends HTMLElement {
       if (macroName == '!statusbar.cms') {
         this.#statusBarPanel.style.display = '';
         try {
-          await this.runMacro('import{init}from"!statusbar.cms";init();',
+          await this.#runMacro('import{init}from"!statusbar.cms";init();',
               /* ignoreErrors= */ true);
         } catch {}
         await this.#grid.render();
@@ -1890,12 +1897,18 @@ class CassavaGridElement extends HTMLElement {
     }
   }
 
-  /** @returns {number} */
+  /**
+   * Gets the number of rows.
+   *
+   * @returns {number}
+   */
   bottom() {
     return this.#grid.bottom();
   }
 
   /**
+   * Gets the cell data.
+   *
    * @param {number} x
    * @param {number} y
    * @returns {string}
@@ -1905,6 +1918,8 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /**
+   * Gets the macro text for the given name.
+   *
    * @param {string} macroName
    * @returns {string?}
    */
@@ -1912,17 +1927,22 @@ class CassavaGridElement extends HTMLElement {
     return this.#macroMap.get(macroName);
   }
 
-  /** @returns {IterableIterator<string>} */
+  /**
+   * Gets all registered macro names.
+   *
+   * @returns {IterableIterator<string>}
+   */
   getMacroNames() {
     return this.#macroMap.keys();
   }
 
   /**
+   * Runs the registered macro for the given name.
+   *
    * @param {string} macroName
-   * @returns {Promise<ValueType?>}
    */
-  runNamedMacro(macroName) {
-    return this.runMacro(this.#macroMap.get(macroName));
+  async runNamedMacro(macroName) {
+    await this.#runMacro(this.#macroMap.get(macroName));
   }
 
   /**
@@ -1935,7 +1955,16 @@ class CassavaGridElement extends HTMLElement {
     if (!macro) {
       return;
     }
-    return this.runMacro(`x=${x};y=${y};${macro}`, /* ignoreErrors= */ true);
+    return this.#runMacro(`x=${x};y=${y};${macro}`, /* ignoreErrors= */ true);
+  }
+
+  /**
+   * Runs the given script as a macro.
+   *
+   * @param {string} macro
+   */
+  async runMacro(macro) {
+    await this.#runMacro(macro);
   }
 
   /**
@@ -1943,7 +1972,7 @@ class CassavaGridElement extends HTMLElement {
    * @param {boolean=} ignoreErrors
    * @returns {Promise<ValueType?>}
    */
-  async runMacro(macro, ignoreErrors) {
+  async #runMacro(macro, ignoreErrors) {
     if (!macro) {
       return null;
     }
@@ -1964,12 +1993,19 @@ class CassavaGridElement extends HTMLElement {
     return result;
   }
 
-  /** @returns {number} */
+  /**
+   * Gets the number of columns.
+   *
+   * @returns {number}
+   */
   right() {
     return this.#grid.right();
   }
 
   /**
+   * Sets the cell data.
+   * The value will be converted to a string using toString().
+   *
    * @param {number} x
    * @param {number} y
    * @param {any} value
