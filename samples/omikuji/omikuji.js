@@ -20,12 +20,16 @@ function init(grid) {
   grid.setCell(2, 4, '25');
 }
 
+/**
+ * @param {CassavaGridElement} grid
+ * @param {HTMLElement} result
+ */
 function roll(grid, result) {
   let sum = 0;
   for (let y = 1; y <= grid.bottom(); y++) {
     sum += Number(grid.cell(2, y));
   }
-  r = Math.random() * sum;
+  let r = Math.random() * sum;
   for (let y = 1; y <= grid.bottom(); y++) {
     r -= Number(grid.cell(2, y));
     if (r < 0) {
@@ -36,11 +40,13 @@ function roll(grid, result) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const grid = document.getElementById('omikuji-grid');
+  const grid = /** @type {CassavaGridElement} */(document.getElementById('omikuji-grid'));
   const button = document.getElementById('omikuji-button');
   const result = document.getElementById('omikuji-result');
 
   init(grid);
+
+  /** @type {number?} */
   let interval = null;
   button.addEventListener('click', () => {
     if (interval) {
