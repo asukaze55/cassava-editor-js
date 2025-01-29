@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <title>Cassava Macro Generator</title>
+  <meta name="viewport" content="width=device-width" />
+  <meta charset="UTF-8" />
+  <script src="cms.js"></script>
+  <style>
+    h1 {
+      color: #0066ff;
+      font-size: 130%;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    h2 {
+      border-bottom: 3px solid #99ff66;
+      color: #006600;
+      font-size: 110%;
+      font-weight: bold;
+    }
+    .error {
+      border: 2px solid #f00;
+    }
+    .button-div {
+      margin: 1em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>マクロジェネレーター</h1>
+
+<div>
+  マクロの名前：
+  <input type="text" id="name" name="name" form="form" value="CassavaMacro"
+         onchange="generate();" onkeyup="generate();" />
+</div>
+<div>
+  対象の行：
+  <select id="y" onchange="generate();">
+    <option value="a">すべての行</option>
+    <option value="2">2行目以降のすべての行</option>
+    <option value="c">現在の行</option>
+    <option value="s">選択範囲の行</option>
+    <option value="e">特定の行</option>
+    <option value="d">ダイアログボックスで入力</option>
+  </select>
+  <span id="ye" style="display: none;">：
+    <input type="number" id="yv" onchange="generate();" onkeyup="generate();"
+           value="1" />
+    行目
+  </span>
+</div>
+<div>
+  対象の列：
+  <select id="x" onchange="generate();">
+    <option value="a">すべての列</option>
+    <option value="c">現在の列</option>
+    <option value="s">選択範囲の列</option>
+    <option value="e">特定の列</option>
+    <option value="d">ダイアログボックスで入力</option>
+  </select>
+  <span id="xe" style="display: none;">：
+    <input type="number" id="xv" onchange="generate();" onkeyup="generate();"
+           value="1" />
+    列目
+  </span>
+</div>
+<div>
+  条件：
+  <select id="cc1" onchange="generate();">
+    <option value="c">そのセルの内容が</option>
+    <option value="a">常に</option>
+    <option value="u" class="single-row-only">上のセルの内容が</option>
+    <option value="l" class="single-col-only">左のセルの内容が</option>
+    <option value="r" class="single-col-only">右のセルの内容が</option>
+    <option value="d" class="single-row-only">下のセルの内容が</option>
+    <option value="cl" class="single-col-only">他の列：</option>
+    <option value="rw" class="single-row-only">他の行：</option>
+  </select>
+  <span id="ccvs1">
+    <input type="text" id="ccv1" onchange="generate();" onkeyup="generate();" />
+    <span id="ccvs1-cl">列目の内容が</span>
+    <span id="ccvs1-rw">行目の内容が</span>
+  </span>
+  <span id="cvo1">
+    <input type="text" id="cv1" onchange="generate();" onkeyup="generate();" />
+    <select id="co1" onchange="generate();">
+      <option value="q">と一致する</option>
+      <option value="nq">と一致しない</option>
+      <option value="s">から始まる</option>
+      <option value="ns">から始まらない</option>
+      <option value="e">で終わる</option>
+      <option value="ne">で終わらない</option>
+      <option value="c">を含む</option>
+      <option value="nc">を含まない</option>
+      <option value="g">以上の</option>
+      <option value="l">以下の</option>
+      <option value="gt">より大きい</option>
+      <option value="lt">より小さい</option>
+    </select>
+    時
+  </span>
+</div>
+<div>
+  処理：
+  <select id="pp1" onchange="generate();">
+    <option value="c">そのセルの値を設定する</option>
+    <option value="dr" class="single-col-only">その行を削除する</option>
+    <option value="hr" class="single-col-only">その行を非表示にする</option>
+  </select>
+</div>
+<div id="pcvo1">
+  設定する値：
+  <select id="pc1" onchange="generate();">
+    <option value="o">元の値に</option>
+    <option value="s">特定の値：</option>
+    <option value="u">上のセルの値に</option>
+    <option value="l">左のセルの値に</option>
+    <option value="r">右のセルの値に</option>
+    <option value="d">下のセルの値に</option>
+  </select>
+  <select id="pvs1" onchange="generate();">
+    <option value="s">特定の値：</option>
+    <option value="d">ダイアログボックスで入力した値</option>
+    <option value="m">ダイアログ（複数行）で入力した値</option>
+    <option value="c" class="single-col-only">他の列の値：</option>
+    <option value="r" class="single-row-only">他の行の値：</option>
+  </select>
+  <input type="text" id="pv1" onchange="generate();" onkeyup="generate();" />
+  <span id="pvs1-c-pv1">列目</span>
+  <span id="pvs1-r-pv1">行目</span>
+  <select id="po1" onchange="generate();">
+    <option value="i">を前に加えた値</option>
+    <option value="a">を後ろに加えた値</option>
+    <option value="p">をたした値</option>
+    <option value="m">をひいた値</option>
+    <option value="x">をかけた値</option>
+    <option value="xr">をかけた値（結果を四捨五入）</option>
+    <option value="xf">をかけた値（結果を切り捨て）</option>
+    <option value="d">をわった値</option>
+    <option value="dr">をわった値（結果を四捨五入）</option>
+    <option value="df">をわった値（結果を切り捨て）</option>
+  </select>
+</div>
+<form id="form" method="post" target="_blank"
+      action="https://www.asukaze.net/soft/cassava/macro/generator/download.cgi">
+  <div class="button-div">
+    <input type="submit" value="ダウンロード" onclick="return download();" />
+  </div>
+  <div>
+    <textarea id="content" name="content" cols="80" rows="10"></textarea>
+  </div>
+</form>
+
+<h2>マクロの使用方法</h2>
+<ol>
+  <li>
+    上の「ダウンロード」ボタンをクリックして、ファイルをダウンロードします。
+  </li>
+  <li>
+    ダウンロードした「<span class="macro-name">マクロ名</span>.cms」を
+    Cassava フォルダ内の「Macro」フォルダに置きます。
+  </li>
+  <li>Cassava Editor で対象のファイルを開きます。</li>
+  <li>
+    メニューバーから [マクロ] -
+    [<span class="macro-name">マクロ名</span>] を実行します。</li>
+</ol>
+
+<h2 id="cassava-js">動作確認</h2>
+<div id="cassava-editor-placeholder">
+  <a href="javascript:loadCassava();">マクロの動作確認を有効化</a>
+</div>
+<div id="cassava-editor-js" style="display: none;">
+  <cassava-menu for="main-grid"></cassava-menu>
+  <cassava-grid id="main-grid" style="max-height: 50vh"></cassava-grid>
+  <div class="button-div">
+    <button onclick="document.getElementById('main-grid').runMacro(document.getElementById('content').value);">
+      マクロを実行
+    </button>
+  </div>
+  <div style="font-size: 90%;">
+    Powered by <a href="https://www.asukaze.net/soft/cassava/js/">Cassava Editor JS</a>.
+    生成されたマクロが正しく動作しない場合
+    <a href="https://www.asukaze.net/soft/cassava/bbs/">Cassava Editor サポート掲示板</a>
+    まで。
+  </div>
+</div>
+
+<h2>更新履歴</h2>
+<ul>
+  <li>
+    2023/11/17:
+    隣のセルだけでなく、指定した行・列の内容を条件に使用できるようにした。
+  </li>
+  <li>
+    2023/09/18:
+    複数行・列を対象としたマクロでも上下左右のセルの値を使った計算が選択できるようにした。
+  </li>
+  <li>
+    2023/05/20:
+    「動作確認」機能にメニューバーを追加。
+  </li>
+  <li>
+    2023/05/14:
+    「ダウンロード」ボタンで、自動生成したマクロではなく下のテキストエリアの内容をダウンロードするように変更。
+  </li>
+  <li>
+    2023/01/15:
+    「から始まる」「から始まらない」「で終わる」「で終わらない」に
+    startsWith() と endsWith() を使用するように変更（Cassava Editor 2.3 以降で動作）。
+  </li>
+  <li>
+    2022/12/04:
+    「動作確認」機能を追加。ブラウザ上で Cassava Editor の一部機能を試せるかもしれません。
+  </li>
+  <li>
+    2022/11/01:
+    設定する値に「ダイアログ（複数行）で入力した値」を追加。
+  </li>
+  <li>
+    2021/08/20:
+    条件に「から始まらない」「で終わらない」「を含まない」を追加。
+  </li>
+  <li>
+    2021/06/24:
+    隣のセルの内容を条件に使用できるようにした。
+  </li>
+  <li>
+    2020/06/24:
+    条件に「と一致しない」を追加。
+  </li>
+  <li>
+    2020/03/28:
+    ダウンロード時の文字コードを BOM 付き UTF-8 に変更（Cassava Editor 2.0 以降で動作）。
+  </li>
+  <li>
+    2020/03/28:
+    加減乗除の対象で「他の列の値」が正しく動作しない問題を修正。
+  </li>
+  <li>
+    2018/02/14:
+    対象の行に「2行目以降のすべての行」を追加。
+  </li>
+  <li>
+    2017/07/22:
+    「選択範囲の行」が対象の場合「その行を削除する」が正しく動作しない問題を修正。
+  </li>
+  <li>
+    2017/05/26:
+    条件に「より大きい」「より小さい」を追加。
+    処理に「その行を非表示にする」を追加（対象の列が 1 列の場合のみ）。
+  </li>
+  <li>
+    2016/03/10:
+    かけ算・わり算の結果を四捨五入・切り捨てできるようにした。
+  </li>
+  <li>2015/12/01: 「"」「\」のエスケープを忘れていたのを修正。</li>
+  <li>
+    2015/11/29: 
+    指定した行・列の値を加減乗除で利用できるようにした。
+    また、対象の行・列をダイアログボックスで入力とした場合に
+    右のセルの値が正しく得られない問題を修正した。
+  </li>
+  <li>2015/11/28: 加減乗除する値をダイアログで入力できるようにした。</li>
+  <li>
+    2015/10/30:
+    「その行を削除する」オプションを追加（対象の列が 1 列の場合のみ）。
+  </li>
+  <li>2015/10/24: 「マクロの使用方法」を追加。</li>
+  <li>2015/10/21: 隣のセルの値を元にした計算を可能とした。</li>
+  <li>2015/10/11: 公開。</li>
+</ul>
+
+</body>
+</html>
