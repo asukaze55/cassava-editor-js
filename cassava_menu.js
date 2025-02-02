@@ -120,6 +120,8 @@ class CassavaMenuElement extends HTMLElement {
         ['行選択 (Shift+Space)', command('SelectRow')],
         ['列選択 (Ctrl+Space)', command('SelectCol')],
         SEPARATOR,
+        ['合計をコピー', command('CopySum')],
+        ['平均をコピー', command('CopyAvr')],
         ['文字変換 ▶', toggleSubMenu, [
           ['英数・記号を半角に変換', command('TransChar0')],
           ['英数・記号を全角に変換', command('TransChar1')],
