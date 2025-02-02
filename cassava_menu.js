@@ -5,14 +5,19 @@ const { MacroDialog } = net.asukaze.import('./cassava_macro_dialog.js');
 
 /** @typedef {[string, (event: Event) => void, Array<MenuItemType>?]} MenuItemType */
 
+/** @type MenuItemType */
+const SEPARATOR = ['-', () => {}];
+
 /**
+ * @param {boolean} isSectionStart
  * @param {string} label
  * @param {(event: Event) => void} onclick
  * @param {Array<MenuItemType>=} children
  * @returns {HTMLLIElement}
  */
-function menuItem(label, onclick, children) {
-  const li = createElement('li', {}, [label]);
+function menuItem(isSectionStart, label, onclick, children) {
+  const li = createElement('li',
+      isSectionStart ? {className: 'section-start'} : {}, [label]);
   if (onclick) {
     li.addEventListener('click', onclick);
   }
@@ -28,7 +33,17 @@ function menuItem(label, onclick, children) {
  * @returns {Array<HTMLLIElement>}
  */
 function menuItems(items) {
-  return items.map(item => menuItem(...item));
+  const result = [];
+  let isSectionStart = true;
+  for (const item of items) {
+    if (item === SEPARATOR) {
+      isSectionStart = true;
+    } else {
+      result.push(menuItem(isSectionStart, ...item));
+      isSectionStart = false;
+    }
+  }
+  return result;
 }
 
 const styleContent = `
@@ -49,7 +64,8 @@ const styleContent = `
 }
 
 .sub-menu {
-  margin: 5px 0;
+  border: 1px solid #000;
+  margin: 4px 0;
   padding: 0;
   position: absolute;
   white-space: nowrap;
@@ -58,11 +74,14 @@ const styleContent = `
 
 .sub-menu li {
   background: #fff;
-  border: 1px solid #000;
   cursor: default;
   list-style: none;
   margin: -1px 0 0 0;
   padding: 8px;
+}
+
+.section-start {
+  border-top: 1px solid #000;
 }
 `;
 
@@ -92,12 +111,15 @@ class CassavaMenuElement extends HTMLElement {
       ['編集', toggleSubMenu, [
         ['元に戻す (Ctrl+Z)', command('Undo')],
         ['やり直し (Ctrl+Y)', command('Redo')],
+        SEPARATOR,
         ['切り取り (Ctrl+X)', command('Cut')],
         ['コピー (Ctrl+C)', command('Copy')],
         ['貼り付け (Ctrl+V)', command('Paste')],
         ['すべて選択 (Ctrl+A)', command('SelectAll')],
+        SEPARATOR,
         ['行選択 (Shift+Space)', command('SelectRow')],
         ['列選択 (Ctrl+Space)', command('SelectCol')],
+        SEPARATOR,
         ['文字変換 ▶', toggleSubMenu, [
           ['英数・記号を半角に変換', command('TransChar0')],
           ['英数・記号を全角に変換', command('TransChar1')],
@@ -117,6 +139,7 @@ class CassavaMenuElement extends HTMLElement {
         ['行削除', command('CutRow')],
         ['列削除', command('CutCol')],
         ['行分割 (Ctrl+Enter)', command('Enter')],
+        SEPARATOR,
         ['セル結合 (Ctrl+BkSp)', command('ConnectCell')],
         ['セル挿入 ▶', toggleSubMenu, [
           ['右向き (Ctrl+Ins)', command('InsertCellRight')],
@@ -187,12 +210,10 @@ class CassavaMenuElement extends HTMLElement {
     const subMenu = currentTarget.lastElementChild;
     subMenu.innerHTML = '';
     subMenu.append(...menuItems(items));
-    for (const name of grid.getMacroNames()) {
-      if (!name.startsWith('lib/') && !name.startsWith('tests/') &&
-          !name.startsWith('!')) {
-        subMenu.append(menuItem(name, () => grid.runNamedMacro(name)));
-      }
-    }
+    subMenu.append(...menuItems(Array.from(grid.getMacroNames())
+        .filter(name => !name.startsWith('lib/') &&
+            !name.startsWith('tests/') && !name.startsWith('!'))
+        .map(name => [name, () => grid.runNamedMacro(name)])));
     this.toggleSubMenu(event);
   }
 }
