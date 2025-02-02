@@ -27,7 +27,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 <!-- グリッドを表示 -->
 <cassava-grid id="cassava-grid" style="max-height: 90vh;"></cassava-grid>
 <!-- JavaScript を読み込む -->
-<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20250126.js"></script>
+<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20250202.js"></script>
 </body>
 </html>
 ```
@@ -47,7 +47,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 グリッド内にスクロールバーが表示されるようになります。
 
 `<cassava-grid>` 要素には以下のインスタンスメソッドが追加されます。
-型の定義ファイルは https://www.asukaze.net/soft/cassava/js/cassava_min_20250126.d.ts で公開しています。
+型の定義ファイルは https://www.asukaze.net/soft/cassava/js/cassava_min_20250202.d.ts で公開しています。
 
 |メソッド|説明|
 |-|-|
@@ -60,3 +60,5 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 |`runMacro(macro: string)`|`macro` の内容のマクロを実行します。|
 |`right(): number`|データが何列目まであるかを返します。|
 |`setCell(x: number, y: number, value: any)`|y 行 x 列のセルの内容を value に変更します。|
+
+具体的な使用方法は[サンプルプロジェクト](samples/omikuji)も参照してください。

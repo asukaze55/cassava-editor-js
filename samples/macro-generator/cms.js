@@ -386,7 +386,7 @@ function loadCassava() {
   var element = document.getElementById('cassava-editor-js');
   element.style.display = '';
   var script = document.createElement('script');
-  script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250126.js';
+  script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250202.js';
   element.append(script);
   script.onload = generate;
 }
