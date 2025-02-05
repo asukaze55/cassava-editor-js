@@ -10,6 +10,11 @@ const QuoteType = {
 }
 
 class DataFormat {
+  /** @type {string} */
+  #separators;
+  /** @type {QuoteType} */
+  #quoteType;
+
   /**
    * @param {string} name
    * @param {string} separators
@@ -18,10 +23,8 @@ class DataFormat {
   constructor(name, separators, quoteType) {
     /** @type {string} */
     this.name = name;
-    /** @type {string} */
-    this.separators = separators;
-    /** @type {QuoteType} */
-    this.quoteType = quoteType;
+    this.#separators = separators;
+    this.#quoteType = quoteType;
   }
 
   /**
@@ -52,9 +55,9 @@ class DataFormat {
         } else {
           current += c;
         }
-      } else if (c == '"' && this.quoteType != QuoteType.NONE) {
+      } else if (c == '"' && this.#quoteType != QuoteType.NONE) {
         quoted = true;
-      } else if (this.separators.includes(c)) {
+      } else if (this.#separators.includes(c)) {
         gridData.setCell(x, y, current);
         current = '';
         x++;
@@ -86,7 +89,7 @@ class DataFormat {
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
         if (x > range.left) {
-          result += this.separators[0];
+          result += this.#separators[0];
         }
         result += this.#maybeQuote(gridData.cell(x, y));
       }
@@ -96,15 +99,16 @@ class DataFormat {
   }
 
   /**
-   * @param {string} cell 
+   * @param {string} cell
    * @returns {string}
    */
   #maybeQuote(cell) {
-    switch (this.quoteType) {
+    switch (this.#quoteType) {
       case QuoteType.NONE:
         return cell;
       case QuoteType.ONLY_IF_NEEDED:
-        if (Array.from(this.separators + '"\r\n').some(c => cell.includes(c))) {
+        if (Array.from(this.#separators + '"\r\n')
+            .some(c => cell.includes(c))) {
           return this.#quote(cell);
         } else {
           return cell;
@@ -121,7 +125,7 @@ class DataFormat {
   }
 
   /**
-   * @param {string} cell 
+   * @param {string} cell
    * @returns {string}
    */
   #quote(cell) {

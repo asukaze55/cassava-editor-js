@@ -2,7 +2,7 @@
 const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
 
 /**
- * @param {string} value 
+ * @param {string} value
  * @returns {boolean}
  */
 function isNumber(value) {
@@ -10,7 +10,7 @@ function isNumber(value) {
 }
 
 /**
- * @param {string} value 
+ * @param {string} value
  * @returns {string}
  */
 function increment(value) {
@@ -43,13 +43,18 @@ class Range {
 }
 
 class GridData {
+  /** @type {Array<Array<string>>} */
+  #data;
+  /** @type {number} */
+  #maxColCount;
+
   constructor() {
     this.clear();
   }
 
   /** @returns number */
   bottom() {
-    return this.data.length;
+    return this.#data.length;
   }
 
   /**
@@ -58,10 +63,10 @@ class GridData {
    * @returns {string}
    */
   cell(x, y) {
-    if (this.data[y - 1] == null) {
+    if (this.#data[y - 1] == null) {
       return '';
     }
-    const value = this.data[y - 1][x - 1];
+    const value = this.#data[y - 1][x - 1];
     if (value == null) {
       return '';
     }
@@ -69,14 +74,14 @@ class GridData {
   }
 
   clear() {
-    this.data = [['']];
-    this.maxColCount = 1;
+    this.#data = [['']];
+    this.#maxColCount = 1;
   }
 
   /** @param {Range} range */
   clearCells(range) {
     for (let y = range.top; y <= range.bottom; y++) {
-      const row = this.data[y - 1];
+      const row = this.#data[y - 1];
       if (!row) {
         continue;
       }
@@ -89,14 +94,14 @@ class GridData {
   /** @param {Range} range */
   copy(range) {
     const gridData = new GridData();
-    gridData.data = [];
-    gridData.maxColCount = range.right - range.left + 1;
+    gridData.#data = [];
+    gridData.#maxColCount = range.right - range.left + 1;
     for (let y = range.top; y <= range.bottom; y++) {
-      const row = this.data[y - 1];
+      const row = this.#data[y - 1];
       if (row) {
-        gridData.data.push(row.slice(range.left - 1, range.right));
+        gridData.#data.push(row.slice(range.left - 1, range.right));
       } else {
-        gridData.data.push([]);
+        gridData.#data.push([]);
       }
     }
     return gridData;
@@ -106,7 +111,7 @@ class GridData {
   deleteCellLeft(range) {
     const cols = range.right - range.left + 1;
     for (let y = range.top; y <= range.bottom; y++) {
-      for (let x = range.left; x <= this.maxColCount; x++) {
+      for (let x = range.left; x <= this.#maxColCount; x++) {
         this.setCell(x, y, this.cell(x + cols, y));
       }
     }
@@ -128,9 +133,9 @@ class GridData {
    * @param {number} r
    */
   deleteCol(l, r) {
-    this.maxColCount -= (r - l + 1);
-    for (let y = 1; y <= this.data.length; y++) {
-      const row = this.data[y - 1];
+    this.#maxColCount -= (r - l + 1);
+    for (let y = 1; y <= this.#data.length; y++) {
+      const row = this.#data[y - 1];
       if (!row || row.length < l) {
         continue;
       }
@@ -143,7 +148,7 @@ class GridData {
    * @param {number} b
    */
   deleteRow(t, b) {
-    this.data.splice(t - 1, b - t + 1);
+    this.#data.splice(t - 1, b - t + 1);
   }
 
   /** @param {Range} range */
@@ -177,13 +182,13 @@ class GridData {
    * @param {number} r
    */
   insertCol(l, r) {
-    this.maxColCount += (r - l + 1);
+    this.#maxColCount += (r - l + 1);
     const newCells = [];
     for (let x = l; x <= r; x++) {
       newCells.push('');
     }
-    for (let y = 1; y <= this.data.length; y++) {
-      const row = this.data[y - 1];
+    for (let y = 1; y <= this.#data.length; y++) {
+      const row = this.#data[y - 1];
       if (!row || row.length < l) {
         continue;
       }
@@ -197,7 +202,7 @@ class GridData {
    */
   insertRow(t, b) {
     for (let y = t; y <= b; y++) {
-      this.data.splice(y - 1, 0, []);
+      this.#data.splice(y - 1, 0, []);
     }
   }
 
@@ -229,7 +234,7 @@ class GridData {
 
   /** @returns {Range} */
   range() {
-    return new Range(1, 1, this.maxColCount, this.data.length);
+    return new Range(1, 1, this.#maxColCount, this.#data.length);
   }
 
   /**
@@ -245,22 +250,22 @@ class GridData {
     str2 = str2.toString();
     const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, isRegex);
     for (let y = range.top; y <= range.bottom; y++) {
-      if (this.data[y - 1] == null) {
+      if (this.#data[y - 1] == null) {
         continue;
       }
       for (let x = range.left; x <= range.right; x++) {
-        const value = this.data[y - 1][x - 1];
+        const value = this.#data[y - 1][x - 1];
         if (value == null) {
           continue;
         }
-        this.data[y - 1][x - 1] = replacer(value);
+        this.#data[y - 1][x - 1] = replacer(value);
       }
     }
   }
 
   /** @returns {number} */
   right() {
-    return this.maxColCount;
+    return this.#maxColCount;
   }
 
   /** @param {Range} range */
@@ -294,11 +299,11 @@ class GridData {
 
   /** @param {number} b */
   setBottom(b) {
-    while (this.data.length < b) {
-      this.data.push([]);
+    while (this.#data.length < b) {
+      this.#data.push([]);
     }
-    if (this.data.length > b) {
-      this.data.splice(b);
+    if (this.#data.length > b) {
+      this.#data.splice(b);
     }
   }
 
@@ -308,26 +313,26 @@ class GridData {
    * @param {any} value
    */
   setCell(x, y, value) {
-    if (value != '' && x > this.maxColCount) {
-      this.maxColCount = x;
+    if (value != '' && x > this.#maxColCount) {
+      this.#maxColCount = x;
     }
-    if (this.data[y - 1] == null) {
+    if (this.#data[y - 1] == null) {
       if (value == '') {
         return;
       }
-      this.data[y - 1] = [];
+      this.#data[y - 1] = [];
     }
-    this.data[y - 1][x - 1] = value.toString();
+    this.#data[y - 1][x - 1] = value.toString();
   }
 
   /** @param {number} r */
   setRight(r) {
-    if (this.maxColCount <= r) {
-      this.maxColCount = r;
+    if (this.#maxColCount <= r) {
+      this.#maxColCount = r;
       return;
     }
-    this.maxColCount = r;
-    for (const row of this.data) {
+    this.#maxColCount = r;
+    for (const row of this.#data) {
       if (row && row.length > r) {
         row.splice(r);
       }
@@ -345,7 +350,7 @@ class GridData {
   sort(range, p, dir, num, ignoreCase, zenhan) {
     const rangeData = [];
     for (let y = range.top; y <= range.bottom; y++) {
-      rangeData.push(this.data[y - 1].slice(range.left - 1, range.right));
+      rangeData.push(this.#data[y - 1].slice(range.left - 1, range.right));
     }
     rangeData.sort((row1, row2) => {
       let val1 = row1[p - 1];
@@ -377,7 +382,7 @@ class GridData {
       return 0;
     });
     for (let y = range.top; y <= range.bottom; y++) {
-      const target = this.data[y - 1];
+      const target = this.#data[y - 1];
       const sorted = rangeData[y - range.top];
       for (let x = range.left; x <= range.right; x++) {
         target[x - 1] = sorted[x - range.left];
@@ -390,11 +395,11 @@ class GridData {
     let sum = 0;
     let count = 0;
     for (let y = range.top; y <= range.bottom; y++) {
-      if (this.data[y - 1] == null) {
+      if (this.#data[y - 1] == null) {
         continue;
       }
       for (let x = range.left; x <= range.right; x++) {
-        const value = this.data[y - 1][x - 1];
+        const value = this.#data[y - 1][x - 1];
         if (value == null || !isNumber(value)) {
           continue;
         }

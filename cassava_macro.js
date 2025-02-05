@@ -81,10 +81,14 @@ function findFunction(map, name, arity, fileName) {
 }
 
 class Environment {
-    /** @type {Set<string>} */
-    #constants = new Set();
-    /** @type {Map<string, Function>} */
-    #functions;
+  /** @type {Set<string>} */
+  #constants = new Set();
+  /** @type {Map<string, ValueType>} */
+  #variables = new Map();
+  /** @type {Map<string, Function|FunctionValue>} */
+  #functions;
+  /** @type {number} */
+  #loop;
 
   /**
    * @param {Environment} parent
@@ -92,10 +96,10 @@ class Environment {
    */
   constructor(parent, api) {
     this.#functions = (parent != null) ? parent.#functions : new Map(api);
-    /** @type {Map<string, ValueType>} */
-    this.variables = new Map();
-    /** @type {number} */
-    this.loop = (parent != null) ? parent.loop - 1: 1000000;
+    this.#loop = (parent != null) ? parent.#loop - 1: 1000000;
+    if (this.#loop <= 0) {
+      throw 'Too deep recursion.';
+    }
   }
 
   init() {
@@ -108,11 +112,12 @@ class Environment {
    * @returns {ValueType}
    */
   get(name) {
-    if (this.variables.has(name)) {
-      return this.variables.get(name);
+    if (this.#variables.has(name)) {
+      return this.#variables.get(name);
     }
-    if (this.#functions.has(name + '=/0')) {
-      return this.#functions.get(name + '=/0')();
+    const getter = this.#functions.get(name + '=/0');
+    if (typeof getter == 'function') {
+      return getter();
     }
     throw 'Undefined variable: ' + name;
   }
@@ -124,8 +129,8 @@ class Environment {
    * @returns {ValueType|SwapFunction}
    */
   getFunction(name, arity, fileName) {
-    if (this.variables.has(name)) {
-      return this.variables.get(name);
+    if (this.#variables.has(name)) {
+      return this.#variables.get(name);
     }
     if (fileName) {
       const func = findFunction(this.#functions, name, arity, fileName);
@@ -144,23 +149,15 @@ class Environment {
     throw 'Cannot find a function: ' + functionId(name, arity);
   }
 
-  /** @param {string} name */
-  has(name) {
-    if (name.indexOf('/') == -1) {
-      return this.variables.has(name);
-    } else {
-      return this.#functions.has(name);
-    }
-  }
-
   /**
    * @param {string} name
    * @param {ValueType} value
    * @param {''|'const'|'let'|'var'=} type
    */
   set(name, value, type) {
-    if (this.#functions.has(name + '=/1')) {
-      this.#functions.get(name + '=/1')(value);
+    const setter = this.#functions.get(name + '=/1');
+    if (typeof setter == 'function') {
+      setter(value);
       return;
     }
     if (this.#constants.has(name)) {
@@ -169,10 +166,26 @@ class Environment {
     if (type == 'const') {
       this.#constants.add(name);
     }
-    if (name.indexOf('/') == -1) {
-      this.variables.set(name, value);
-    } else {
-      this.#functions.set(name, /** @type {Function} */(value));
+    this.#variables.set(name, value);
+  }
+
+  /**
+   * @param {string} name
+   * @param {string} fileName
+   * @param {FunctionValue} func
+   */
+  setFunction(name, fileName, func) {
+    this.#functions.set(func.id(name, fileName), func);
+  }
+
+  variables() {
+    return new Map(this.#variables);
+  }
+
+  countLoop() {
+    this.#loop--;
+    if (this.#loop <= 0) {
+      throw 'Too many loops.';
     }
   }
 }
@@ -321,19 +334,19 @@ class FunctionValue {
   /** @type {Node} */
   #bodyNode;
   /** @type {Map<String, ValueType>} */
-  #envMap;
+  #capturedVariables;
 
   /**
    * @param {Array<Node>} paramNodes
    * @param {Node} bodyNode
-   * @param {Map<String, ValueType>=} envMap
+   * @param {Map<String, ValueType>=} capturedVariables
    */
-  constructor(paramNodes, bodyNode, envMap) {
+  constructor(paramNodes, bodyNode, capturedVariables) {
     this.#paramNames = paramNodes.map(p => (p.left || p).name);
     this.#defaultValues = paramNodes.map(p => p.children[0]);
     this.#varArgs = paramNodes.length > 0 && paramNodes.at(-1).varArgs;
     this.#bodyNode = bodyNode;
-    this.#envMap = envMap || new Map();
+    this.#capturedVariables = capturedVariables || new Map();
   }
 
   /**
@@ -356,11 +369,8 @@ class FunctionValue {
    */
   async run(params, env) {
     const newEnv = new Environment(env);
-    if (newEnv.loop <= 0) {
-      throw 'Too deep recursion.';
-    }
     newEnv.init();
-    for (const [name, value] of this.#envMap) {
+    for (const [name, value] of this.#capturedVariables) {
       newEnv.set(name, value);
     }
     for (let i = 0; i < this.#paramNames.length; i++) {
@@ -393,7 +403,7 @@ class FunctionValue {
    * @returns {FunctionValue}
    */
   setThis(value) {
-    this.#envMap.set('this', value);
+    this.#capturedVariables.set('this', value);
     return this;
   }
 }
@@ -1000,10 +1010,7 @@ class TreeBuilder {
         const bodyNode = this.buildTree(';');
         stack.push(new Node(100, async env => {
           while (await condNode.run(env)) {
-            env.loop--;
-            if (env.loop <= 0) {
-              throw 'Too many loops.';
-            }
+            env.countLoop();
             const value = await bodyNode.run(env);
             if (value instanceof ReturnValue) {
               if (value.type == 'break') {
@@ -1028,10 +1035,7 @@ class TreeBuilder {
           stack.push(new Node(100, async env => {
             const obj = /** @type {ObjectValue} */(await arrayNode.run(env));
             for (let i = 0; i < Number(obj.get('length')); i++) {
-              env.loop--;
-              if (env.loop <= 0) {
-                throw 'Too many loops.';
-              }
+              env.countLoop();
               env.set(variable, obj.get(i));
               const value = await bodyNode.run(env);
               if (value instanceof ReturnValue) {
@@ -1051,10 +1055,7 @@ class TreeBuilder {
           stack.push(new Node(100, async env => {
             await initNode.run(env);
             while (await condNode.run(env)) {
-              env.loop--;
-              if (env.loop <= 0) {
-                throw 'Too many loops.';
-              }
+              env.countLoop();
               const value = await bodyNode.run(env);
               if (value instanceof ReturnValue) {
                 if (value.type == 'break') {
@@ -1077,7 +1078,7 @@ class TreeBuilder {
         const paramNodes = this.buildTree(')').children;
         const bodyNode = this.buildTree(';');
         const func = new FunctionValue(paramNodes, bodyNode);
-        this.#globalEnv.set(func.id(name, this.#fileName), func);
+        this.#globalEnv.setFunction(name, this.#fileName, func);
         stack.pushAll();
       } else if (token == 'return' || token == 'break' || token == 'continue') {
         stack.push(operatorNode(2, (a, b) => new ReturnValue(b, token)));
@@ -1090,7 +1091,7 @@ class TreeBuilder {
         const name = this.#tokens.shift();
         this.shiftExpected('{');
         const func = this.buildClassValue();
-        this.#globalEnv.set(func.id(name, this.#fileName), func);
+        this.#globalEnv.setFunction(name, this.#fileName, func);
         stack.pushAll();
       } else if (token == 'new' &&
           this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
@@ -1267,7 +1268,7 @@ class TreeBuilder {
       } else if (token == '=>') {
         const node = new Node(2, async (env, left, children) =>
             new FunctionValue(left.name ? [left] : left.children, children[0],
-                new Map(env.variables)));
+                env.variables()));
         stack.push(node);
         if (this.#tokens[0] == '{') {
           this.#tokens.shift();

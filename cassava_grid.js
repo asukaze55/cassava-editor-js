@@ -249,7 +249,7 @@ class Grid {
 
   /** @returns {GridData} */
   gridData() {
-    return this.#undoGrid.gridData;
+    return this.#undoGrid.gridData();
   }
 
   /** @param {Range} range */
