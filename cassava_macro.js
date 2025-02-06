@@ -611,61 +611,58 @@ function cellNode(x, y) {
                   await x.run(env), await y.run(env), value));
 }
 
-class NodeStack {
+class BlockBuilder {
   /** @type {Array<Node>} */
-  #stack;
-
-  /** @param {Node} root */
-  constructor(root) {
-    this.#stack = [root];
-  }
+  #nodes = [blockNode()];
 
   /**
    * @param {Node} node
    * @returns {boolean}
    */
-  isLowerPrecedence(node) {
-    const current = this.#stack.at(-1).precedence;
+  #isLowerPrecedence(node) {
+    const current = this.#nodes.at(-1).precedence;
     return node.precedence < current
-        || (node.precedence == current
-            && current != 3
-            && current != 2);
+        || (node.precedence == current && current != 3 && current != 2);
   }
 
   /** @param {Node} node */
-  push(node) {
-    if (node.isValue()
-        && this.#stack.at(-1).isValue()) {
-      this.pushAll(); // ASI
+  add(node) {
+    if (node.isValue() && this.#nodes.at(-1).isValue()) {
+      this.endSentence(); // ASI
     }
-    while (this.#stack.length > 1
-        && this.isLowerPrecedence(node)) {
-      const popped = this.#stack.pop();
-      if (this.isLowerPrecedence(node)) {
-        this.#stack.at(-1).add(popped);
+    while (this.#nodes.length > 1 && this.#isLowerPrecedence(node)) {
+      const popped = this.#nodes.pop();
+      if (this.#isLowerPrecedence(node)) {
+        this.#nodes.at(-1).add(popped);
       } else {
         node.left = popped;
         break;
       }
     }
-    this.#stack.push(node);
+    this.#nodes.push(node);
   }
 
-  pushAll() {
-    while (this.#stack.length > 1) {
-      const popped = this.#stack.pop();
-      this.#stack.at(-1).add(popped);
+  endSentence() {
+    while (this.#nodes.length > 1) {
+      const popped = this.#nodes.pop();
+      this.#nodes.at(-1).add(popped);
     }
   }
 
   /** @returns {boolean} */
   isEmpty() {
-    return this.#stack.length == 1;
+    return this.#nodes.length == 1;
   }
 
   /** @returns {boolean} */
   hasValueNode() {
-    return this.#stack.at(-1).isValue();
+    return this.#nodes.at(-1).isValue();
+  }
+
+  build() {
+    this.endSentence();
+    this.#nodes[0].freeze();
+    return this.#nodes[0];
   }
 }
 
@@ -969,8 +966,7 @@ class TreeBuilder {
    * @returns {Node}
    */
   buildTree(endToken) {
-    const root = blockNode();
-    const stack = new NodeStack(root);
+    const block = new BlockBuilder();
     while (this.#tokens.length > 0) {
       const token = this.#tokens.shift();
       if (token == ')' || token == ']'
@@ -993,14 +989,14 @@ class TreeBuilder {
           this.#tokens.shift();
           elseNode = this.buildTree(';');
         }
-        stack.push(new Node(100, async env => {
+        block.add(new Node(100, async env => {
           if (await condNode.run(env)) {
             return await thenNode.run(env);
           } else if(elseNode != null) {
             return await elseNode.run(env);
           }
         }));
-        stack.pushAll();
+        block.endSentence();
         if (endToken == ';') {
           break;
         }
@@ -1008,7 +1004,7 @@ class TreeBuilder {
         this.#tokens.shift();
         const condNode = this.buildTree(')');
         const bodyNode = this.buildTree(';');
-        stack.push(new Node(100, async env => {
+        block.add(new Node(100, async env => {
           while (await condNode.run(env)) {
             env.countLoop();
             const value = await bodyNode.run(env);
@@ -1021,7 +1017,7 @@ class TreeBuilder {
             }
           }
         }));
-        stack.pushAll();
+        block.endSentence();
         if (endToken == ';') {
           break;
         }
@@ -1032,7 +1028,7 @@ class TreeBuilder {
           this.#tokens.shift();
           const arrayNode = this.buildTree(')');
           const bodyNode = this.buildTree(';');
-          stack.push(new Node(100, async env => {
+          block.add(new Node(100, async env => {
             const obj = /** @type {ObjectValue} */(await arrayNode.run(env));
             for (let i = 0; i < Number(obj.get('length')); i++) {
               env.countLoop();
@@ -1052,7 +1048,7 @@ class TreeBuilder {
           const condNode = this.buildTree(';');
           const nextNode = this.buildTree(')');
           const bodyNode = this.buildTree(';');
-          stack.push(new Node(100, async env => {
+          block.add(new Node(100, async env => {
             await initNode.run(env);
             while (await condNode.run(env)) {
               env.countLoop();
@@ -1068,7 +1064,7 @@ class TreeBuilder {
             }
           }));
         }
-        stack.pushAll();
+        block.endSentence();
         if (endToken == ';') {
           break;
         }
@@ -1079,27 +1075,27 @@ class TreeBuilder {
         const bodyNode = this.buildTree(';');
         const func = new FunctionValue(paramNodes, bodyNode);
         this.#globalEnv.setFunction(name, this.#fileName, func);
-        stack.pushAll();
+        block.endSentence();
       } else if (token == 'return' || token == 'break' || token == 'continue') {
-        stack.push(operatorNode(2, (a, b) => new ReturnValue(b, token)));
-      } else if (stack.isEmpty() &&
+        block.add(operatorNode(2, (a, b) => new ReturnValue(b, token)));
+      } else if (block.isEmpty() &&
           (token == 'const' || token == 'let' || token == 'var')) {
         const name = this.#tokens.shift();
-        stack.push(variableNode(name, token));
+        block.add(variableNode(name, token));
       } else if (token == 'class' &&
           this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
         const name = this.#tokens.shift();
         this.shiftExpected('{');
         const func = this.buildClassValue();
         this.#globalEnv.setFunction(name, this.#fileName, func);
-        stack.pushAll();
+        block.endSentence();
       } else if (token == 'new' &&
           this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
         // Ignore
       } else if (token == 'import') {
         this.readImport();
-      } else if (token == 'in' && stack.hasValueNode()) {
-        stack.push(operatorNode(10, (a, b) => {
+      } else if (token == 'in' && block.hasValueNode()) {
+        block.add(operatorNode(10, (a, b) => {
           if (b instanceof ObjectValue) {
             return b.has(a.toString()) ? 1 : 0;
           } else {
@@ -1107,129 +1103,124 @@ class TreeBuilder {
           }
         }));
       } else if (token[0] == '"' || token[0] == "'") {
-        stack.push(valueNode(parseString(token)));
+        block.add(valueNode(parseString(token)));
       } else if (isNumChar(token[0])) {
-        stack.push(valueNode(parseFloat(token)));
+        block.add(valueNode(parseFloat(token)));
       } else if (token.length > 2 && token[0] == '/') {
-        stack.push(valueNode(parseRegExp(token)));
+        block.add(valueNode(parseRegExp(token)));
       } else if (isAlphaChar(token[0])) {
-        stack.push(variableNode(token));
+        block.add(variableNode(token));
       } else if (token == '.') {
-        if (!stack.hasValueNode()) {
+        if (!block.hasValueNode()) {
           throw 'Unexpected token: ' + token + (this.#tokens[0] || '');
         }
         const node =
             this.buildMemberAccessNode(valueNode(this.#tokens.shift()));
-        stack.push(node);
+        block.add(node);
         node.freeze();
       } else if (token == '[') {
         const subTree = this.buildTree(']');
         const params = subTree.children;
-        if (stack.hasValueNode()) {
+        if (block.hasValueNode()) {
           if (params.length != 1) {
             throw 'obj[x] format should have exactly 1 parameter. Found: '
                 + params.length;
           }
-          const node =
-              this.buildMemberAccessNode(params[0]);
-          stack.push(node);
+          const node = this.buildMemberAccessNode(params[0]);
+          block.add(node);
           node.freeze();
         } else {
           if (params.length != 2) {
-            throw '[x,y] format should have '
-                  + 'exactly 2 parameters. Found: '
-                  + params.length;
+            throw '[x,y] format should have exactly 2 parameters. Found: '
+                + params.length;
           }
-          stack.push(
-              cellNode(params[0], params[1]));
+          block.add(cellNode(params[0], params[1]));
         }
       } else if (token == '{') {
-        if (stack.isEmpty()
-            && (endToken == ';'
-                || endToken == '}')) {
-          stack.push(this.buildTree('}'));
+        if (block.isEmpty() && (endToken == ';' || endToken == '}')) {
+          block.add(this.buildTree('}'));
           if (endToken == ';') {
             break;
           }
         } else {
-          stack.push(this.buildObjectNode());
+          block.add(this.buildObjectNode());
         }
       } else if (token == '(') {
-        if (stack.hasValueNode()) {
+        if (block.hasValueNode()) {
           const node = this.buildFunctionCallNode();
-          stack.push(node);
+          block.add(node);
           node.freeze();
         } else {
-          stack.push(this.buildTree(')'));
+          block.add(this.buildTree(')'));
         }
       } else if (token == '!') {
-        stack.push(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
+        block.add(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
       } else if (token == '++') {
-        stack.push(new Node(15, async (env, left, children) => {
+        block.add(new Node(15, async (env, left, children) => {
           const child = left || children[0];
           const value = Number(await child.run(env)) + 1;
           await child.assign(env, value);
           return value;
         }));
       } else if (token == '--') {
-        stack.push(new Node(15, async (env, left, children) => {
+        block.add(new Node(15, async (env, left, children) => {
           const child = left || children[0];
           const value = Number(await child.run(env)) - 1;
           await child.assign(env, value);
           return value;
         }));
       } else if (token == '*') {
-        stack.push(operatorNode(13, (a, b) => Number(a) * Number(b)));
+        block.add(operatorNode(13, (a, b) => Number(a) * Number(b)));
       } else if (token == '/') {
-        stack.push(operatorNode(13, (a, b) => Number(a) / Number(b)));
+        block.add(operatorNode(13, (a, b) => Number(a) / Number(b)));
       } else if (token == '%') {
-        stack.push(operatorNode(13, (a, b) => Number(a) % Number(b)));
+        block.add(operatorNode(13, (a, b) => Number(a) % Number(b)));
       } else if (token == '+') {
-        if (stack.hasValueNode()) {
-          stack.push(operatorNode(
+        if (block.hasValueNode()) {
+          block.add(operatorNode(
               12, (a, b) => /** @type {any} */(a) + /** @type {any} */(b)));
         }
       } else if (token == '-') {
-        if (stack.hasValueNode()) {
-          stack.push(operatorNode(12, (a, b) => Number(a) - Number(b)));
+        if (block.hasValueNode()) {
+          block.add(operatorNode(12, (a, b) => Number(a) - Number(b)));
         } else {
-          stack.push(operatorNode(15, (a, b) => -b));
+          block.add(operatorNode(15, (a, b) => -b));
         }
       } else if (token == '<') {
-        stack.push(operatorNode(10, (a, b) => a < b ? 1 : 0));
+        block.add(operatorNode(10, (a, b) => a < b ? 1 : 0));
       } else if (token == '<=') {
-        stack.push(operatorNode(10, (a, b) => a <= b ? 1 : 0));
+        block.add(operatorNode(10, (a, b) => a <= b ? 1 : 0));
       } else if (token == '>') {
-        stack.push(operatorNode(10, (a, b) => a > b ? 1 : 0));
+        block.add(operatorNode(10, (a, b) => a > b ? 1 : 0));
       } else if (token == '>=') {
-        stack.push(operatorNode(10, (a, b) => a >= b ? 1 : 0));
+        block.add(operatorNode(10, (a, b) => a >= b ? 1 : 0));
       } else if (token == '==') {
-        stack.push(operatorNode(9,
+        block.add(operatorNode(9,
             (a, b) => (a.toString() === b.toString()) ? 1 : 0));
       } else if (token == '!=') {
-        stack.push(operatorNode(9,
+        block.add(operatorNode(9,
             (a, b) => (a.toString() !== b.toString()) ? 1 : 0));
       } else if (token == '&&' || token == '&') {
-        stack.push(new Node(5, async (env, left, children) => {
+        block.add(new Node(5, async (env, left, children) => {
           const l = await left.run(env);
           return (Number(l) == 0) ? l : children[0].run(env);
         }));
       } else if (token == '||' || token == '|') {
-        stack.push(new Node(4, async (env, left, children) => {
+        block.add(new Node(4, async (env, left, children) => {
           const l = await left.run(env);
           return (Number(l) != 0) ? l : children[0].run(env);
         }));
       } else if (token == '?') {
         const thenNode = this.buildTree(':');
-        stack.push(new Node(3, async (env, left, children) => {
+        block.add(new Node(3, async (env, left, children) => {
           const l = await left.run(env);
           return (Number(l) != 0) ? thenNode.run(env) : children[0].run(env);
         }));
       } else if (token == '=') {
-        if (!stack.hasValueNode()) {
+        if (!block.hasValueNode()) {
           throw 'Unexpected token: =';
         }
-        stack.push(new Node(2, async (env, left, children) => {
+        block.add(new Node(2, async (env, left, children) => {
           if (left == null || children[0] == null) {
             throw 'Operand is missing: =';
           }
@@ -1238,28 +1229,28 @@ class TreeBuilder {
           return value;
         }));
       } else if (token == '+=') {
-        stack.push(new Node(2, async (env, left, children) => {
+        block.add(new Node(2, async (env, left, children) => {
           const value = /** @type {any} */(await left.run(env)) +
               /** @type {any} */(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '-=') {
-        stack.push(new Node(2, async (env, left, children) => {
+        block.add(new Node(2, async (env, left, children) => {
           const value =
               Number(await left.run(env)) - Number(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '*=') {
-        stack.push(new Node(2, async (env, left, children) => {
+        block.add(new Node(2, async (env, left, children) => {
           const value =
               Number(await left.run(env)) * Number(await children[0].run(env));
           await left.assign(env, value);
           return value;
         }));
       } else if (token == '/=') {
-        stack.push(new Node(2, async (env, left, children) => {
+        block.add(new Node(2, async (env, left, children) => {
           const value =
               Number(await left.run(env)) / Number(await children[0].run(env));
           await left.assign(env, value);
@@ -1269,26 +1260,24 @@ class TreeBuilder {
         const node = new Node(2, async (env, left, children) =>
             new FunctionValue(left.name ? [left] : left.children, children[0],
                 env.variables()));
-        stack.push(node);
+        block.add(node);
         if (this.#tokens[0] == '{') {
           this.#tokens.shift();
           node.add(this.buildTree('}'));
           node.freeze();
         }
       } else if (token == '...' && endToken == ')' && this.#tokens[1] == ')') {
-        stack.push(variableNode(this.#tokens.shift(), '', /* varArgs= */ true));
+        block.add(variableNode(this.#tokens.shift(), '', /* varArgs= */ true));
       } else if (token == ';' || token == ',') {
         if (endToken == token) {
           break;
         }
-        stack.pushAll();
+        block.endSentence();
       } else {
         throw "Invalid token: " + token;
       }
     }
-    stack.pushAll();
-    root.freeze();
-    return root;
+    return block.build();
   }
 
   /** @returns {string} */
