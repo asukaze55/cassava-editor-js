@@ -81,8 +81,6 @@ function findFunction(map, name, arity, fileName) {
 }
 
 class Environment {
-  /** @type {Set<string>} */
-  #constants = new Set();
   /** @type {Map<string, ValueType>} */
   #variables = new Map();
   /** @type {Map<string, Function|FunctionValue>} */
@@ -152,19 +150,12 @@ class Environment {
   /**
    * @param {string} name
    * @param {ValueType} value
-   * @param {''|'const'|'let'|'var'=} type
    */
-  set(name, value, type) {
+  set(name, value) {
     const setter = this.#functions.get(name + '=/1');
     if (typeof setter == 'function') {
       setter(value);
       return;
-    }
-    if (this.#constants.has(name)) {
-      throw 'Cannot modify constant: ' + name;
-    }
-    if (type == 'const') {
-      this.#constants.add(name);
     }
     this.#variables.set(name, value);
   }
@@ -324,6 +315,22 @@ function tokenize(data) {
   return result;
 }
 
+class Parameter {
+  /**
+   * @param {string} name
+   * @param {boolean=} varArgs
+   * @param {Node=} defaultValueNode
+   */
+  constructor(name, varArgs, defaultValueNode) {
+    /** @type {string} */
+    this.name = name;
+    /** @type {boolean} */
+    this.varArgs = varArgs;
+    /** @type {Node?} */
+    this.defaultValueNode = defaultValueNode;
+  }
+}
+
 class FunctionValue {
   /** @type {Array<string>} */
   #paramNames;
@@ -337,14 +344,14 @@ class FunctionValue {
   #capturedVariables;
 
   /**
-   * @param {Array<Node>} paramNodes
+   * @param {Array<Parameter>} params
    * @param {Node} bodyNode
    * @param {Map<String, ValueType>=} capturedVariables
    */
-  constructor(paramNodes, bodyNode, capturedVariables) {
-    this.#paramNames = paramNodes.map(p => (p.left || p).name);
-    this.#defaultValues = paramNodes.map(p => p.children[0]);
-    this.#varArgs = paramNodes.length > 0 && paramNodes.at(-1).varArgs;
+  constructor(params, bodyNode, capturedVariables) {
+    this.#paramNames = params.map(p => p.name);
+    this.#defaultValues = params.map(p => p.defaultValueNode);
+    this.#varArgs = params.length > 0 && params.at(-1).varArgs;
     this.#bodyNode = bodyNode;
     this.#capturedVariables = capturedVariables || new Map();
   }
@@ -479,45 +486,18 @@ class ReturnValue {
 }
 
 class Node {
-  /** @type {(env: Environment, left: Node?, children: Array<Node>) => (ValueType|Promise<ValueType>)} */
+  /** @type {(env: Environment) => (ValueType|Promise<ValueType>)} */
   #runner
-  /** @type {(env: Environment, value: ValueType, left: Node?) => (void|Promise<void>)?} */
+  /** @type {(env: Environment, value: ValueType) => (void|Promise<void>)?} */
   #assigner
 
   /**
-   * @param {number} precedence
-   * @param {(env: Environment, left: Node?, children: Array<Node>) => (ValueType|Promise<ValueType>)} runner
-   * @param {(env: Environment, value: ValueType, left: Node?) => (void|Promise<void>)=} assigner
-   * @param {string=} name
-   * @param {boolean=} varArgs
-   */
-  constructor(precedence, runner, assigner, name, varArgs) {
-    /** @type {Node?} */
-    this.left = null;
-    /** @type {Array<Node>} */
-    this.children = [];
-    /** @type {number} */
-    this.precedence = precedence;
+   * @param {(env: Environment) => (ValueType|Promise<ValueType>)} runner
+   * @param {(env: Environment, value: ValueType) => (void|Promise<void>)=} assigner
+  */
+  constructor(runner, assigner) {
     this.#runner = runner;
     this.#assigner = assigner;
-    /** @type {string?} */
-    this.name = name;
-    /** @type {boolean} */
-    this.varArgs = !!varArgs;
-  }
-
-  /** @param {Node} node */
-  add(node) {
-    this.children.push(node);
-  }
-
-  freeze() {
-    this.precedence = 100;
-  }
-
-  /** @returns {boolean} */
-  isValue() {
-    return this.precedence >= 100;
   }
 
   /**
@@ -525,7 +505,7 @@ class Node {
    * @returns {ValueType|Promise<ValueType>}
    */
   run(env) {
-    return this.#runner(env, this.left, this.children);
+    return this.#runner(env);
   }
 
   /**
@@ -536,16 +516,19 @@ class Node {
     if (this.#assigner == null) {
       throw 'Cannot assign values to ' + await this.run(env);
     }
-    await this.#assigner(env, value, this.left);
+    await this.#assigner(env, value);
   }
 }
 
-/** @returns {Node} */
-function blockNode() {
-  return new Node(0, async (env, left, children) => {
+/**
+ * @param {Array<Node>} statements
+ * @returns {Node}
+ */
+function blockNode(statements) {
+  return new Node(async env => {
     let result;
-    for (const node of children) {
-      result = await node.run(env);
+    for (const statement of statements) {
+      result = await statement.run(env);
       if (result instanceof ReturnValue) {
         return result;
       }
@@ -554,18 +537,36 @@ function blockNode() {
   });
 }
 
+class BinaryNode extends Node {
+  /**
+   * @param {number} precedence
+   * @param {(env: Environment, left: Node?, right: Node?) => (ValueType|Promise<ValueType>)} runner
+   * @param {(env: Environment, value: ValueType, left: Node?) => (void|Promise<void>)=} assigner
+  */
+  constructor(precedence, runner, assigner) {
+    super(env => runner(env, this.left, this.right),
+        (env, value) => assigner(env, value, this.left));
+    /** @type {number} */
+    this.precedence = precedence;
+    /** @type {Node?} */
+    this.left = null;
+    /** @type {Node?} */
+    this.right = null;
+  }
+}
+
 /**
  * @param {number} precedence
  * @param {(left: ValueType, right: ValueType) => ValueType} runner
  * @returns {Node}
  */
 function operatorNode(precedence, runner) {
-  return new Node(precedence, async (env, left, children) => {
+  return new BinaryNode(precedence, async (env, left, right) => {
     const l = left ? await left.run(env) : null;
     if (l instanceof ReturnValue) {
       return l;
     }
-    const r = children[0] ? await children[0].run(env) : null;
+    const r = right ? await right.run(env) : null;
     if (r instanceof ReturnValue) {
       return r;
     }
@@ -578,21 +579,16 @@ function operatorNode(precedence, runner) {
  * @returns {Node}
  */
 function valueNode(value) {
-  return new Node(100, () => value);
+  return new Node(() => value);
 }
 
-/**
- * @param {string} name
- * @param {''|'const'|'let'|'var'=} type
- * @param {boolean=} varArgs
- * @returns {Node}
- */
-function variableNode(name, type, varArgs) {
-  return new Node(
-      100,
-      env => env.get(name),
-      (env, value) => env.set(name, value, type),
-      name, varArgs);
+class VariableNode extends Node {
+  /** @param {string} name */
+  constructor(name) {
+    super(env => env.get(name), (env, value) => env.set(name, value));
+    /** @type {string} */
+    this.name = name;
+  }
 }
 
 /**
@@ -602,7 +598,6 @@ function variableNode(name, type, varArgs) {
  */
 function cellNode(x, y) {
   return new Node(
-      100,
       async env => /** @type {(x: ValueType, y: ValueType) => ValueType} */(
           env.getFunction('cell', 2))(await x.run(env), await y.run(env)),
       async (env, value) =>
@@ -611,58 +606,144 @@ function cellNode(x, y) {
                   await x.run(env), await y.run(env), value));
 }
 
-class BlockBuilder {
-  /** @type {Array<Node>} */
-  #nodes = [blockNode()];
+class ExpressionBuilder {
+  /** @type {{right?: Node}} */
+  #root = {}
+
+  constructor() {
+    /** @type {boolean} */
+    this.hasValueNode = false;
+  }
 
   /**
-   * @param {Node} node
-   * @returns {boolean}
+   * @param {number} precedence
+   * @returns {{right?: Node}}
    */
-  #isLowerPrecedence(node) {
-    const current = this.#nodes.at(-1).precedence;
-    return node.precedence < current
-        || (node.precedence == current && current != 3 && current != 2);
+  #currentNode(precedence) {
+    let node = this.#root;
+    while (node.right instanceof BinaryNode &&
+        (node.right.precedence < precedence ||
+            (node.right.precedence == precedence && precedence < 4))) {
+      node = node.right;
+    }
+    return node;
   }
 
   /** @param {Node} node */
   add(node) {
-    if (node.isValue() && this.#nodes.at(-1).isValue()) {
-      this.endSentence(); // ASI
-    }
-    while (this.#nodes.length > 1 && this.#isLowerPrecedence(node)) {
-      const popped = this.#nodes.pop();
-      if (this.#isLowerPrecedence(node)) {
-        this.#nodes.at(-1).add(popped);
-      } else {
-        node.left = popped;
-        break;
+    if (node instanceof BinaryNode) {
+      const current = this.#currentNode(node.precedence);
+      node.left = current.right;
+      current.right = node;
+      this.hasValueNode = node.precedence >= 18;
+    } else {
+      const current = this.#currentNode(18);
+      if (current.right != null) {
+        throw 'Missing an operator or semicolon.';
       }
-    }
-    this.#nodes.push(node);
-  }
-
-  endSentence() {
-    while (this.#nodes.length > 1) {
-      const popped = this.#nodes.pop();
-      this.#nodes.at(-1).add(popped);
+      current.right = node;
+      this.hasValueNode = true;
     }
   }
 
-  /** @returns {boolean} */
-  isEmpty() {
-    return this.#nodes.length == 1;
+  /** @returns {Node?} */
+  pop() {
+    const current = this.#currentNode(18);
+    const right = current.right;
+    current.right = null;
+    return right;
   }
 
-  /** @returns {boolean} */
-  hasValueNode() {
-    return this.#nodes.at(-1).isValue();
-  }
-
+  /** @returns {Node} */
   build() {
-    this.endSentence();
-    this.#nodes[0].freeze();
-    return this.#nodes[0];
+    const node = this.#root.right;
+    if (!node) {
+      return blockNode([]);
+    }
+    if (node instanceof BinaryNode) {
+      node.precedence = 18;
+    }
+    return node;
+  }
+}
+
+class Scope {
+  /** @type {Set<string>} */
+  #variables;
+  /** @type {Set<string>} */
+  #constants;
+  /** @type {Set<string>} */
+  #functions;
+
+  /** @param {Scope=} parent */
+  constructor(parent) {
+    this.#variables = parent ? new Set(parent.#variables)
+        : new Set(['x', 'y', 'Bottom', 'Col', 'Right', 'Row', 'SelBottom',
+            'SelLeft', 'SelRight', 'SelTop']);
+    this.#constants = new Set();
+    this.#functions = parent ? new Set(parent.#functions) : new Set();
+  }
+
+  /** @param {string} constant */
+  addConstant(constant) {
+    this.#constants.add(constant);
+  }
+
+  /**
+   * @param {string} name
+   * @returns {Scope}
+   */
+  addFunction(name) {
+    this.#functions.add(name);
+    return this;
+  }
+
+  /**
+   * @param {string} variable
+   * @param {boolean=} mutate
+   * @returns {Scope}
+   */
+  addVariable(variable, mutate) {
+    if (mutate) {
+      if (this.#constants.has(variable)) {
+        throw 'Cannot modify constant or captured variable: ' + variable;
+      }
+    } else {
+      this.#constants.delete(variable);
+    }
+    this.#variables.add(variable);
+    return this;
+  }
+
+  /**
+   * @param {string} name
+   * @param {number} arity
+   * @param {string} fileName
+   * @param {Environment} env
+   */
+  checkFunction(name, arity, fileName, env) {
+    if (this.#functions.has(name) || this.#variables.has(name)) {
+      return;
+    }
+    env.getFunction(name, arity, fileName);
+  }
+
+  /** @param {string} variable */
+  checkInitialized(variable) {
+    if (!this.#variables.has(variable)) {
+      throw 'Uninitialized variable: ' + variable;
+    }
+  }
+
+  /** @returns {Scope} */
+  makeAllConst() {
+    this.#constants = new Set(this.#variables);
+    return this;
+  }
+
+  /** @param {string} variable */
+  deleteVariable(variable) {
+    this.#variables.delete(variable);
   }
 }
 
@@ -750,23 +831,53 @@ class TreeBuilder {
   }
 
   /** @param {string} expected */
-  shiftExpected(expected) {
+  #shiftExpected(expected) {
     const token = this.#tokens.shift();
     if (token != expected) {
       throw 'Expected ' + expected + ' but got: ' + token;
     }
   }
 
-  /** @returns {Node} */
-  buildFunctionCallNode() {
-    const params = this.buildTree(')').children;
-    const node = new Node(18,
-        async (env, l) => {
-          const func = l.name
-              ? this.#imports.has(l.name)
-                  ? env.getFunction(this.#imports.get(l.name), params.length)
-                  : env.getFunction(l.name, params.length, this.#fileName)
-              : await l.run(env);
+  /**
+   * @param {Scope} scope
+   * @param {string} endToken
+   * @returns {Array<Node>}
+   */
+  #buildTuple(scope, endToken) {
+    const tuple = [];
+    while (this.#tokens.length > 0) {
+      if (this.#tokens[0] == endToken) {
+        this.#tokens.shift();
+        return tuple;
+      }
+      tuple.push(this.#buildExpression(scope));
+      if (this.#tokens[0] == ',') {
+        this.#tokens.shift();
+      } else if (this.#tokens[0] != endToken) {
+        throw 'Expected , or ' + endToken +' but got: ' + this.#tokens.shift();
+      }
+    }
+    throw 'Missing ' + endToken;
+  }
+
+  /**
+   * @param {Scope} scope
+   * @param {Node} left
+   * @returns {Node}
+   */
+  #buildFunctionCallNode(scope, left) {
+    const params = this.#buildTuple(scope, ')');
+    if (left instanceof VariableNode && !this.#imports.has(left.name)) {
+      scope.checkFunction(
+          left.name, params.length, this.#fileName, this.#globalEnv);
+    }
+    const node = new Node(
+        async env => {
+          const func = (left instanceof VariableNode)
+              ? this.#imports.has(left.name)
+                  ? env.getFunction(this.#imports.get(left.name), params.length)
+                  : env.getFunction(left.name, params.length, this.#fileName)
+              : await left.run(env);
           let paramResults = [];
           for (const p of params) {
             paramResults.push(await p.run(env));
@@ -782,36 +893,38 @@ class TreeBuilder {
             throw 'Not a function: ' + func;
           }
         },
-        async (env, value, l) => {
-          if (l.name == 'cell') {
+        async (env, value) => {
+          if (!(left instanceof VariableNode)) {
+            throw 'Cannot assign values to function result: ' +
+                await node.run(env);
+          } else if (left.name == 'cell') {
             const x = await params[0].run(env);
             const y = await params[1].run(env);
             /** @type {(x: ValueType, y: ValueType, value: ValueType) => void}*/(
                 env.getFunction('cell=', 3))(x, y, value);
-          } else if (l.name == 'mid') {
+          } else if (left.name == 'mid') {
             const str = (await params[0].run(env)).toString();
             const start = Number(await params[1].run(env)) - 1;
             const len = Number(await params[2].run(env));
             await params[0].assign(env, str.substring(0, start) + value
                 + str.substring(start + len));
           } else {
-            throw 'Cannot assign values to function result: '
-                + (l.name || await node.run(env));
+            throw 'Cannot assign values to function result: ' + left.name;
           }
         });
     return node;
   }
 
   /**
-   * @param {Node} child
+   * @param {Node} left
+   * @param {Node} right
    * @returns {Node}
    */
-  buildMemberAccessNode(child) {
+  #buildMemberAccessNode(left, right) {
     return new Node(
-        18,
-        async (env, left) => {
+        async env => {
           const obj = await left.run(env);
-          const name = await child.run(env);
+          const name = await right.run(env);
           if (obj instanceof ObjectValue) {
             const result = obj.get(name);
             if (result == null) {
@@ -870,20 +983,22 @@ class TreeBuilder {
                   + '\nString: ' + obj.toString();
           }
         },
-        async (env, value, left) => {
+        async (env, value) => {
           const obj = await left.run(env);
-          const name = await child.run(env);
+          const name = await right.run(env);
           if (obj instanceof ObjectValue) {
             obj.set(name, value);
           } else {
-            throw obj + ' is not an object. '
-                  + 'Setting: ' + name;
+            throw obj + ' is not an object. Setting: ' + name;
           }
         });
   }
 
-  /** @returns {Node} */
-  buildObjectNode() {
+  /**
+   * @param {Scope} scope
+   * @returns {Node}
+   */
+  #buildObjectNode(scope) {
     const members = new Map();
     while (this.#tokens.length > 0) {
       let name = this.#tokens.shift();
@@ -897,10 +1012,16 @@ class TreeBuilder {
       }
       const token = this.#tokens.shift();
       if (token == ':') {
-        members.set(name, this.buildTree(','));
+        members.set(name, this.#buildExpression(scope));
+        if (this.#tokens[0] == ',') {
+          this.#tokens.shift();
+        } else if (this.#tokens[0] != '}') {
+          throw 'Expected , or } but got: ' + this.#tokens.shift();
+        }
       } else if (token == '(') {
-        const paramNodes = this.buildTree(')').children;
-        const bodyNode = this.buildTree(';');
+        const methodScope = new Scope(scope).addVariable('this');
+        const paramNodes = this.#buildParameters(methodScope);
+        const bodyNode = this.#buildStatement(methodScope);
         members.set(name, valueNode(new FunctionValue(paramNodes, bodyNode)));
         if (this.#tokens[0] == ',') {
           this.#tokens.shift();
@@ -909,7 +1030,7 @@ class TreeBuilder {
         throw 'Expected : or ( but got: ' + token;
       }
     }
-    return new Node(100, async env => {
+    return new Node(async env => {
       const object = new ObjectValue();
       for (const [name, child] of members) {
         object.set(name, await child.run(env));
@@ -918,10 +1039,13 @@ class TreeBuilder {
     });
   }
 
-  /** @returns {FunctionValue} */
-  buildClassValue() {
-    const objectNode = this.buildObjectNode();
-    const constructorNode = new Node(100, async env => {
+  /**
+   * @param {Scope} scope
+   * @returns {FunctionValue}
+   */
+  #buildClassValue(scope) {
+    const objectNode = this.#buildObjectNode(scope);
+    const constructorNode = new Node(async env => {
       const obj = /** @type {ObjectValue} */(await objectNode.run(env));
       if (obj.has('constructor')) {
         const constructor = obj.get('constructor');
@@ -936,12 +1060,76 @@ class TreeBuilder {
       }
       return obj;
     });
-    const paramsNode = variableNode('$p', '', /* varArgs= */ true);
-    return new FunctionValue([paramsNode], constructorNode);
+    const parameter = new Parameter('$p', /* varArgs= */ true);
+    return new FunctionValue([parameter], constructorNode);
   }
 
-  readImport() {
-    this.shiftExpected('{');
+  /**
+   * @param {Scope} scope
+   * @returns {Array<Parameter>}
+   */
+  #buildParameters(scope) {
+    /** @type {Array<Parameter>} */
+    const params = [];
+    if (this.#tokens[0] == ')') {
+      this.#tokens.shift();
+      return params;
+    }
+    while (this.#tokens.length > 0) {
+      let varArgs = false;
+      if (this.#tokens[0] == '...') {
+        varArgs = true;
+        this.#tokens.shift();
+      }
+      const name = this.#tokens.shift();
+      if (!isAlphaChar(name[0])) {
+        throw 'Expected parameter name but got: ' + name;
+      }
+      let defaultValueNode = null;
+      let token = this.#tokens.shift();
+      if (token == '=') {
+        defaultValueNode = this.#buildExpression(scope);
+        token = this.#tokens.shift();
+      }
+      params.push(new Parameter(name, varArgs, defaultValueNode));
+      scope.addVariable(name);
+      if (token == ')') {
+        return params;
+      } else if (token != ',') {
+        throw 'Expected ) or , but got: ' + token;
+      }
+    }
+    throw 'Missing )';
+  }
+
+  #isLambda() {
+    return (this.#tokens[0] == ")" && this.#tokens[1] == "=>") ||
+        this.#tokens[0] == '...' ||
+        (isAlphaChar(this.#tokens[0]) &&
+            (this.#tokens[1] == ',' || this.#tokens[1] == '=' ||
+                (this.#tokens[1] == ')' && this.#tokens[2] == '=>')));
+  }
+
+  /**
+   * @param {Scope} scope
+   * @param {Array<Parameter>} params
+   * @returns {Node}
+   */
+  #buildLambdaNode(scope, params) {
+    this.#shiftExpected('=>');
+    let bodyNode;
+    if (this.#tokens[0] == '{') {
+      bodyNode = this.#buildStatement(scope);
+    } else {
+      bodyNode = this.#buildExpression(scope);
+    }
+    return new Node(async env =>
+        new FunctionValue(params, bodyNode, env.variables()));
+  }
+
+  #readImport() {
+    this.#shiftExpected('import');
+    this.#shiftExpected('{');
     const names = [];
     while (this.#tokens.length > 0) {
       names.push(this.#tokens.shift());
@@ -952,9 +1140,9 @@ class TreeBuilder {
         throw 'Expected } or , but got: ' + next;
       }
     }
-    this.shiftExpected('from');
+    this.#shiftExpected('from');
     const fileName = parseString(this.#tokens.shift());
-    this.shiftExpected(';');
+    this.#shiftExpected(';');
     for (const name of names) {
       this.#imports.set(name, fileName + '\n' + name);
     }
@@ -962,51 +1150,266 @@ class TreeBuilder {
   }
 
   /**
-   * @param {string} endToken
+   * @param {Scope} scope
    * @returns {Node}
    */
-  buildTree(endToken) {
-    const block = new BlockBuilder();
+  #buildExpression(scope) {
+    const expr = new ExpressionBuilder();
     while (this.#tokens.length > 0) {
-      const token = this.#tokens.shift();
-      if (token == ')' || token == ']'
-          || token == '}' || token == ':') {
-        if (token == '}' && (endToken == ';' || endToken == ',')) {
-          this.#tokens.unshift(token);
-        } else if (endToken != token) {
-          throw 'Expected ' + endToken
-                + ' but got: ' + token;
-        }
+      const token = this.#tokens[0];
+      if (token == ')' || token == ']' || token == '}' || token == ';' ||
+          token == ',' || token == ':') {
         break;
-      } else if (token == 'if' && this.#tokens[0] == '(') {
-        this.#tokens.shift();
-        const condNode = this.buildTree(')');
-        const thenNode = this.buildTree(';');
-        /** @type {Node?} */
-        let elseNode = null;
-        // @ts-ignore https://github.com/microsoft/TypeScript/issues/31334
-        if (this.#tokens[0] == 'else') {
-          this.#tokens.shift();
-          elseNode = this.buildTree(';');
-        }
-        block.add(new Node(100, async env => {
-          if (await condNode.run(env)) {
-            return await thenNode.run(env);
-          } else if(elseNode != null) {
-            return await elseNode.run(env);
+      }
+      this.#tokens.shift();
+      if (token == 'new' &&
+          this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
+        // Ignore
+      } else if (token == 'in' && expr.hasValueNode) {
+        expr.add(operatorNode(10, (a, b) => {
+          if (b instanceof ObjectValue) {
+            return b.has(a.toString()) ? 1 : 0;
+          } else {
+            throw 'right-hand side of "in" should be an object. Found: ' + b;
           }
         }));
-        block.endSentence();
-        if (endToken == ';') {
-          break;
+      } else if (token[0] == '"' || token[0] == "'") {
+        expr.add(valueNode(parseString(token)));
+      } else if (isNumChar(token[0])) {
+        expr.add(valueNode(parseFloat(token)));
+      } else if (token.length > 2 && token[0] == '/') {
+        expr.add(valueNode(parseRegExp(token)));
+      } else if (isAlphaChar(token[0])) {
+        if (this.#tokens[0] == '=>') {
+          expr.add(this.#buildLambdaNode(
+              new Scope(scope).makeAllConst().addVariable(token),
+              [new Parameter(token)]));
+        } else {
+          if (this.#tokens[0] == '=') {
+            scope.addVariable(token, /* mutate= */ true);
+          } else if (this.#tokens[0] != '(') {
+            scope.checkInitialized(token);
+          }
+          expr.add(new VariableNode(token));
         }
-      } else if (token == 'while' && this.#tokens[0] == '(') {
+      } else if (token == '.') {
+        if (!expr.hasValueNode) {
+          throw 'Unexpected token: ' + token + (this.#tokens[0] || '');
+        }
+        expr.add(this.#buildMemberAccessNode(
+            expr.pop(), valueNode(this.#tokens.shift())));
+      } else if (token == '[') {
+        const params = this.#buildTuple(scope, ']');
+        if (expr.hasValueNode) {
+          if (params.length != 1) {
+            throw 'obj[x] format should have exactly 1 parameter. Found: '
+                + params.length;
+          }
+          expr.add(this.#buildMemberAccessNode(expr.pop(), params[0]));
+        } else {
+          if (params.length != 2) {
+            throw '[x,y] format should have exactly 2 parameters. Found: '
+                + params.length;
+          }
+          expr.add(cellNode(params[0], params[1]));
+        }
+      } else if (token == '{') {
+        expr.add(this.#buildObjectNode(scope));
+      } else if (token == '(') {
+        if (expr.hasValueNode) {
+          expr.add(this.#buildFunctionCallNode(scope, expr.pop()));
+        } else if (this.#isLambda()) {
+          const lambdaScope = new Scope(scope).makeAllConst();
+          const params = this.#buildParameters(lambdaScope);
+          expr.add(this.#buildLambdaNode(lambdaScope, params));
+        } else {
+          expr.add(this.#buildExpression(scope));
+          this.#shiftExpected(')');
+        }
+      } else if (token == '!') {
+        expr.add(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
+      } else if (token == '++') {
+        expr.add(new BinaryNode(15, async (env, left, right) => {
+          const child = left || right;
+          const value = Number(await child.run(env)) + 1;
+          await child.assign(env, value);
+          return value;
+        }));
+      } else if (token == '--') {
+        expr.add(new BinaryNode(15, async (env, left, right) => {
+          const child = left || right;
+          const value = Number(await child.run(env)) - 1;
+          await child.assign(env, value);
+          return value;
+        }));
+      } else if (token == '*') {
+        expr.add(operatorNode(13, (a, b) => Number(a) * Number(b)));
+      } else if (token == '/') {
+        expr.add(operatorNode(13, (a, b) => Number(a) / Number(b)));
+      } else if (token == '%') {
+        expr.add(operatorNode(13, (a, b) => Number(a) % Number(b)));
+      } else if (token == '+') {
+        if (expr.hasValueNode) {
+          expr.add(operatorNode(
+              12, (a, b) => /** @type {any} */(a) + /** @type {any} */(b)));
+        }
+      } else if (token == '-') {
+        if (expr.hasValueNode) {
+          expr.add(operatorNode(12, (a, b) => Number(a) - Number(b)));
+        } else {
+          expr.add(operatorNode(15, (a, b) => -b));
+        }
+      } else if (token == '<') {
+        expr.add(operatorNode(10, (a, b) => a < b ? 1 : 0));
+      } else if (token == '<=') {
+        expr.add(operatorNode(10, (a, b) => a <= b ? 1 : 0));
+      } else if (token == '>') {
+        expr.add(operatorNode(10, (a, b) => a > b ? 1 : 0));
+      } else if (token == '>=') {
+        expr.add(operatorNode(10, (a, b) => a >= b ? 1 : 0));
+      } else if (token == '==') {
+        expr.add(operatorNode(9,
+            (a, b) => (a.toString() === b.toString()) ? 1 : 0));
+      } else if (token == '!=') {
+        expr.add(operatorNode(9,
+            (a, b) => (a.toString() !== b.toString()) ? 1 : 0));
+      } else if (token == '&&' || token == '&') {
+        expr.add(new BinaryNode(5, async (env, left, right) => {
+          const l = await left.run(env);
+          return (Number(l) == 0) ? l : right.run(env);
+        }));
+      } else if (token == '||' || token == '|') {
+        expr.add(new BinaryNode(4, async (env, left, right) => {
+          const l = await left.run(env);
+          return (Number(l) != 0) ? l : right.run(env);
+        }));
+      } else if (token == '?') {
+        const thenNode = this.#buildExpression(scope);
+        this.#shiftExpected(':');
+        expr.add(new BinaryNode(3, async (env, left, right) => {
+          const l = await left.run(env);
+          return (Number(l) != 0) ? thenNode.run(env) : right.run(env);
+        }));
+      } else if (token == '=') {
+        if (!expr.hasValueNode) {
+          throw 'Unexpected token: =';
+        }
+        expr.add(new BinaryNode(2, async (env, left, right) => {
+          if (left == null || right == null) {
+            throw 'Operand is missing: =';
+          }
+          const value = await right.run(env);
+          await left.assign(env, value);
+          return value;
+        }));
+      } else if (token == '+=') {
+        expr.add(new BinaryNode(2, async (env, left, right) => {
+          const value = /** @type {any} */(await left.run(env)) +
+              /** @type {any} */(await right.run(env));
+          await left.assign(env, value);
+          return value;
+        }));
+      } else if (token == '-=') {
+        expr.add(new BinaryNode(2, async (env, left, right) => {
+          const value =
+              Number(await left.run(env)) - Number(await right.run(env));
+          await left.assign(env, value);
+          return value;
+        }));
+      } else if (token == '*=') {
+        expr.add(new BinaryNode(2, async (env, left, right) => {
+          const value =
+              Number(await left.run(env)) * Number(await right.run(env));
+          await left.assign(env, value);
+          return value;
+        }));
+      } else if (token == '/=') {
+        expr.add(new BinaryNode(2, async (env, left, right) => {
+          const value =
+              Number(await left.run(env)) / Number(await right.run(env));
+          await left.assign(env, value);
+          return value;
+        }));
+      } else {
+        throw "Invalid token: " + token;
+      }
+    }
+    return expr.build();
+  }
+
+  /**
+   * @param {Scope} scope
+   * @returns {Node?}
+   */
+  #buildStatement(scope) {
+    const token0 = this.#tokens[0];
+    const token1 = this.#tokens[1] || '';
+    if (token0 == '{') {
+      this.#tokens.shift();
+      /** @type {Array<Node>} */
+      const statements = [];
+      while (this.#tokens.length > 0) {
+        if (this.#tokens[0] == '}') {
+          this.#tokens.shift();
+          return blockNode(statements);
+        }
+        statements.push(this.#buildStatement(scope));
+      }
+      throw 'Missing }';
+    } else if (token0 == 'if' && token1 == '(') {
+      this.#tokens.shift();
+      this.#tokens.shift();
+      const condNode = this.#buildExpression(scope);
+      this.#shiftExpected(')');
+      const thenNode = this.#buildStatement(scope);
+      /** @type {Node?} */
+      let elseNode = null;
+      if (this.#tokens[0] == 'else') {
         this.#tokens.shift();
-        const condNode = this.buildTree(')');
-        const bodyNode = this.buildTree(';');
-        block.add(new Node(100, async env => {
-          while (await condNode.run(env)) {
+        elseNode = this.#buildStatement(scope);
+      }
+      return new Node(async env => {
+        if (await condNode.run(env)) {
+          return await thenNode.run(env);
+        } else if(elseNode != null) {
+          return await elseNode.run(env);
+        }
+      });
+    } else if (token0 == 'while' && token1 == '(') {
+      this.#tokens.shift();
+      this.#tokens.shift();
+      const condNode = this.#buildExpression(scope);
+      this.#shiftExpected(')');
+      const bodyNode = this.#buildStatement(scope);
+      return new Node(async env => {
+        while (await condNode.run(env)) {
+          env.countLoop();
+          const value = await bodyNode.run(env);
+          if (value instanceof ReturnValue) {
+            if (value.type == 'break') {
+              break;
+            } else if (value.type != 'continue') {
+              return value;
+            }
+          }
+        }
+      });
+    } else if (token0 == 'for' && token1 == '(') {
+      this.#tokens.shift();
+      this.#tokens.shift();
+      if (this.#tokens[1] == 'of') {
+        const variable = this.#tokens.shift();
+        this.#tokens.shift();
+        const arrayNode = this.#buildExpression(scope);
+        this.#shiftExpected(')');
+        scope.addVariable(variable);
+        const bodyNode = this.#buildStatement(scope);
+        scope.deleteVariable(variable);
+        return new Node(async env => {
+          const obj = /** @type {ObjectValue} */(await arrayNode.run(env));
+          for (let i = 0; i < Number(obj.get('length')); i++) {
             env.countLoop();
+            env.set(variable, obj.get(i));
             const value = await bodyNode.run(env);
             if (value instanceof ReturnValue) {
               if (value.type == 'break') {
@@ -1016,268 +1419,86 @@ class TreeBuilder {
               }
             }
           }
-        }));
-        block.endSentence();
-        if (endToken == ';') {
-          break;
+        });
+      }
+      const initNode = this.#buildStatement(scope);
+      const condNode = this.#buildExpression(scope);
+      this.#shiftExpected(';');
+      const nextNode = this.#buildExpression(scope);
+      this.#shiftExpected(')');
+      const bodyNode = this.#buildStatement(scope);
+      return new Node(async env => {
+        await initNode.run(env);
+        while (await condNode.run(env)) {
+          env.countLoop();
+          const value = await bodyNode.run(env);
+          if (value instanceof ReturnValue) {
+            if (value.type == 'break') {
+              break;
+            } else if (value.type != 'continue') {
+              return value;
+            }
+          }
+          await nextNode.run(env);
         }
-      } else if (token == 'for' && this.#tokens[0] == '(') {
+      });
+    } else if (token0 == 'function') {
+      this.#tokens.shift();
+      const name = this.#tokens.shift();
+      this.#shiftExpected('(');
+      const functionScope = new Scope(scope).addFunction(name);
+      const paramNodes = this.#buildParameters(functionScope);
+      const bodyNode = this.#buildStatement(functionScope);
+      const func = new FunctionValue(paramNodes, bodyNode);
+      this.#globalEnv.setFunction(name, this.#fileName, func);
+      return null;
+    } else if (token0 == 'return' || token0 == 'break' ||
+        token0 == 'continue') {
+      this.#tokens.shift();
+      const valueNode = this.#buildExpression(scope);
+      this.#shiftExpected(';');
+      return new Node(async env =>
+          new ReturnValue(await valueNode.run(env), token0));
+    } else if (token0 == 'class' && isAlphaChar(token1[0])) {
+      this.#tokens.shift();
+      const name = this.#tokens.shift();
+      this.#shiftExpected('{');
+      const func = this.#buildClassValue(new Scope(scope).addFunction(name));
+      this.#globalEnv.setFunction(name, this.#fileName, func);
+      return null;
+    } else if (token0 == 'import') {
+      this.#readImport();
+      return null;
+    } else if ((token0 == 'const' || token0 == 'let' || token0 == 'var') &&
+        isAlphaChar(token1[0])) {
+      this.#tokens.shift();
+      const node = this.#buildExpression(scope);
+      this.#shiftExpected(';');
+      if (token0 == 'const') {
+        scope.addConstant(token1);
+      }
+      return node;
+    } else {
+      const node = this.#buildExpression(scope);
+      if (this.#tokens[0] == ';') {
         this.#tokens.shift();
-        if (this.#tokens[1] == 'of') {
-          const variable = this.#tokens.shift();
-          this.#tokens.shift();
-          const arrayNode = this.buildTree(')');
-          const bodyNode = this.buildTree(';');
-          block.add(new Node(100, async env => {
-            const obj = /** @type {ObjectValue} */(await arrayNode.run(env));
-            for (let i = 0; i < Number(obj.get('length')); i++) {
-              env.countLoop();
-              env.set(variable, obj.get(i));
-              const value = await bodyNode.run(env);
-              if (value instanceof ReturnValue) {
-                if (value.type == 'break') {
-                  break;
-                } else if (value.type != 'continue') {
-                  return value;
-                }
-              }
-            }
-          }));
-        } else {
-          const initNode = this.buildTree(';');
-          const condNode = this.buildTree(';');
-          const nextNode = this.buildTree(')');
-          const bodyNode = this.buildTree(';');
-          block.add(new Node(100, async env => {
-            await initNode.run(env);
-            while (await condNode.run(env)) {
-              env.countLoop();
-              const value = await bodyNode.run(env);
-              if (value instanceof ReturnValue) {
-                if (value.type == 'break') {
-                  break;
-                } else if (value.type != 'continue') {
-                  return value;
-                }
-              }
-              await nextNode.run(env);
-            }
-          }));
-        }
-        block.endSentence();
-        if (endToken == ';') {
-          break;
-        }
-      } else if (token == 'function') {
-        const name = this.#tokens.shift();
-        this.shiftExpected('(');
-        const paramNodes = this.buildTree(')').children;
-        const bodyNode = this.buildTree(';');
-        const func = new FunctionValue(paramNodes, bodyNode);
-        this.#globalEnv.setFunction(name, this.#fileName, func);
-        block.endSentence();
-      } else if (token == 'return' || token == 'break' || token == 'continue') {
-        block.add(operatorNode(2, (a, b) => new ReturnValue(b, token)));
-      } else if (block.isEmpty() &&
-          (token == 'const' || token == 'let' || token == 'var')) {
-        const name = this.#tokens.shift();
-        block.add(variableNode(name, token));
-      } else if (token == 'class' &&
-          this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
-        const name = this.#tokens.shift();
-        this.shiftExpected('{');
-        const func = this.buildClassValue();
-        this.#globalEnv.setFunction(name, this.#fileName, func);
-        block.endSentence();
-      } else if (token == 'new' &&
-          this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
-        // Ignore
-      } else if (token == 'import') {
-        this.readImport();
-      } else if (token == 'in' && block.hasValueNode()) {
-        block.add(operatorNode(10, (a, b) => {
-          if (b instanceof ObjectValue) {
-            return b.has(a.toString()) ? 1 : 0;
-          } else {
-            throw 'right-hand side of "in" should be an object. Found: ' + b;
-          }
-        }));
-      } else if (token[0] == '"' || token[0] == "'") {
-        block.add(valueNode(parseString(token)));
-      } else if (isNumChar(token[0])) {
-        block.add(valueNode(parseFloat(token)));
-      } else if (token.length > 2 && token[0] == '/') {
-        block.add(valueNode(parseRegExp(token)));
-      } else if (isAlphaChar(token[0])) {
-        block.add(variableNode(token));
-      } else if (token == '.') {
-        if (!block.hasValueNode()) {
-          throw 'Unexpected token: ' + token + (this.#tokens[0] || '');
-        }
-        const node =
-            this.buildMemberAccessNode(valueNode(this.#tokens.shift()));
-        block.add(node);
-        node.freeze();
-      } else if (token == '[') {
-        const subTree = this.buildTree(']');
-        const params = subTree.children;
-        if (block.hasValueNode()) {
-          if (params.length != 1) {
-            throw 'obj[x] format should have exactly 1 parameter. Found: '
-                + params.length;
-          }
-          const node = this.buildMemberAccessNode(params[0]);
-          block.add(node);
-          node.freeze();
-        } else {
-          if (params.length != 2) {
-            throw '[x,y] format should have exactly 2 parameters. Found: '
-                + params.length;
-          }
-          block.add(cellNode(params[0], params[1]));
-        }
-      } else if (token == '{') {
-        if (block.isEmpty() && (endToken == ';' || endToken == '}')) {
-          block.add(this.buildTree('}'));
-          if (endToken == ';') {
-            break;
-          }
-        } else {
-          block.add(this.buildObjectNode());
-        }
-      } else if (token == '(') {
-        if (block.hasValueNode()) {
-          const node = this.buildFunctionCallNode();
-          block.add(node);
-          node.freeze();
-        } else {
-          block.add(this.buildTree(')'));
-        }
-      } else if (token == '!') {
-        block.add(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
-      } else if (token == '++') {
-        block.add(new Node(15, async (env, left, children) => {
-          const child = left || children[0];
-          const value = Number(await child.run(env)) + 1;
-          await child.assign(env, value);
-          return value;
-        }));
-      } else if (token == '--') {
-        block.add(new Node(15, async (env, left, children) => {
-          const child = left || children[0];
-          const value = Number(await child.run(env)) - 1;
-          await child.assign(env, value);
-          return value;
-        }));
-      } else if (token == '*') {
-        block.add(operatorNode(13, (a, b) => Number(a) * Number(b)));
-      } else if (token == '/') {
-        block.add(operatorNode(13, (a, b) => Number(a) / Number(b)));
-      } else if (token == '%') {
-        block.add(operatorNode(13, (a, b) => Number(a) % Number(b)));
-      } else if (token == '+') {
-        if (block.hasValueNode()) {
-          block.add(operatorNode(
-              12, (a, b) => /** @type {any} */(a) + /** @type {any} */(b)));
-        }
-      } else if (token == '-') {
-        if (block.hasValueNode()) {
-          block.add(operatorNode(12, (a, b) => Number(a) - Number(b)));
-        } else {
-          block.add(operatorNode(15, (a, b) => -b));
-        }
-      } else if (token == '<') {
-        block.add(operatorNode(10, (a, b) => a < b ? 1 : 0));
-      } else if (token == '<=') {
-        block.add(operatorNode(10, (a, b) => a <= b ? 1 : 0));
-      } else if (token == '>') {
-        block.add(operatorNode(10, (a, b) => a > b ? 1 : 0));
-      } else if (token == '>=') {
-        block.add(operatorNode(10, (a, b) => a >= b ? 1 : 0));
-      } else if (token == '==') {
-        block.add(operatorNode(9,
-            (a, b) => (a.toString() === b.toString()) ? 1 : 0));
-      } else if (token == '!=') {
-        block.add(operatorNode(9,
-            (a, b) => (a.toString() !== b.toString()) ? 1 : 0));
-      } else if (token == '&&' || token == '&') {
-        block.add(new Node(5, async (env, left, children) => {
-          const l = await left.run(env);
-          return (Number(l) == 0) ? l : children[0].run(env);
-        }));
-      } else if (token == '||' || token == '|') {
-        block.add(new Node(4, async (env, left, children) => {
-          const l = await left.run(env);
-          return (Number(l) != 0) ? l : children[0].run(env);
-        }));
-      } else if (token == '?') {
-        const thenNode = this.buildTree(':');
-        block.add(new Node(3, async (env, left, children) => {
-          const l = await left.run(env);
-          return (Number(l) != 0) ? thenNode.run(env) : children[0].run(env);
-        }));
-      } else if (token == '=') {
-        if (!block.hasValueNode()) {
-          throw 'Unexpected token: =';
-        }
-        block.add(new Node(2, async (env, left, children) => {
-          if (left == null || children[0] == null) {
-            throw 'Operand is missing: =';
-          }
-          const value = await children[0].run(env);
-          await left.assign(env, value);
-          return value;
-        }));
-      } else if (token == '+=') {
-        block.add(new Node(2, async (env, left, children) => {
-          const value = /** @type {any} */(await left.run(env)) +
-              /** @type {any} */(await children[0].run(env));
-          await left.assign(env, value);
-          return value;
-        }));
-      } else if (token == '-=') {
-        block.add(new Node(2, async (env, left, children) => {
-          const value =
-              Number(await left.run(env)) - Number(await children[0].run(env));
-          await left.assign(env, value);
-          return value;
-        }));
-      } else if (token == '*=') {
-        block.add(new Node(2, async (env, left, children) => {
-          const value =
-              Number(await left.run(env)) * Number(await children[0].run(env));
-          await left.assign(env, value);
-          return value;
-        }));
-      } else if (token == '/=') {
-        block.add(new Node(2, async (env, left, children) => {
-          const value =
-              Number(await left.run(env)) / Number(await children[0].run(env));
-          await left.assign(env, value);
-          return value;
-        }));
-      } else if (token == '=>') {
-        const node = new Node(2, async (env, left, children) =>
-            new FunctionValue(left.name ? [left] : left.children, children[0],
-                env.variables()));
-        block.add(node);
-        if (this.#tokens[0] == '{') {
-          this.#tokens.shift();
-          node.add(this.buildTree('}'));
-          node.freeze();
-        }
-      } else if (token == '...' && endToken == ')' && this.#tokens[1] == ')') {
-        block.add(variableNode(this.#tokens.shift(), '', /* varArgs= */ true));
-      } else if (token == ';' || token == ',') {
-        if (endToken == token) {
-          break;
-        }
-        block.endSentence();
-      } else {
-        throw "Invalid token: " + token;
+      }
+      return node;
+    }
+  }
+
+  /** @returns {Node} */
+  build() {
+    /** @type {Array<Node>} */
+    const statements = [];
+    const scope = new Scope();
+    while (this.#tokens.length > 0) {
+      const statement = this.#buildStatement(scope);
+      if (statement) {
+        statements.push(statement);
       }
     }
-    return block.build();
+    return blockNode(statements);
   }
 
   /** @returns {string} */
@@ -1296,12 +1517,11 @@ function load(fileName, env, macroMap) {
   if (macroMap == null || !macroMap.has(fileName)) {
     throw 'Imported library not found: ' + fileName;
   }
-  const treeBuilder = new TreeBuilder(
-      fileName, macroMap.get(fileName), env);
+  const treeBuilder = new TreeBuilder(fileName, macroMap.get(fileName), env);
   try {
-    treeBuilder.buildTree('');
+    treeBuilder.build();
   } catch (e) {
-    throw e + '\n' + treeBuilder.nextTokens();
+    throw e + '\n' + fileName + '\n' + treeBuilder.nextTokens();
   }
   return treeBuilder.dependencies;
 }
@@ -1313,11 +1533,10 @@ function load(fileName, env, macroMap) {
  * @returns {Promise<ValueType>}
  */
 async function run(script, env, macroMap) {
-  const treeBuilder =
-      new TreeBuilder('', script, env);
+  const treeBuilder = new TreeBuilder(/* fileName= */ '', script, env);
   let tree;
   try {
-    tree = treeBuilder.buildTree('');
+    tree = treeBuilder.build();
   } catch (e) {
     throw e + '\n' + treeBuilder.nextTokens();
   }
@@ -1329,8 +1548,7 @@ async function run(script, env, macroMap) {
       continue;
     }
     loaded.add(fileName);
-    dependencies = dependencies.concat(
-        load(fileName, env, macroMap));
+    dependencies = dependencies.concat(load(fileName, env, macroMap));
   }
   env.init();
   const result = await tree.run(env);
