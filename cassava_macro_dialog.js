@@ -13,13 +13,17 @@ class MacroManager {
     this.#grid = grid;
 
     try {
+      const keys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.startsWith('Macro/')) {
-          const macroName = key.substring(6);
-          grid.addMacro(macroName, localStorage.getItem(key));
-          this.#managedMacroNames.add(macroName);
+          keys.push(key);
         }
+      }
+      for (const key of keys.sort()) {
+        const macroName = key.substring(6);
+        grid.addMacro(macroName, localStorage.getItem(key));
+        this.#managedMacroNames.add(macroName);
       }
     } catch {}
   }
