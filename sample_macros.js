@@ -1,6 +1,6 @@
 for (const grid of document.getElementsByTagName('cassava-grid')) {
 
-grid.addMacro('!statusbar.cms', `
+grid.addMacro('!statusbar.cms', String.raw`
 function init() {
   SetStatusBarCount(4);
 }
@@ -22,7 +22,7 @@ if (SelRight > SelLeft || SelBottom > SelTop) {
 }
 `);
 
-grid.addMacro('lib/Array.cms', `
+grid.addMacro('lib/Array.cms', String.raw`
 class Array {
   constructor() {
     this.length = 0;
@@ -217,7 +217,7 @@ function arrayOf(...args) {
 }
 `);
 
-grid.addMacro('lib/Assert.cms', `
+grid.addMacro('lib/Assert.cms', String.raw`
 class That {
   constructor(assert, actual) {
     this.assert = assert;
@@ -302,7 +302,7 @@ class Assert {
 }
 `);
 
-grid.addMacro('lib/TestSuite.cms', `
+grid.addMacro('lib/TestSuite.cms', String.raw`
 import { Assert } from "lib/Assert.cms";
 
 class TestSuite {

@@ -217,104 +217,151 @@ function isAlphaNumChar(c) {
   return isAlphaChar(c) || isNumChar(c);
 }
 
-/**
- * @param {string} data
- * @returns {Array<string>}
- */
-function tokenize(data) {
-  const result = [];
-  let hasValue = false;
-  for (let i = 0; i < data.length; i++) {
-    const c = data[i];
-    const c2 = data.substring(i, i + 2);
-    if (c2 == '//') {
-      while (i < data.length && data[i] != '\n') {
+class Tokenizer {
+  /** @type {Array<string>} */
+  #script;
+  /** @type {number} */
+  #line = 0;
+  /** @type {boolean} */
+  #comment = false;
+  /** @type {boolean} */
+  #hasValue = false;
+  /** @type {Array<string>} */
+  #tokens = [];
+
+  /** @param {string} script */
+  constructor(script) {
+    this.#script = script.split('\n');
+  }
+
+  /** @returns {boolean} */
+  hasNext() {
+    this.#parse(0);
+    return this.#tokens.length > 0;
+  }
+
+  /** @returns {string} */
+  next() {
+    return this.hasNext() ? this.#tokens.shift() : null;
+  }
+
+  /**
+   * @param {number=} index
+   * @returns {string}
+   */
+  peek(index = 0) {
+    this.#parse(index);
+    return this.#tokens[index];
+  }
+
+  /** @returns {string} */
+  positionString() {
+    return 'Line ' + this.#line + ': ' + this.#script[this.#line - 1];
+  }
+
+  /** @param {number=} index */
+  #parse(index = 0) {
+    while (this.#tokens.length <= index && this.#line < this.#script.length) {
+      this.#parseLine();
+    }
+  }
+
+  #parseLine() {
+    const data = this.#script[this.#line];
+    this.#line++;
+    for (let i = 0; i < data.length; i++) {
+      const c = data[i];
+      const c2 = data.substring(i, i + 2);
+      if (c2 == '/*') {
+        this.#comment = true;
         i++;
-      }
-    } else if (c2 == '/*') {
-      while (i < data.length
-          && data.substring(i - 1, i + 1) != '*/') {
-        i++;
-      }
-    } else if (c == '"' || c == "'") {
-      const start = i;
-      i++;
-      while (i < data.length && data[i] != c) {
-        if (data[i] == '\\') {
+      } else if (this.#comment) {
+        if (c2 == '*/') {
+          this.#comment = false;
           i++;
         }
+      } else if (c2 == '//') {
+        return;
+      } else if (c == '"' || c == "'") {
+        const start = i;
         i++;
-      }
-      result.push(data.substring(start, i + 1));
-      hasValue = true;
-    } else if (isNumChar(c)) {
-      const start = i;
-      while (isNumCharOrDot(data[i + 1])) {
-        i++;
-      }
-      result.push(data.substring(start, i + 1));
-      hasValue = true;
-    } else if (isAlphaChar(c)) {
-      const start = i;
-      while (isAlphaNumChar(data[i + 1])) {
-        i++;
-      }
-      const token = data.substring(start, i + 1);
-      if (token.toLowerCase() == 'true') {
-        result.push('1')
-      } else if (token.toLowerCase() == 'false'
-          || token.toLowerCase() == 'null') {
-        result.push('0');
-      } else {
-        result.push(token);
-      }
-      hasValue = (token != 'return');
-    } else if (c2 == '++' || c2 == '--'
-        || c2 == '<=' || c2 == '>=' || c2 == '=='
-        || c2 == '!=' || c2 == '&&' || c2 == '||'
-        || c2 == '+=' || c2 == '-=' || c2 == '*='
-        || c2 == '/=' || c2 == '=>') {
-      i++;
-      result.push(c2);
-      hasValue = false;
-    } else if (c == '.') {
-      if (isNumChar(data[i + 1])) {
+        while (data[i] != c) {
+          if (i >= data.length) {
+            throw 'unterminated string literal.';
+          } else if (data[i] == '\\') {
+            i++;
+          }
+          i++;
+        }
+        this.#tokens.push(data.substring(start, i + 1));
+        this.#hasValue = true;
+      } else if (isNumChar(c)) {
         const start = i;
         while (isNumCharOrDot(data[i + 1])) {
           i++;
         }
-        result.push(data.substring(start, i + 1));
-        hasValue = true;
-      } else if (data.substring(i, i + 3)
-                 == '...') {
-        i += 2;
-        result.push('...');
-        hasValue = false;
-      } else {
-        result.push(c);
-        hasValue = false;
-      }
-    } else if (c == '/' && !hasValue) {
-      const start = i;
-      i++;
-      while (i < data.length && data[i] != '/') {
-        if (data[i] == '\\') {
+        this.#tokens.push(data.substring(start, i + 1));
+        this.#hasValue = true;
+      } else if (isAlphaChar(c)) {
+        const start = i;
+        while (isAlphaNumChar(data[i + 1])) {
           i++;
         }
+        const token = data.substring(start, i + 1);
+        if (token.toLowerCase() == 'true') {
+          this.#tokens.push('1')
+        } else if (token.toLowerCase() == 'false'
+            || token.toLowerCase() == 'null') {
+          this.#tokens.push('0');
+        } else {
+          this.#tokens.push(token);
+        }
+        this.#hasValue = (token != 'return');
+      } else if (c2 == '++' || c2 == '--'
+          || c2 == '<=' || c2 == '>=' || c2 == '=='
+          || c2 == '!=' || c2 == '&&' || c2 == '||'
+          || c2 == '+=' || c2 == '-=' || c2 == '*='
+          || c2 == '/=' || c2 == '=>') {
         i++;
-      }
-      while (i < data.length && (data[i + 1] == 'g'
-          || data[i + 1] == 'i')) {
+        this.#tokens.push(c2);
+        this.#hasValue = false;
+      } else if (c == '.') {
+        if (isNumChar(data[i + 1])) {
+          const start = i;
+          while (isNumCharOrDot(data[i + 1])) {
+            i++;
+          }
+          this.#tokens.push(data.substring(start, i + 1));
+          this.#hasValue = true;
+        } else if (data.substring(i, i + 3) == '...') {
+          i += 2;
+          this.#tokens.push('...');
+          this.#hasValue = false;
+        } else {
+          this.#tokens.push(c);
+          this.#hasValue = false;
+        }
+      } else if (c == '/' && !this.#hasValue) {
+        const start = i;
         i++;
+        while (i < data.length && data[i] != '/') {
+          if (data[i] == '\\') {
+            i++;
+          }
+          i++;
+        }
+        while (i < data.length && (data[i + 1] == 'g'
+            || data[i + 1] == 'i')) {
+          i++;
+        }
+        this.#tokens.push(data.substring(start, i + 1));
+        this.#hasValue = true;
+      } else if (c > ' ' && c != '\ufeff') {
+        this.#tokens.push(c);
+        this.#hasValue = (c == ')' || c == ']');
       }
-      result.push(data.substring(start, i + 1));
-      hasValue = true;
-    } else if (c > ' ' && c != '\ufeff') {
-      result.push(c);
-      hasValue = (c == ')' || c == ']');
     }
   }
-  return result;
 }
 
 class Parameter {
@@ -812,7 +859,7 @@ function stringOrRegExp(value) {
 class TreeBuilder {
   /** @type {string} */
   #fileName;
-  /** @type {Array<string>} */
+  /** @type {Tokenizer} */
   #tokens;
   /** @type {Environment} */
   #globalEnv;
@@ -826,15 +873,15 @@ class TreeBuilder {
    */
   constructor(fileName, script, globalEnv) {
     this.#fileName = fileName;
-    this.#tokens = tokenize(script);
+    this.#tokens = new Tokenizer(script);
     this.#globalEnv = globalEnv;
     /** @type {Array<string>} */
     this.dependencies = [];
   }
 
   /** @param {string} expected */
-  #shiftExpected(expected) {
-    const token = this.#tokens.shift();
+  #nextExpected(expected) {
+    const token = this.#tokens.next();
     if (token != expected) {
       throw 'Expected ' + expected + ' but got: ' + token;
     }
@@ -847,16 +894,16 @@ class TreeBuilder {
    */
   #buildTuple(scope, endToken) {
     const tuple = [];
-    while (this.#tokens.length > 0) {
-      if (this.#tokens[0] == endToken) {
-        this.#tokens.shift();
+    while (this.#tokens.hasNext()) {
+      if (this.#tokens.peek() == endToken) {
+        this.#tokens.next();
         return tuple;
       }
       tuple.push(this.#buildExpression(scope));
-      if (this.#tokens[0] == ',') {
-        this.#tokens.shift();
-      } else if (this.#tokens[0] != endToken) {
-        throw 'Expected , or ' + endToken +' but got: ' + this.#tokens.shift();
+      if (this.#tokens.peek() == ',') {
+        this.#tokens.next();
+      } else if (this.#tokens.peek() != endToken) {
+        throw 'Expected , or ' + endToken +' but got: ' + this.#tokens.next();
       }
     }
     throw 'Missing ' + endToken;
@@ -1002,8 +1049,8 @@ class TreeBuilder {
    */
   #buildObjectNode(scope) {
     const members = new Map();
-    while (this.#tokens.length > 0) {
-      let name = this.#tokens.shift();
+    while (this.#tokens.hasNext()) {
+      let name = this.#tokens.next();
       if (name == '}') {
         break;
       }
@@ -1012,21 +1059,21 @@ class TreeBuilder {
       } else if (isNumCharOrDot(name[0])) {
         name = Number(name).toString();
       }
-      const token = this.#tokens.shift();
+      const token = this.#tokens.next();
       if (token == ':') {
         members.set(name, this.#buildExpression(scope));
-        if (this.#tokens[0] == ',') {
-          this.#tokens.shift();
-        } else if (this.#tokens[0] != '}') {
-          throw 'Expected , or } but got: ' + this.#tokens.shift();
+        if (this.#tokens.peek() == ',') {
+          this.#tokens.next();
+        } else if (this.#tokens.peek() != '}') {
+          throw 'Expected , or } but got: ' + this.#tokens.next();
         }
       } else if (token == '(') {
         const methodScope = new Scope(scope).addVariable('this');
         const paramNodes = this.#buildParameters(methodScope);
         const bodyNode = this.#buildStatement(methodScope);
         members.set(name, valueNode(new FunctionValue(paramNodes, bodyNode)));
-        if (this.#tokens[0] == ',') {
-          this.#tokens.shift();
+        if (this.#tokens.peek() == ',') {
+          this.#tokens.next();
         }
       } else {
         throw 'Expected : or ( but got: ' + token;
@@ -1073,25 +1120,25 @@ class TreeBuilder {
   #buildParameters(scope) {
     /** @type {Array<Parameter>} */
     const params = [];
-    if (this.#tokens[0] == ')') {
-      this.#tokens.shift();
+    if (this.#tokens.peek() == ')') {
+      this.#tokens.next();
       return params;
     }
-    while (this.#tokens.length > 0) {
+    while (this.#tokens.hasNext()) {
       let varArgs = false;
-      if (this.#tokens[0] == '...') {
+      if (this.#tokens.peek() == '...') {
         varArgs = true;
-        this.#tokens.shift();
+        this.#tokens.next();
       }
-      const name = this.#tokens.shift();
+      const name = this.#tokens.next();
       if (!isAlphaChar(name[0])) {
         throw 'Expected parameter name but got: ' + name;
       }
       let defaultValueNode = null;
-      let token = this.#tokens.shift();
+      let token = this.#tokens.next();
       if (token == '=') {
         defaultValueNode = this.#buildExpression(scope);
-        token = this.#tokens.shift();
+        token = this.#tokens.next();
       }
       params.push(new Parameter(name, varArgs, defaultValueNode));
       scope.addVariable(name);
@@ -1105,11 +1152,11 @@ class TreeBuilder {
   }
 
   #isLambda() {
-    return (this.#tokens[0] == ")" && this.#tokens[1] == "=>") ||
-        this.#tokens[0] == '...' ||
-        (isAlphaChar(this.#tokens[0]) &&
-            (this.#tokens[1] == ',' || this.#tokens[1] == '=' ||
-                (this.#tokens[1] == ')' && this.#tokens[2] == '=>')));
+    return (this.#tokens.peek(0) == ")" && this.#tokens.peek(1) == "=>") ||
+        this.#tokens.peek(0) == '...' ||
+        (isAlphaChar(this.#tokens.peek(0)) &&
+            (this.#tokens.peek(1) == ',' || this.#tokens.peek(1) == '=' ||
+                (this.#tokens.peek(1) == ')' && this.#tokens.peek(2) == '=>')));
   }
 
   /**
@@ -1118,9 +1165,9 @@ class TreeBuilder {
    * @returns {Node}
    */
   #buildLambdaNode(scope, params) {
-    this.#shiftExpected('=>');
+    this.#nextExpected('=>');
     let bodyNode;
-    if (this.#tokens[0] == '{') {
+    if (this.#tokens.peek() == '{') {
       bodyNode = this.#buildStatement(scope);
     } else {
       bodyNode = this.#buildExpression(scope);
@@ -1130,21 +1177,21 @@ class TreeBuilder {
   }
 
   #readImport() {
-    this.#shiftExpected('import');
-    this.#shiftExpected('{');
+    this.#nextExpected('import');
+    this.#nextExpected('{');
     const names = [];
-    while (this.#tokens.length > 0) {
-      names.push(this.#tokens.shift());
-      const next = this.#tokens.shift();
+    while (this.#tokens.hasNext()) {
+      names.push(this.#tokens.next());
+      const next = this.#tokens.next();
       if (next == '}') {
         break;
       } else if (next != ',') {
         throw 'Expected } or , but got: ' + next;
       }
     }
-    this.#shiftExpected('from');
-    const fileName = parseString(this.#tokens.shift());
-    this.#shiftExpected(';');
+    this.#nextExpected('from');
+    const fileName = parseString(this.#tokens.next());
+    this.#nextExpected(';');
     for (const name of names) {
       this.#imports.set(name, fileName + '\n' + name);
     }
@@ -1157,15 +1204,15 @@ class TreeBuilder {
    */
   #buildExpression(scope) {
     const expr = new ExpressionBuilder();
-    while (this.#tokens.length > 0) {
-      const token = this.#tokens[0];
+    while (this.#tokens.hasNext()) {
+      const token = this.#tokens.peek();
       if (token == ')' || token == ']' || token == '}' || token == ';' ||
           token == ',' || token == ':') {
         break;
       }
-      this.#tokens.shift();
+      this.#tokens.next();
       if (token == 'new' &&
-          this.#tokens.length > 0 && isAlphaChar(this.#tokens[0][0])) {
+          this.#tokens.hasNext() && isAlphaChar(this.#tokens.peek()[0])) {
         // Ignore
       } else if (token == 'in' && expr.hasValueNode) {
         expr.add(operatorNode(10, (a, b) => {
@@ -1182,24 +1229,24 @@ class TreeBuilder {
       } else if (token.length > 2 && token[0] == '/') {
         expr.add(valueNode(parseRegExp(token)));
       } else if (isAlphaChar(token[0])) {
-        if (this.#tokens[0] == '=>') {
+        if (this.#tokens.peek() == '=>') {
           expr.add(this.#buildLambdaNode(
               new Scope(scope).makeAllConst().addVariable(token),
               [new Parameter(token)]));
         } else {
-          if (this.#tokens[0] == '=') {
+          if (this.#tokens.peek() == '=') {
             scope.addVariable(token, /* mutate= */ true);
-          } else if (this.#tokens[0] != '(') {
+          } else if (this.#tokens.peek() != '(') {
             scope.checkInitialized(token);
           }
           expr.add(new VariableNode(token));
         }
       } else if (token == '.') {
         if (!expr.hasValueNode) {
-          throw 'Unexpected token: ' + token + (this.#tokens[0] || '');
+          throw 'Unexpected token: ' + token + (this.#tokens.peek() || '');
         }
         expr.add(this.#buildMemberAccessNode(
-            expr.pop(), valueNode(this.#tokens.shift())));
+            expr.pop(), valueNode(this.#tokens.next())));
       } else if (token == '[') {
         const params = this.#buildTuple(scope, ']');
         if (expr.hasValueNode) {
@@ -1226,7 +1273,7 @@ class TreeBuilder {
           expr.add(this.#buildLambdaNode(lambdaScope, params));
         } else {
           expr.add(this.#buildExpression(scope));
-          this.#shiftExpected(')');
+          this.#nextExpected(')');
         }
       } else if (token == '!') {
         expr.add(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
@@ -1287,7 +1334,7 @@ class TreeBuilder {
         }));
       } else if (token == '?') {
         const thenNode = this.#buildExpression(scope);
-        this.#shiftExpected(':');
+        this.#nextExpected(':');
         expr.add(new BinaryNode(3, async (env, left, right) => {
           const l = await left.run(env);
           return (Number(l) != 0) ? thenNode.run(env) : right.run(env);
@@ -1344,30 +1391,30 @@ class TreeBuilder {
    * @returns {Node?}
    */
   #buildStatement(scope) {
-    const token0 = this.#tokens[0];
-    const token1 = this.#tokens[1] || '';
+    const token0 = this.#tokens.peek(0);
+    const token1 = this.#tokens.peek(1) || '';
     if (token0 == '{') {
-      this.#tokens.shift();
+      this.#tokens.next();
       /** @type {Array<Node>} */
       const statements = [];
-      while (this.#tokens.length > 0) {
-        if (this.#tokens[0] == '}') {
-          this.#tokens.shift();
+      while (this.#tokens.hasNext()) {
+        if (this.#tokens.peek() == '}') {
+          this.#tokens.next();
           return blockNode(statements);
         }
         statements.push(this.#buildStatement(scope));
       }
       throw 'Missing }';
     } else if (token0 == 'if' && token1 == '(') {
-      this.#tokens.shift();
-      this.#tokens.shift();
+      this.#tokens.next();
+      this.#tokens.next();
       const condNode = this.#buildExpression(scope);
-      this.#shiftExpected(')');
+      this.#nextExpected(')');
       const thenNode = this.#buildStatement(scope);
       /** @type {Node?} */
       let elseNode = null;
-      if (this.#tokens[0] == 'else') {
-        this.#tokens.shift();
+      if (this.#tokens.peek() == 'else') {
+        this.#tokens.next();
         elseNode = this.#buildStatement(scope);
       }
       return new Node(async env => {
@@ -1378,10 +1425,10 @@ class TreeBuilder {
         }
       });
     } else if (token0 == 'while' && token1 == '(') {
-      this.#tokens.shift();
-      this.#tokens.shift();
+      this.#tokens.next();
+      this.#tokens.next();
       const condNode = this.#buildExpression(scope);
-      this.#shiftExpected(')');
+      this.#nextExpected(')');
       const bodyNode = this.#buildStatement(scope);
       return new Node(async env => {
         while (await condNode.run(env)) {
@@ -1397,13 +1444,13 @@ class TreeBuilder {
         }
       });
     } else if (token0 == 'for' && token1 == '(') {
-      this.#tokens.shift();
-      this.#tokens.shift();
-      if (this.#tokens[1] == 'of') {
-        const variable = this.#tokens.shift();
-        this.#tokens.shift();
+      this.#tokens.next();
+      this.#tokens.next();
+      if (this.#tokens.peek(1)== 'of') {
+        const variable = this.#tokens.next();
+        this.#tokens.next();
         const arrayNode = this.#buildExpression(scope);
-        this.#shiftExpected(')');
+        this.#nextExpected(')');
         scope.addVariable(variable);
         const bodyNode = this.#buildStatement(scope);
         scope.deleteVariable(variable);
@@ -1425,9 +1472,9 @@ class TreeBuilder {
       }
       const initNode = this.#buildStatement(scope);
       const condNode = this.#buildExpression(scope);
-      this.#shiftExpected(';');
+      this.#nextExpected(';');
       const nextNode = this.#buildExpression(scope);
-      this.#shiftExpected(')');
+      this.#nextExpected(')');
       const bodyNode = this.#buildStatement(scope);
       return new Node(async env => {
         await initNode.run(env);
@@ -1445,9 +1492,9 @@ class TreeBuilder {
         }
       });
     } else if (token0 == 'function') {
-      this.#tokens.shift();
-      const name = this.#tokens.shift();
-      this.#shiftExpected('(');
+      this.#tokens.next();
+      const name = this.#tokens.next();
+      this.#nextExpected('(');
       const functionScope = new Scope(scope).addFunction(name);
       const paramNodes = this.#buildParameters(functionScope);
       const bodyNode = this.#buildStatement(functionScope);
@@ -1456,15 +1503,15 @@ class TreeBuilder {
       return null;
     } else if (token0 == 'return' || token0 == 'break' ||
         token0 == 'continue') {
-      this.#tokens.shift();
+      this.#tokens.next();
       const valueNode = this.#buildExpression(scope);
-      this.#shiftExpected(';');
+      this.#nextExpected(';');
       return new Node(async env =>
           new ReturnValue(await valueNode.run(env), token0));
     } else if (token0 == 'class' && isAlphaChar(token1[0])) {
-      this.#tokens.shift();
-      const name = this.#tokens.shift();
-      this.#shiftExpected('{');
+      this.#tokens.next();
+      const name = this.#tokens.next();
+      this.#nextExpected('{');
       const func = this.#buildClassValue(new Scope(scope).addFunction(name));
       this.#globalEnv.setFunction(name, this.#fileName, func);
       return null;
@@ -1473,17 +1520,17 @@ class TreeBuilder {
       return null;
     } else if ((token0 == 'const' || token0 == 'let' || token0 == 'var') &&
         isAlphaChar(token1[0])) {
-      this.#tokens.shift();
+      this.#tokens.next();
       const node = this.#buildExpression(scope);
-      this.#shiftExpected(';');
+      this.#nextExpected(';');
       if (token0 == 'const') {
         scope.addConstant(token1);
       }
       return node;
     } else {
       const node = this.#buildExpression(scope);
-      if (this.#tokens[0] == ';') {
-        this.#tokens.shift();
+      if (this.#tokens.peek() == ';') {
+        this.#tokens.next();
       }
       return node;
     }
@@ -1494,7 +1541,7 @@ class TreeBuilder {
     /** @type {Array<Node>} */
     const statements = [];
     const scope = new Scope();
-    while (this.#tokens.length > 0) {
+    while (this.#tokens.hasNext()) {
       const statement = this.#buildStatement(scope);
       if (statement) {
         statements.push(statement);
@@ -1504,8 +1551,8 @@ class TreeBuilder {
   }
 
   /** @returns {string} */
-  nextTokens() {
-    return this.#tokens.join(' ').substring(0, 150);
+  positionString() {
+    return this.#tokens.positionString();
   }
 }
 
@@ -1523,7 +1570,7 @@ function load(fileName, env, macroMap) {
   try {
     treeBuilder.build();
   } catch (e) {
-    throw e + '\n' + fileName + '\n' + treeBuilder.nextTokens();
+    throw e + '\n' + fileName + '\n' + treeBuilder.positionString();
   }
   return treeBuilder.dependencies;
 }
@@ -1540,7 +1587,7 @@ async function run(script, env, macroMap) {
   try {
     tree = treeBuilder.build();
   } catch (e) {
-    throw e + '\n' + treeBuilder.nextTokens();
+    throw e + '\n' + treeBuilder.positionString();
   }
   let dependencies = treeBuilder.dependencies;
   const loaded = new Set();
