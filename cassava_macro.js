@@ -103,6 +103,8 @@ class Environment {
   init() {
     this.set('x', this.get('Col'));
     this.set('y', this.get('Row'));
+    this.set('Left', 1);
+    this.set('Top', 1);
   }
 
   /**
@@ -678,8 +680,8 @@ class Scope {
   /** @param {Scope=} parent */
   constructor(parent) {
     this.#variables = parent ? new Set(parent.#variables)
-        : new Set(['x', 'y', 'Bottom', 'Col', 'Right', 'Row', 'SelBottom',
-            'SelLeft', 'SelRight', 'SelTop']);
+        : new Set(['x', 'y', 'Bottom', 'Col', 'Left', 'Right', 'Row',
+            'SelBottom', 'SelLeft', 'SelRight', 'SelTop', 'Top']);
     this.#constants = new Set();
     this.#functions = parent ? new Set(parent.#functions) : new Set();
   }
