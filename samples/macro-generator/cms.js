@@ -1,50 +1,52 @@
-function Builder() {
-  this.header_ = [];
-  this.main_ = [];
-  this.footer_ = [];
-  this.indent_ = '';
+/** @typedef {import("./cassava_min_20250202.d.ts").CassavaGridElement} CassavaGridElement */
+
+class Builder {
+  /** @type {Array<string>} */
+  #header = [];
+  /** @type {Array<string>} */
+  #main = [];
+  /** @type {Array<string>} */
+  #footer = [];
+  /** @type {string} */
+  #indent = '';
+
+  build() {
+    return this.#header.concat(this.#main).concat(this.#footer).join('\n');
+  }
+
+  /** @param {string} line */
+  header(line) {
+    this.#header.push(line);
+  }
+
+  /** @param {string} line */
+  main(line) {
+    this.#main.push(`${this.#indent}${line}`);
+  }
+
+  /** @param {string} line */
+  block(line) {
+    this.#main.push(`${this.#indent}${line} {`);
+    this.#footer.unshift(`${this.#indent}}`);
+    this.#indent += '  ';
+  }
 }
-
-Builder.prototype.build = function() {
-  return this.header_.concat(this.main_).concat(this.footer_).join('\n');
-};
-
-Builder.prototype.header = function(line, opt_arg1, opt_arg2, opt_arg3) {
-  this.header_.push(this.format_(line, opt_arg1, opt_arg2, opt_arg3));
-};
-
-Builder.prototype.main = function(line, opt_arg1, opt_arg2, opt_arg3) {
-  this.main_.push(this.indent_ + this.format_(line, opt_arg1, opt_arg2, opt_arg3));
-};
-
-Builder.prototype.block = function(line, opt_arg1, opt_arg2, opt_arg3) {
-  this.main_.push(this.indent_ + this.format_(line, opt_arg1, opt_arg2, opt_arg3) + ' {');
-  this.footer_.unshift(this.indent_ + '}');
-  this.indent_ += '  ';
-};
-
-Builder.prototype.format_ = function(template, opt_arg1, opt_arg2, opt_arg3) {
-  return template
-      .replace('%s', opt_arg1)
-      .replace('%s', opt_arg2)
-      .replace('%s', opt_arg3);
-};
 
 let registeredMacroName = '';
 
 function generate() {
-  var builder = new Builder();
+  const builder = new Builder();
 
-  var name = elem('name').value;
-  builder.header('// %s.cms', name);
+  const name = elem('name').value;
+  builder.header(`// ${name}.cms`);
   builder.header('');
-  var names = document.querySelectorAll('.macro-name');
-  for (var i = 0; i < names.length; i++) {
-    names[i].innerText = name;
+  const names = document.querySelectorAll('.macro-name');
+  for (let i = 0; i < names.length; i++) {
+    /** @type {HTMLElement} */(names[i]).innerText = name;
   }
 
-  var errors = document.querySelectorAll('.error');
-  for (var i = 0; i < errors.length; i++) {
+  const errors = document.querySelectorAll('.error');
+  for (let i = 0; i < errors.length; i++) {
     errors[i].className = errors[i].className.replace(' error', '');
   }
 
@@ -53,11 +55,11 @@ function generate() {
   processCondition(builder);
   processAction(builder);
 
-  var result = builder.build();
+  const result = builder.build();
   elem('content').value = result;
   updateUrl();
 
-  var mainGrid = elem('main-grid');
+  const mainGrid = elem('main-grid');
   if (mainGrid && mainGrid.addMacro) {
     mainGrid.addMacro(registeredMacroName, '');
     mainGrid.addMacro(name, result);
@@ -66,11 +68,12 @@ function generate() {
   return result;
 }
 
+/** @param {Builder} builder */
 function processY(builder) {
-  var y = elem('y').value;
-  var pc = elem('pc1').value;
-  var pp = elem('pp1').value;
-  var singleRow = (y == 'c' || y == 'e' || y == 'd');
+  const y = elem('y').value;
+  const pc = elem('pc1').value;
+  const pp = elem('pp1').value;
+  const singleRow = (y == 'c' || y == 'e' || y == 'd');
   setVisible(elem('ye'), y == 'e');
   setVisibleAll('.single-row-only', singleRow);
   if (y == 'a') {
@@ -94,7 +97,7 @@ function processY(builder) {
       builder.block('for (y = SelTop; y <= SelBottom; y++)');
     }
   } else if (y == 'e') {
-    builder.header('y = %s;', numValue(elem('yv')));
+    builder.header(`y = ${numValue(elem('yv'))};`);
   } else if (y == 'd') {
     builder.header('y = int(InputBox("行番号を入力してください。"));');
     builder.header('if (y == 0) { return; }');
@@ -102,10 +105,11 @@ function processY(builder) {
   }
 }
 
+/** @param {Builder} builder */
 function processX(builder) {
-  var x = elem('x').value;
-  var pc = elem('pc1').value;
-  var singleCol = (x == 'c' || x == 'e' || x == 'd');
+  const x = elem('x').value;
+  const pc = elem('pc1').value;
+  const singleCol = (x == 'c' || x == 'e' || x == 'd');
   setVisible(elem('xe'), x == 'e');
   setVisibleAll('.single-col-only', singleCol);
 
@@ -122,7 +126,7 @@ function processX(builder) {
       builder.block('for (x = SelLeft; x <= SelRight; x++)');
     }
   } else if (x == 'e') {
-    builder.header('x = %s;', numValue(elem('xv')));
+    builder.header(`x = ${numValue(elem('xv'))};`);
   } else if (x == 'd') {
     builder.header('x = int(InputBox("列番号を入力してください。"));');
     builder.header('if (x == 0) { return; }');
@@ -130,8 +134,9 @@ function processX(builder) {
   }
 }
 
+/** @param {Builder} builder */
 function processCondition(builder) {
-  var cc = elem('cc1').value;
+  const cc = elem('cc1').value;
   setVisible(elem('cvo1'), cc != 'a');
   setVisible(elem('ccvs1'), cc == 'cl' || cc == 'rw');
   setVisible(elem('ccvs1-cl'), cc == 'cl');
@@ -140,7 +145,7 @@ function processCondition(builder) {
     return;
   }
 
-  var cell = '[x,y]';
+  let cell = '[x,y]';
   if (cc == 'u') {
     cell = '[x,y-1]';
   } else if (cc == 'l') {
@@ -155,39 +160,40 @@ function processCondition(builder) {
     cell = '[x,' + numValue(elem('ccv1')) + ']'
   }
 
-  var cvElem = elem('cv1');
-  var co = elem('co1').value;
-  var isValueNumber = (co == 'g' || co == 'l' || co == 'gt' || co == 'lt');
-  var value = isValueNumber ? numValue(cvElem) : strValue(cvElem);
+  const cvElem = elem('cv1');
+  const co = elem('co1').value;
+  const isValueNumber = (co == 'g' || co == 'l' || co == 'gt' || co == 'lt');
+  const value = isValueNumber ? numValue(cvElem) : strValue(cvElem);
   if (co == 'q') {
-    builder.block('if (%s == %s)', cell, value);
+    builder.block(`if (${cell} == ${value})`);
   } else if (co == 'nq') {
-    builder.block('if (%s != %s)', cell, value);
+    builder.block(`if (${cell} != ${value})`);
   } else if (co == 's') {
-    builder.block('if (%s.startsWith(%s))', cell, value);
+    builder.block(`if (${cell}.startsWith(${value}))`);
   } else if (co == 'ns') {
-    builder.block('if (!(%s.startsWith(%s)))', cell, value);
+    builder.block(`if (!(${cell}.startsWith(${value})))`);
   } else if (co == 'e') {
-    builder.block('if (%s.endsWith(%s))', cell, value);
+    builder.block(`if (${cell}.endsWith(${value}))`);
   } else if (co == 'ne') {
-    builder.block('if (!(%s.endsWith(%s)))', cell, value);
+    builder.block(`if (!(${cell}.endsWith(${value})))`);
   } else if (co == 'c') {
-    builder.block('if (pos(%s, %s) > 0)', cell, value);
+    builder.block(`if (pos(${cell}, ${value}) > 0)`);
   } else if (co == 'nc') {
-    builder.block('if (pos(%s, %s) == 0)', cell, value);
+    builder.block(`if (pos(${cell}, ${value}) == 0)`);
   } else if (co == 'g') {
-    builder.block('if (%s >= %s)', cell, value);
+    builder.block(`if (${cell} >= ${value})`);
   } else if (co == 'l') {
-    builder.block('if (%s <= %s)', cell, value);
+    builder.block(`if (${cell} <= ${value})`);
   } else if (co == 'gt') {
-    builder.block('if (%s > %s)', cell, value);
+    builder.block(`if (${cell} > ${value})`);
   } else if (co == 'lt') {
-    builder.block('if (%s < %s)', cell, value);
+    builder.block(`if (${cell} < ${value})`);
   }
 }
 
+/** @param {Builder} builder */
 function processAction(builder) {
-  var pp = elem('pp1').value;
+  const pp = elem('pp1').value;
   setVisible(elem('pcvo1'), pp == 'c');
   if (pp == 'dr'){
     builder.main('DeleteRow(y);');
@@ -198,13 +204,14 @@ function processAction(builder) {
   }
 }
 
+/** @param {Builder} builder */
 function processSetCellAction(builder) {
-  var pc = elem('pc1').value;
-  var pvsElem = elem('pvs1');
-  var pvs = pvsElem.value;
-  var pvElem = elem('pv1');
-  var poElem = elem('po1');
-  var po = poElem.value;
+  const pc = elem('pc1').value;
+  const pvsElem = elem('pvs1');
+  const pvs = pvsElem.value;
+  const pvElem = elem('pv1');
+  const poElem = elem('po1');
+  const po = poElem.value;
   setVisible(pvElem, pc == 's' || pvs == 's' || pvs == 'c' || pvs == 'r');
   setVisible(pvsElem, pc != 's');
   setVisible(poElem, pc != 's');
@@ -212,12 +219,12 @@ function processSetCellAction(builder) {
   setVisible(elem('pvs1-r-pv1'), pvs == 'r');
 
   if (pc == 's') {
-    builder.main('[x,y] = %s;', strValue(pvElem));
+    builder.main(`[x,y] = ${strValue(pvElem)};`);
     return;
   }
 
-  var isValueString = (po == 'i' || po == 'a');
-  var value;
+  const isValueString = (po == 'i' || po == 'a');
+  let value;
   if (pvs == 's') {
     value = isValueString ? strValue(pvElem) : numValue(pvElem);
   } else if (pvs == 'd' || pvs == 'm') {
@@ -251,7 +258,7 @@ function processSetCellAction(builder) {
     }
   }
 
-  var originalValue = '[x,y]';
+  let originalValue = '[x,y]';
   if (pc == 'u') {
     originalValue = '[x,y-1]';
   } else if (pc == 'l') {
@@ -263,65 +270,86 @@ function processSetCellAction(builder) {
   }
 
   if (po == 'i') {
-    builder.main('[x,y] = %s + %s;', value, originalValue);
+    builder.main(`[x,y] = ${value} + ${originalValue};`);
   } else if (po == 'a') {
-    builder.main('[x,y] = %s + %s;', originalValue, value);
+    builder.main(`[x,y] = ${originalValue} + ${value};`);
   } else if (po == 'p') {
-    builder.main('[x,y] = %s + %s;', originalValue, value);
+    builder.main(`[x,y] = ${originalValue} + ${value};`);
   } else if (po == 'm') {
-    builder.main('[x,y] = %s - %s;', originalValue, value);
+    builder.main(`[x,y] = ${originalValue} - ${value};`);
   } else if (po == 'x') {
-    builder.main('[x,y] = %s * %s;', originalValue, value);
+    builder.main(`[x,y] = ${originalValue} * ${value};`);
   } else if (po == 'xr') {
-    builder.main('[x,y] = int(%s * %s + 0.5);', originalValue, value);
+    builder.main(`[x,y] = int(${originalValue} * ${value} + 0.5);`);
   } else if (po == 'xf') {
-    builder.main('[x,y] = int(%s * %s);', originalValue, value);
+    builder.main(`[x,y] = int(${originalValue} * ${value});`);
   } else if (po == 'd') {
-    builder.main('[x,y] = %s / %s;', originalValue, value);
+    builder.main(`[x,y] = ${originalValue} / ${value};`);
   } else if (po == 'dr') {
-    builder.main('[x,y] = int(%s / %s + 0.5);', originalValue, value);
+    builder.main(`[x,y] = int(${originalValue} / ${value} + 0.5);`);
   } else if (po == 'df') {
-    builder.main('[x,y] = int(%s / %s);', originalValue, value);
+    builder.main(`[x,y] = int(${originalValue} / ${value});`);
   }
 }
 
+/**
+ * @template {string} T
+ * @param {T} id
+ * @returns {T extends 'main-grid' ? CassavaGridElement : HTMLInputElement|HTMLTextAreaElement}
+ */
 function elem(id) {
-  return document.getElementById(id);
+  return /** @type {any} */(document.getElementById(id));
 }
 
+/**
+ * @param {HTMLInputElement|HTMLTextAreaElement} element
+ * @returns {number}
+ */
 function numValue(element) {
-  var value = element.value;
-  var numValue = value - 0 || 0;
-  if (value == '' || value != numValue) {
+  const value = element.value;
+  const numValue = Number(value) || 0;
+  if (value == '' || value != numValue.toString()) {
     element.className += ' error';
   }
   return numValue;
 }
 
+/**
+ * @param {HTMLInputElement|HTMLTextAreaElement} element
+ * @returns {string}
+ */
 function strValue(element) {
   return '"' + element.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
+/**
+ * @param {HTMLElement} element
+ * @param {boolean} visible
+ */
 function setVisible(element, visible) {
   element.style.display = (visible ? '' : 'none');
 }
 
+/**
+ * @param {string} selector
+ * @param {boolean} visible
+ */
 function setVisibleAll(selector, visible) {
-  var elements = document.querySelectorAll(selector);
-  for (var i = 0; i < elements.length; i++) {
+  const elements = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(selector));
+  for (let i = 0; i < elements.length; i++) {
     setVisible(elements[i], visible);
   }
 }
 
 function restore() {
-  var hash = location.hash;
+  let hash = location.hash;
   if (hash[0] == '#') {
     hash = hash.substring(1);
   }
-  var params = hash.split('&');
-  for (var i = 0; i < params.length; i++) {
-    var param = params[i].split('=');
-    var input = elem(param[0]);
+  const params = hash.split('&');
+  for (let i = 0; i < params.length; i++) {
+    const param = params[i].split('=');
+    const input = elem(param[0]);
     if (input) {
       input.value = decodeURIComponent(param[1]);
     }
@@ -330,7 +358,7 @@ function restore() {
 }
 
 function updateUrl() {
-  var ids = {
+  const ids = new Map(Object.entries({
     y: 'a',
     yv: '1',
     x: 'a',
@@ -345,15 +373,15 @@ function updateUrl() {
     pv1: '',
     po1: 'i',
     name: 'CassavaMacro'
-  };
-  var results = [];
-  for (var id in ids) {
-    var input = elem(id);
-    if (input && input.value != ids[id]) {
+  }));
+  const results = [];
+  for (const [id, def] of ids) {
+    const input = elem(id);
+    if (input && input.value != def) {
       results.push(id + '=' + encodeURIComponent(input.value));
     }
   }
-  var hash = '#' + results.join('&');
+  const hash = '#' + results.join('&');
   try {
     history.replaceState(null, null, hash);
   } catch (e) {
@@ -361,15 +389,19 @@ function updateUrl() {
   }
 }
 
+/**
+ * @param {Event} event
+ * @returns {boolean}
+ */
 function download(event) {
-  var blob = new Blob(["\ufeff" + elem('content').value], {type: "text/plain"});
-  var name = elem('name').value + '.cms';
-  if (navigator.msSaveOrOpenBlob) {
-    navigator.msSaveOrOpenBlob(blob, name);
+  const blob = new Blob(["\ufeff" + elem('content').value], {type: "text/plain"});
+  const name = elem('name').value + '.cms';
+  if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
+    /** @type {any} */(navigator).msSaveOrOpenBlob(blob, name);
     return false;
   }
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
   document.body.appendChild(a);
   a.download = name;
   a.href = url;
@@ -382,10 +414,10 @@ function download(event) {
 }
 
 function loadCassava() {
-  document.getElementById('cassava-editor-placeholder').style.display = 'none';      
-  var element = document.getElementById('cassava-editor-js');
+  document.getElementById('cassava-editor-placeholder').style.display = 'none';
+  const element = document.getElementById('cassava-editor-js');
   element.style.display = '';
-  var script = document.createElement('script');
+  const script = document.createElement('script');
   script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250202.js';
   element.append(script);
   script.onload = generate;
