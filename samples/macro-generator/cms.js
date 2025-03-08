@@ -295,14 +295,14 @@ function processSetCellAction(builder) {
 /**
  * @template {string} T
  * @param {T} id
- * @returns {T extends 'main-grid' ? CassavaGridElement : HTMLInputElement|HTMLTextAreaElement}
+ * @returns {T extends 'main-grid' ? CassavaGridElement : HTMLInputElement|HTMLSelectElement}
  */
 function elem(id) {
   return /** @type {any} */(document.getElementById(id));
 }
 
 /**
- * @param {HTMLInputElement|HTMLTextAreaElement} element
+ * @param {HTMLInputElement|HTMLSelectElement} element
  * @returns {number}
  */
 function numValue(element) {
@@ -315,7 +315,7 @@ function numValue(element) {
 }
 
 /**
- * @param {HTMLInputElement|HTMLTextAreaElement} element
+ * @param {HTMLInputElement|HTMLSelectElement} element
  * @returns {string}
  */
 function strValue(element) {
@@ -364,7 +364,7 @@ function updateUrl() {
     x: 'a',
     xv: '1',
     cc1: 'c',
-    ccv1: '',
+    ccv1: '1',
     cv1: '',
     co1: 'q',
     pp1: 'c',
@@ -389,16 +389,12 @@ function updateUrl() {
   }
 }
 
-/**
- * @param {Event} event
- * @returns {boolean}
- */
-function download(event) {
+function download() {
   const blob = new Blob(["\ufeff" + elem('content').value], {type: "text/plain"});
   const name = elem('name').value + '.cms';
   if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
     /** @type {any} */(navigator).msSaveOrOpenBlob(blob, name);
-    return false;
+    return;
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -407,15 +403,13 @@ function download(event) {
   a.href = url;
   a.click();
   document.body.removeChild(a);
-  setTimeout(function() {
+  setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 10000);
-  return false;
 }
 
 function loadCassava() {
-  document.getElementById('cassava-editor-placeholder').style.display = 'none';
-  const element = document.getElementById('cassava-editor-js');
+  const element = elem('cassava-editor-js');
   element.style.display = '';
   const script = document.createElement('script');
   script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250308.js';
@@ -423,9 +417,22 @@ function loadCassava() {
   script.onload = generate;
 }
 
-window.addEventListener('DOMContentLoaded',function() {
+window.addEventListener('DOMContentLoaded', () => {
   if (location.hash != '#cassava-js') {
     restore();
   }
+
+  const inputs = elem('inputs');
+  inputs.addEventListener('change', generate);
+  inputs.addEventListener('keyup', generate);
+
+  elem('form').addEventListener('submit', event => {
+    download();
+    event.preventDefault();
+  });
+
   setTimeout(loadCassava, 100);
+  elem('run').addEventListener('click', () => {
+    elem('main-grid').runMacro(elem('content').value);
+  });
 });
