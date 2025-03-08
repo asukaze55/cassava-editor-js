@@ -1454,12 +1454,23 @@ class OpenDialog {
   show() {
     return new Promise(resolve => {
       this.#fileInput.value = '';
-      const listener = async () => {
-        this.#fileInput.removeEventListener('change', listener);
+      /** @type {EventListener} */
+      let changeListener;
+      /** @type {EventListener} */
+      let cancelListener;
+      changeListener = async () => {
+        this.#fileInput.removeEventListener('change', changeListener);
+        this.#fileInput.removeEventListener('cancel', cancelListener);
         await this.load();
         resolve();
       };
-      this.#fileInput.addEventListener('change', listener);
+      cancelListener = () => {
+        this.#fileInput.removeEventListener('change', changeListener);
+        this.#fileInput.removeEventListener('cancel', cancelListener);
+        resolve();
+      }
+      this.#fileInput.addEventListener('change', changeListener);
+      this.#fileInput.addEventListener('cancel', cancelListener);
       this.#fileInput.click();
     });
   }
