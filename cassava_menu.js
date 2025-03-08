@@ -159,7 +159,8 @@ class CassavaMenuElement extends HTMLElement {
         ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
       ['マクロ', event => this.toggleMacroMenu(event, grid, [
-        ['マクロを編集...', () => macroDialog.show()]
+        ['マクロを編集...', () => macroDialog.show()],
+        ['指定したマクロを実行', command('MacroExecute')],
       ]), []],
       ['ヘルプ', toggleSubMenu, [
         ['掲示板', () => window.open('https://www.asukaze.net/soft/cassava/bbs/', '_blank')],

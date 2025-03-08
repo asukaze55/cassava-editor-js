@@ -1416,12 +1416,12 @@ class OpenDialog {
   #encoding = 'UTF-8';
   /** @type {HTMLInputElement} */
   #fileInput;
-  /** @type {Grid} */
-  #grid;
+  /** @type {(content: string, name: string) => Promise<ValueType>|void} */
+  #onLoad;
 
-  /** @param {Grid} grid */
-  constructor(grid) {
-    this.#grid = grid;
+  /** @param {(content: string, name: string) => Promise<ValueType>|void} onLoad */
+  constructor(onLoad) {
+    this.#onLoad = onLoad;
     this.#fileInput = createElement('input', {
       style: 'display: none;',
       type: 'file'
@@ -1437,11 +1437,8 @@ class OpenDialog {
     return new Promise(resolve => {
       const reader = new FileReader();
       reader.readAsText(file, this.#encoding);
-      reader.addEventListener('load', () => {
-        const dataFormat = DataFormat.forFileName(file.name);
-        this.#grid.setGridData(
-            dataFormat.parse(/** @type {string} */(reader.result)),
-            file.name, dataFormat);
+      reader.addEventListener('load', async () => {
+        await this.#onLoad(/** @type {string} */(reader.result), file.name);
         resolve();
       });
     });
@@ -1652,6 +1649,8 @@ class CassavaGridElement extends HTMLElement {
   #macroMap;
   /** @type {OpenDialog} */
   #openDialog;
+  /** @type {OpenDialog} */
+  #macroExecuteDialog;
   /** @type {CassavaStatusBarElement} */
   #statusBarPanel;
 
@@ -1710,6 +1709,7 @@ class CassavaGridElement extends HTMLElement {
     'InsertCol/2': (a, b) => this.#grid.insertCol(Number(a), Number(b), false),
     'InsertRow/1': a => this.#grid.insertRow(Number(a), Number(a), false),
     'InsertRow/2': (a, b) => this.#grid.insertRow(Number(a), Number(b), false),
+    'MacroExecute/0': () => this.#macroExecuteDialog.show(),
     'MacroTerminate/0': () => {
       throw macroTerminated;
     },
@@ -1847,7 +1847,12 @@ class CassavaGridElement extends HTMLElement {
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
     this.#macroMap = new Map();
-    this.#openDialog = new OpenDialog(this.#grid);
+    this.#openDialog = new OpenDialog((content, fileName) => {
+      const dataFormat = DataFormat.forFileName(fileName);
+      this.#grid.setGridData(dataFormat.parse(content), fileName, dataFormat);
+    });
+    this.#macroExecuteDialog =
+        new OpenDialog(content => this.#runMacro(content));
     this.#statusBarPanel = /** @type {CassavaStatusBarElement} */(
         createElement('cassava-status-bar', {style: 'display: none;'}));
 
