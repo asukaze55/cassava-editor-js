@@ -106,6 +106,7 @@
       <option value="c">そのセルの値を設定する</option>
       <option value="dr" class="single-col-only">その行を削除する</option>
       <option value="hr" class="single-col-only">その行を非表示にする</option>
+      <option value="r">セル内の文字列を置き換える</option>
     </select>
   </div>
   <div id="pcvo1">
@@ -140,6 +141,13 @@
       <option value="dr">をわった値（結果を四捨五入）</option>
       <option value="df">をわった値（結果を切り捨て）</option>
     </select>
+  </div>
+  <div id="prft1">
+    置換する文字列：
+    <input type="text" id="prf1" />
+    を
+    <input type="text" id="prt1" />
+    に
   </div>
 </div>
 <form id="form" method="post" target="_blank"
@@ -186,6 +194,10 @@
 
 <h2>更新履歴</h2>
 <ul>
+  <li>
+    2025/03/08:
+    処理に「セル内の文字列を置き換える」を追加。
+  </li>
   <li>
     2023/11/17:
     隣のセルだけでなく、指定した行・列の内容を条件に使用できるようにした。

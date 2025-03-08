@@ -14,6 +14,13 @@ class Builder {
     return this.#header.concat(this.#main).concat(this.#footer).join('\n');
   }
 
+  clear() {
+    this.#header = [];
+    this.#main = [];
+    this.#footer = [];
+    this.#indent = '';
+  }
+
   /** @param {string} line */
   header(line) {
     this.#header.push(line);
@@ -70,67 +77,93 @@ function generate() {
 
 /** @param {Builder} builder */
 function processY(builder) {
+  const [t, b, reverse] = processTopBottom(builder);
+  if (t != b) {
+    if (reverse) {
+      builder.block(`for (y = ${b}; y >= ${t}; y--)`);
+    } else {
+      builder.block(`for (y = ${t}; y <= ${b}; y++)`);
+    }
+  } else if (t != 'y') {
+    builder.header(`y = ${t};`);
+  }
+}
+
+/**
+ * @param {Builder} builder
+ * @returns {[string|number, string|number, boolean]}
+ */
+function processTopBottom(builder) {
   const y = elem('y').value;
-  const pc = elem('pc1').value;
-  const pp = elem('pp1').value;
   const singleRow = (y == 'c' || y == 'e' || y == 'd');
+  const reverse = (elem('pp1').value == 'dr' || elem('pc1').value == 'u');
   setVisible(elem('ye'), y == 'e');
   setVisibleAll('.single-row-only', singleRow);
+
   if (y == 'a') {
-    if (pp == 'dr' || pc == 'u') {
-      builder.block('for (y = Bottom; y >= 1; y--)');
-    } else {
-      builder.block('for (y = 1; y <= Bottom; y++)');
-    }
+    return [1, 'Bottom', reverse];
   } else if (y == '2') {
-    if (pp == 'dr' || pc == 'u') {
-      builder.block('for (y = Bottom; y >= 2; y--)');
-    } else {
-      builder.block('for (y = 2; y <= Bottom; y++)');
-    }
+    return [2, 'Bottom', reverse];
   } else if (y == 's') {
-    if (pp == 'dr' || pc == 'u') {
+    if (reverse) {
       builder.header('SB = SelBottom;');
       builder.header('ST = SelTop;');
-      builder.block('for (y = SB; y >= ST; y--) {');
+      return ['ST', 'SB', reverse];
     } else {
-      builder.block('for (y = SelTop; y <= SelBottom; y++)');
+      return ['SelTop', 'SelBottom', reverse];
     }
   } else if (y == 'e') {
-    builder.header(`y = ${numValue(elem('yv'))};`);
+    const yv = numValue(elem('yv'));
+    return [yv, yv, reverse];
   } else if (y == 'd') {
     builder.header('y = int(InputBox("行番号を入力してください。"));');
     builder.header('if (y == 0) { return; }');
     builder.header('');
+    return ['y', 'y', reverse];
+  } else {
+    return ['y', 'y', reverse];
   }
 }
 
 /** @param {Builder} builder */
 function processX(builder) {
+  const [l, r, reverse] = processLeftRight(builder);
+  if (l != r) {
+    if (reverse) {
+      builder.block(`for (x = ${r}; x >= ${l}; x--)`);
+    } else {
+      builder.block(`for (x = ${l}; x <= ${r}; x++)`);
+    }
+  } else if (l != 'x') {
+    builder.header(`x = ${l};`);
+  }
+}
+
+/**
+ * @param {Builder} builder
+ * @returns {[string|number, string|number, boolean]}
+ */
+function processLeftRight(builder) {
   const x = elem('x').value;
-  const pc = elem('pc1').value;
   const singleCol = (x == 'c' || x == 'e' || x == 'd');
+  const reverse = (elem('pc1').value == 'l');
   setVisible(elem('xe'), x == 'e');
   setVisibleAll('.single-col-only', singleCol);
 
   if (x == 'a') {
-    if (pc == 'l') {
-      builder.block('for (x = Right; x >= 1; x--)');
-    } else {
-      builder.block('for (x = 1; x <= Right; x++)');
-    }
+    return [1, 'Right', reverse];
   } else if (x == 's') {
-    if (pc == 'l') {
-      builder.block('for (x = SelRight; x <= SelLeft; x--)');
-    } else {
-      builder.block('for (x = SelLeft; x <= SelRight; x++)');
-    }
+    return ['SelLeft', 'SelRight', reverse];
   } else if (x == 'e') {
-    builder.header(`x = ${numValue(elem('xv'))};`);
+    const xv = numValue(elem('xv'));
+    return [xv, xv, reverse];
   } else if (x == 'd') {
     builder.header('x = int(InputBox("列番号を入力してください。"));');
     builder.header('if (x == 0) { return; }');
     builder.header('');
+    return ['x', 'x', reverse];
+  } else {
+    return ['x', 'x', reverse];
   }
 }
 
@@ -195,12 +228,15 @@ function processCondition(builder) {
 function processAction(builder) {
   const pp = elem('pp1').value;
   setVisible(elem('pcvo1'), pp == 'c');
+  setVisible(elem('prft1'), pp == 'r');
   if (pp == 'dr'){
     builder.main('DeleteRow(y);');
   } else if (pp == 'hr') {
     builder.main('SetRowHeight(y, 0);');
   } else if (pp == 'c') {
     processSetCellAction(builder);
+  } else if (pp == 'r') {
+    processReplaceAction(builder);
   }
 }
 
@@ -292,6 +328,27 @@ function processSetCellAction(builder) {
   }
 }
 
+/** @param {Builder} builder */
+function processReplaceAction(builder) {
+  const prf = strValue(elem('prf1'));
+  const prt = strValue(elem('prt1'));
+  if (elem('cc1').value == 'a') {
+    builder.clear();
+    const x = elem('x').value;
+    const y = elem('y').value;
+    if (x == 'a' && y == 'a') {
+      builder.main(`ReplaceAll(${prf}, ${prt});`);
+    } else {
+      const [t, b] = processTopBottom(builder);
+      const [l, r] = processLeftRight(builder);
+      builder.main(`ReplaceAll(` +
+          `${prf}, ${prt}, false, false, false, ${l}, ${t}, ${r}, ${b});`);
+    }
+  } else {
+    builder.main(`[x,y] = [x,y].replaceAll(${prf}, ${prt});`);
+  }
+}
+
 /**
  * @template {string} T
  * @param {T} id
@@ -372,6 +429,8 @@ function updateUrl() {
     pvs1: 's',
     pv1: '',
     po1: 'i',
+    prf1: '',
+    prt1: '',
     name: 'CassavaMacro'
   }));
   const results = [];
