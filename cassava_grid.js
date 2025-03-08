@@ -1438,7 +1438,9 @@ class OpenDialog {
       const reader = new FileReader();
       reader.readAsText(file, this.#encoding);
       reader.addEventListener('load', async () => {
-        await this.#onLoad(/** @type {string} */(reader.result), file.name);
+        try {
+          await this.#onLoad(/** @type {string} */(reader.result), file.name);
+        } catch {}
         resolve();
       });
     });
