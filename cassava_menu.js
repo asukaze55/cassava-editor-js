@@ -160,7 +160,7 @@ class CassavaMenuElement extends HTMLElement {
       ]],
       ['マクロ', event => this.toggleMacroMenu(event, grid, [
         ['マクロを編集...', () => macroDialog.show()],
-        ['指定したマクロを実行', command('MacroExecute')],
+        ['指定したマクロを実行...', command('MacroExecute')],
       ]), []],
       ['ヘルプ', toggleSubMenu, [
         ['掲示板', () => window.open('https://www.asukaze.net/soft/cassava/bbs/', '_blank')],
