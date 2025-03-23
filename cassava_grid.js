@@ -57,6 +57,10 @@ class Grid {
   #mouseDownX;
   /** @type {number} */
   #mouseDownY;
+  /** @type {boolean} */
+  #isTouchStarted;
+  /** @type {boolean} */
+  #isTouchCurentCell;
   /** @type {number} */
   #suppressRender;
   /** @type {number} */
@@ -93,9 +97,11 @@ class Grid {
     this.element.addEventListener('mouseup', event => this.#onMouseUp(event));
     this.element.addEventListener('scroll', () => this.render());
     this.element.addEventListener(
-        'touchend', event => this.#onTouchMove(event));
+        'touchend', event => this.#onTouchEnd(event));
     this.element.addEventListener(
         'touchmove', event => this.#onTouchMove(event), {passive: true});
+    this.element.addEventListener(
+        'touchstart', event => this.#onTouchStart(event));
   }
 
   /** @returns {Range} */
@@ -144,6 +150,7 @@ class Grid {
     this.#isMouseDown = false;
     this.#mouseDownX = 1;
     this.#mouseDownY = 1;
+    this.#isTouchCurentCell = false;
     this.defaultColWidth = 48;
     /** @type {Map<number, number>} */
     this.colWidths = new Map();
@@ -624,9 +631,9 @@ class Grid {
    * @param {number} x2
    * @param {number} y2
    */
-  select(x1, y1, x2, y2) {
-    if (x1 == x2 && y1 == y2) {
-      this.moveTo(x1, y1);
+  async select(x1, y1, x2, y2) {
+    if (x1 == x2 && y1 == y2 && !this.#isTouchStarted) {
+      await this.moveTo(x1, y1);
       return;
     }
     blurActiveElement();
@@ -636,11 +643,11 @@ class Grid {
     this.anchorY = y1;
     this.x = x2;
     this.y = y2;
-    this.render();
+    await this.render();
   }
 
   selectAll() {
-    this.select(1, 1, this.#undoGrid.right(), this.#undoGrid.bottom());
+    return this.select(1, 1, this.#undoGrid.right(), this.#undoGrid.bottom());
   }
 
   /**
@@ -648,7 +655,7 @@ class Grid {
    * @param {number} r
    */
   selectCol(l, r) {
-    this.select(l, 1, r, this.#undoGrid.bottom());
+    return this.select(l, 1, r, this.#undoGrid.bottom());
   }
 
   /**
@@ -656,7 +663,7 @@ class Grid {
    * @param {number} b
    */
   selectRow(t, b) {
-    this.select(1, t, this.#undoGrid.right(), b);
+    return this.select(1, t, this.#undoGrid.right(), b);
   }
 
   /**
@@ -665,12 +672,12 @@ class Grid {
    * @param {number} selAnchor
    * @param {number} selFocus
    */
-  selectText(x, y, selAnchor, selFocus) {
+  async selectText(x, y, selAnchor, selFocus) {
     this.anchorX = x;
     this.anchorY = y;
     this.x = x;
     this.y = y;
-    this.render();
+    await this.render();
     const cellNode = this.cellNode(x, y);
     this.#renderRawCell(cellNode, x, y);
     cellNode.focus();
@@ -836,7 +843,7 @@ class Grid {
   }
 
   /** @param {MouseEvent} event */
-  #onMouseDown(event) {
+  async #onMouseDown(event) {
     const target = getEventTarget(event);
     if (target == null) {
       return;
@@ -846,11 +853,11 @@ class Grid {
     this.#isMouseDown = true;
     this.#mouseDownX = x;
     this.#mouseDownY = y;
-    this.#onMouseMove(event);
+    await this.#onMouseMove(event);
   }
 
   /** @param {MouseEvent} event */
-  #onMouseMove(event) {
+  async #onMouseMove(event) {
     if (!this.#isMouseDown) {
       return;
     }
@@ -862,31 +869,47 @@ class Grid {
     const y = parseInt(target.dataset.y, 10);
     const anchorX = event.shiftKey ? this.anchorX : this.#mouseDownX;
     const anchorY = event.shiftKey ? this.anchorY : this.#mouseDownY;
-    if (!this.isEditing || x != this.x || y != this.y) {
-      if (x == 0 && y == 0) {
-        this.selectAll();
-        event.preventDefault();
-      } else if (x == 0) {
-        this.selectRow(anchorY, y);
-        event.preventDefault();
-      } else if (y == 0) {
-        this.selectCol(anchorX, x);
-        event.preventDefault();
-      } else {
-        this.select(anchorX, anchorY, x, y);
-        event.preventDefault();
-      }
+    if (this.isEditing && x == this.x && y == this.y) {
+      return;
+    }
+    event.preventDefault();
+    if (x == 0 && y == 0) {
+      await this.selectAll();
+    } else if (x == 0) {
+      await this.selectRow(anchorY, y);
+    } else if (y == 0) {
+      await this.selectCol(anchorX, x);
+    } else {
+      await this.select(anchorX, anchorY, x, y);
     }
   }
 
   /** @param {MouseEvent} event */
-  #onMouseUp(event) {
-    this.#onMouseMove(event);
+  async #onMouseUp(event) {
+    await this.#onMouseMove(event);
     this.#isMouseDown = false;
   }
 
   /** @param {TouchEvent} event */
-  #onTouchMove(event) {
+  async #onTouchStart(event) {
+    this.#isTouchStarted = true;
+    if (this.isEditing || this.x != this.anchorX || this.y != this.anchorY) {
+      return;
+    }
+    const target = getEventTarget(event.changedTouches[0]);
+    if (target == null) {
+      return;
+    }
+    const x = parseInt(target.dataset.x, 10);
+    const y = parseInt(target.dataset.y, 10);
+    if (x == this.x && y == this.y) {
+      this.#isTouchCurentCell = true;
+    }
+    await this.#onTouchMove(event);
+  }
+
+  /** @param {TouchEvent} event */
+  async #onTouchMove(event) {
     const touch = event.changedTouches[0];
     const from = getEventTarget(touch);
     const to = this.#touchedCell(touch, this.element);
@@ -897,20 +920,34 @@ class Grid {
     const y1 = parseInt(from.dataset.y, 10);
     const x2 = parseInt(to.dataset.x, 10);
     const y2 = parseInt(to.dataset.y, 10);
-    if (x1 != x2 || y1 != y2) {
-      blurActiveElement();
+    if (this.isEditing && x2 == this.x && y2 == this.y) {
+      return;
     }
     if ((x1 == 0 || x2 == 0) && (y1 == 0 || y2 == 0)) {
-      this.selectAll();
+      await this.selectAll();
     } else if (x1 == 0 || x2 == 0) {
-      this.selectRow(y1, y2);
+      await this.selectRow(y1, y2);
     } else if (y1 == 0 || y2 == 0) {
-      this.selectCol(x1, x2);
+      await this.selectCol(x1, x2);
     } else {
-      this.select(x1, y1, x2, y2);
+      await this.select(x1, y1, x2, y2);
     }
   }
 
+  /** @param {TouchEvent} event */
+  async #onTouchEnd(event) {
+    await this.#onTouchMove(event);
+    if (this.#isTouchCurentCell && this.x == this.anchorX &&
+        this.y == this.anchorY) {
+      this.moveTo(this.x, this.y);
+    }
+    this.#isTouchCurentCell = false;
+    // Clean up #isTouchStarted after mouse events complete.
+    setTimeout(() => {
+      this.#isTouchStarted = false;
+    });
+  }
+  
   /**
    * @param {Touch} touch
    * @param {HTMLTableElement} table
