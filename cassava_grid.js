@@ -82,6 +82,7 @@ class Grid {
     this.#onRenderCell = onRenderCell;
     this.clear();
 
+    this.element.tabIndex = 0;
     this.element.addEventListener('focusin', event => this.#onFocusIn(event));
     this.element.addEventListener('focusout', event => this.#onFocusOut(event));
     this.element.addEventListener('input', event => this.#onInput(event));
@@ -346,6 +347,7 @@ class Grid {
     }
     await this.render();
     const cellNode = this.cellNode(x, y);
+    cellNode.contentEditable = 'true';
     cellNode.focus();
     setTimeout(() => window.getSelection()
         .setBaseAndExtent(cellNode, 0, cellNode,
@@ -484,8 +486,6 @@ class Grid {
           cell.className = 'fixed-row';
         } else if (x == 0) {
           cell.className = 'fixed-col';
-        } else {
-          cell.contentEditable = 'true';
         }
         row.appendChild(cell);
       }
@@ -625,9 +625,6 @@ class Grid {
    * @param {number} y2
    */
   select(x1, y1, x2, y2) {
-    if (x1 == this.anchorX && x2 == this.anchorY && x2 == this.x && y2 == this.y) {
-      return;
-    }
     if (x1 == x2 && y1 == y2) {
       this.moveTo(x1, y1);
       return;
@@ -807,10 +804,11 @@ class Grid {
     if (target == null) {
       return;
     }
-    const x = parseInt(target.dataset.x, 10);
-    const y = parseInt(target.dataset.y, 10);
+    target.contentEditable = 'true';
+    this.x = parseInt(target.dataset.x, 10);
+    this.y = parseInt(target.dataset.y, 10);
     this.isEditing = true;
-    this.#renderRawCell(target, x, y);
+    this.#renderRawCell(target, this.x, this.y);
   }
 
   /** @param {Event} event */
@@ -819,6 +817,7 @@ class Grid {
     if (target == null) {
       return;
     }
+    target.contentEditable = 'false';
     const x = parseInt(target.dataset.x, 10);
     const y = parseInt(target.dataset.y, 10);
     this.isEditing = false;
@@ -863,7 +862,7 @@ class Grid {
     const y = parseInt(target.dataset.y, 10);
     const anchorX = event.shiftKey ? this.anchorX : this.#mouseDownX;
     const anchorY = event.shiftKey ? this.anchorY : this.#mouseDownY;
-    if (x != this.x || y != this.y) {
+    if (!this.isEditing || x != this.x || y != this.y) {
       if (x == 0 && y == 0) {
         this.selectAll();
         event.preventDefault();
@@ -1369,6 +1368,28 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
         }
         event.preventDefault();
       }
+      return;
+    case 'Tab':
+      if (event.shiftKey) {
+        if (grid.x == 1) {
+          if (grid.y == 1) {
+            return;
+          }
+          grid.moveTo(grid.right() + 1, grid.y - 1);
+        } else {
+          grid.moveTo(grid.x - 1, grid.y);
+        }
+      } else {
+        if (grid.x > grid.right()) {
+          if (grid.y > grid.bottom()) {
+            return;
+          }
+          grid.moveTo(1, grid.y + 1);
+        } else {
+          grid.moveTo(grid.x + 1, grid.y);
+        }
+      }
+      event.preventDefault();
       return;
   }
 }
