@@ -2006,10 +2006,10 @@ class CassavaGridElement extends HTMLElement {
   /**
    * Gets all registered macro names.
    *
-   * @returns {IterableIterator<string>}
+   * @returns {Array<string>}
    */
   getMacroNames() {
-    return this.#macroMap.keys();
+    return Array.from(this.#macroMap.keys());
   }
 
   /**

@@ -55,7 +55,7 @@ Cassava Editor のマクロがおおむねそのまま動作します。
 |`bottom(): number`|データが何行目まであるかを返します。|
 |`cell(x: number, y: number): string`|y 行 x 列のセルの内容を返します。|
 |`getMacro(macroName: string): string?`|指定したマクロ名のマクロの内容を返します。|
-|`getMacroNames(): IterableIterator<string>`|`addMacro` で登録したマクロ名の一覧を取得します。|
+|`getMacroNames(): Array<string>`|`addMacro` で登録したマクロ名の一覧を取得します。|
 |`runNamedMacro(macroName: string)`|`addMacro` で登録したマクロを実行します。|
 |`runMacro(macro: string)`|`macro` の内容のマクロを実行します。|
 |`right(): number`|データが何列目まであるかを返します。|

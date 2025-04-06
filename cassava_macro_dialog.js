@@ -51,7 +51,7 @@ class MacroManager {
 
   /** @returns {Array<string>} */
   appMacroNames() {
-    return Array.from(this.#grid.getMacroNames())
+    return this.#grid.getMacroNames()
         .filter(name => !this.#managedMacroNames.has(name))
         .sort();
   }

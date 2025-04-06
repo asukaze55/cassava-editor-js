@@ -213,7 +213,7 @@ class CassavaMenuElement extends HTMLElement {
     const subMenu = currentTarget.lastElementChild;
     subMenu.innerHTML = '';
     subMenu.append(...menuItems(items));
-    subMenu.append(...menuItems(Array.from(grid.getMacroNames())
+    subMenu.append(...menuItems(grid.getMacroNames()
         .filter(name => !name.startsWith('lib/') &&
             !name.startsWith('tests/') && !name.startsWith('!'))
         .map(name => [name, () => grid.runNamedMacro(name)])));
