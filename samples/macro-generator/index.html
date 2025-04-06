@@ -144,10 +144,20 @@
   </div>
   <div id="prft1">
     置換する文字列：
-    <input type="text" id="prf1" />
-    を
-    <input type="text" id="prt1" />
-    に
+    <div style="display: inline-block; vertical-align: top;">
+      <div>
+        <input type="text" id="prf1" />
+        を
+        <input type="text" id="prt1" />
+        に
+      </div>
+      <div>
+        <label><input type="checkbox" id="prc1" />大文字と小文字を同一視</label>
+      </div>
+      <div>
+        <label><input type="checkbox" id="prr1" />正規表現検索</label>
+      </div>
+    </div>
   </div>
 </div>
 <form id="form" method="post" target="_blank"
@@ -194,6 +204,10 @@
 
 <h2>更新履歴</h2>
 <ul>
+  <li>
+    2025/04/06:
+    セル内の文字列を置き換える場合に「大文字と小文字を同一視」と「正規表現検索」のオプションを追加。
+  </li>
   <li>
     2025/03/08:
     処理に「セル内の文字列を置き換える」を追加。

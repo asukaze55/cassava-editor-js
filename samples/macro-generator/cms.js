@@ -332,18 +332,30 @@ function processSetCellAction(builder) {
 function processReplaceAction(builder) {
   const prf = strValue(elem('prf1'));
   const prt = strValue(elem('prt1'));
+  const prc = boolValue(elem('prc1'));
+  const prr = boolValue(elem('prr1'));
   if (elem('cc1').value == 'a') {
     builder.clear();
     const x = elem('x').value;
     const y = elem('y').value;
-    if (x == 'a' && y == 'a') {
-      builder.main(`ReplaceAll(${prf}, ${prt});`);
-    } else {
+    if (x != 'a' || y != 'a') {
       const [t, b] = processTopBottom(builder);
       const [l, r] = processLeftRight(builder);
-      builder.main(`ReplaceAll(` +
-          `${prf}, ${prt}, false, false, false, ${l}, ${t}, ${r}, ${b});`);
+      builder.main(`ReplaceAll(${prf}, ${prt}, ${prc}, false, ${prr}, ` +
+          `${l}, ${t}, ${r}, ${b});`);
+    } else if (prc || prr) {
+      builder.main(`ReplaceAll(${prf}, ${prt}, ${prc}, false, ${prr});`);
+    } else {
+      builder.main(`ReplaceAll(${prf}, ${prt});`);
     }
+  } else if (prr) {
+    const re = elem('prf1').value.replace(/\//g, '\\/');
+    const flag = (prc ? 'gi' : 'g');
+    builder.main(`[x,y] = [x,y].replaceAll(/${re}/${flag}, ${prt});`);
+  } else if (prc) {
+    const re = elem('prf1').value.replace(
+        /[\$\(\)\*\+\.\/\?\[\\\]\^\{\|\}]/gi, '\\$&');
+    builder.main(`[x,y] = [x,y].replaceAll(/${re}/gi, ${prt});`);
   } else {
     builder.main(`[x,y] = [x,y].replaceAll(${prf}, ${prt});`);
   }
@@ -352,14 +364,14 @@ function processReplaceAction(builder) {
 /**
  * @template {string} T
  * @param {T} id
- * @returns {T extends 'main-grid' ? CassavaGridElement : HTMLInputElement|HTMLSelectElement}
+ * @returns {T extends 'main-grid' ? CassavaGridElement : HTMLInputElement}
  */
 function elem(id) {
   return /** @type {any} */(document.getElementById(id));
 }
 
 /**
- * @param {HTMLInputElement|HTMLSelectElement} element
+ * @param {HTMLInputElement} element
  * @returns {number}
  */
 function numValue(element) {
@@ -372,11 +384,19 @@ function numValue(element) {
 }
 
 /**
- * @param {HTMLInputElement|HTMLSelectElement} element
+ * @param {HTMLInputElement} element
  * @returns {string}
  */
 function strValue(element) {
   return '"' + element.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+/**
+ * @param {HTMLInputElement} element
+ * @returns {boolean}
+ */
+function boolValue(element) {
+  return !!element.checked;
 }
 
 /**
@@ -407,7 +427,12 @@ function restore() {
   for (let i = 0; i < params.length; i++) {
     const param = params[i].split('=');
     const input = elem(param[0]);
-    if (input) {
+    if (!input) {
+      continue;
+    }
+    if (input.type == 'checkbox') {
+      input.checked = (param[1] == '1');
+    } else {
       input.value = decodeURIComponent(param[1]);
     }
   }
@@ -431,13 +456,20 @@ function updateUrl() {
     po1: 'i',
     prf1: '',
     prt1: '',
+    prc1: '0',
+    prr1: '0',
     name: 'CassavaMacro'
   }));
   const results = [];
   for (const [id, def] of ids) {
     const input = elem(id);
-    if (input && input.value != def) {
-      results.push(id + '=' + encodeURIComponent(input.value));
+    if (!input) {
+      continue;
+    }
+    const value =
+        (input.type == 'checkbox') ? (input.checked ? '1' : '0') : input.value;
+    if (value != def) {
+      results.push(id + '=' + encodeURIComponent(value));
     }
   }
   const hash = '#' + results.join('&');
