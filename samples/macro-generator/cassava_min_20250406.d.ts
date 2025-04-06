@@ -37,9 +37,9 @@ export class CassavaGridElement extends HTMLElement {
     /**
      * Gets all registered macro names.
      *
-     * @returns {IterableIterator<string>}
+     * @returns {Array<string>}
      */
-    getMacroNames(): IterableIterator<string>;
+    getMacroNames(): Array<string>;
     /**
      * Runs the registered macro for the given name.
      *
