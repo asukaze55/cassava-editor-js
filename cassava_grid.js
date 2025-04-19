@@ -1796,13 +1796,17 @@ class CassavaGridElement extends HTMLElement {
     'Refresh/0': () => this.#grid.refresh(),
     'ReloadCodeShiftJIS/0': () => this.#openDialog.reload('Shift_JIS'),
     'ReloadCodeUTF8/0': () => this.#openDialog.reload('UTF-8'),
-    'ReplaceAll/2': (a, b) => this.#grid.replaceAll(
-        a.toString(), b.toString(), false, false, false, this.#grid.allCells()),
+    'ReplaceAll/2': (a, b) => {
+      const isRegex = a instanceof RegExp;
+      this.#grid.replaceAll(isRegex ? a.source : a.toString(), b.toString(),
+          isRegex && a.ignoreCase, false, isRegex, this.#grid.allCells());
+    },
     'ReplaceAll/5': (a, b, c, d, e) => this.#grid.replaceAll(
-        a.toString(), b.toString(), !!c, !!d, !!e, this.#grid.allCells()),
+        (a instanceof RegExp) ? a.source : a.toString(), b.toString(),
+        !!c, !!d, !!e, this.#grid.allCells()),
     'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) => this.#grid.replaceAll(
-        a.toString(), b.toString(), !!c, !!d, !!e,
-        new Range(Number(f), Number(g), Number(h), Number(i))),
+        (a instanceof RegExp) ? a.source : a.toString(), b.toString(),
+        !!c, !!d, !!e, new Range(Number(f), Number(g), Number(h), Number(i))),
     'Right=/0': () => this.#grid.right(),
     'Right=/1': a => this.#grid.setRight(Number(a)),
     'Row=/0': () => this.#grid.y,
