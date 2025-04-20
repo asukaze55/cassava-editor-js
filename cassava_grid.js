@@ -1747,6 +1747,10 @@ class CassavaGridElement extends HTMLElement {
     'DeleteCellUp/0': () => this.#grid.deleteCellUp(this.#grid.selection()),
     'DeleteCol/1': a => this.#grid.deleteCol(Number(a), Number(a)),
     'DeleteRow/1': a => this.#grid.deleteRow(Number(a), Number(a)),
+    'End/0': () => {
+      this.#grid.clear();
+      throw macroTerminated;
+    },
     'Enter/0': () => this.#grid.insertRowAtCursor(0, 0),
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
