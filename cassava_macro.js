@@ -389,19 +389,23 @@ class FunctionValue {
   #varArgs;
   /** @type {Node} */
   #bodyNode;
+  /** @type {Environment} */
+  #globalEnv;
   /** @type {Map<String, ValueType>} */
   #capturedVariables;
 
   /**
    * @param {Array<Parameter>} params
    * @param {Node} bodyNode
+   * @param {Environment} globalEnv
    * @param {Map<String, ValueType>=} capturedVariables
    */
-  constructor(params, bodyNode, capturedVariables) {
+  constructor(params, bodyNode, globalEnv, capturedVariables) {
     this.#paramNames = params.map(p => p.name);
     this.#defaultValues = params.map(p => p.defaultValueNode);
     this.#varArgs = params.length > 0 && params.at(-1).varArgs;
     this.#bodyNode = bodyNode;
+    this.#globalEnv = globalEnv;
     this.#capturedVariables = capturedVariables || new Map();
   }
 
@@ -420,11 +424,10 @@ class FunctionValue {
 
   /**
    * @param {Array<ValueType>} params
-   * @param {Environment} env
    * @returns {Promise<ValueType>}
    */
-  async run(params, env) {
-    const newEnv = new Environment(env);
+  async run(params) {
+    const newEnv = new Environment(this.#globalEnv);
     newEnv.init();
     for (const [name, value] of this.#capturedVariables) {
       newEnv.set(name, value);
@@ -932,7 +935,7 @@ class TreeBuilder {
             paramResults.push(await p.run(env));
           }
           if (func instanceof FunctionValue) {
-            return func.run(paramResults, env);
+            return func.run(paramResults);
           } else if (typeof func == 'function') {
             return func(...paramResults);
           } else if (func === swapFunction) {
@@ -1071,7 +1074,8 @@ class TreeBuilder {
         const methodScope = new Scope(scope).addVariable('this');
         const paramNodes = this.#buildParameters(methodScope);
         const bodyNode = this.#buildStatement(methodScope);
-        members.set(name, valueNode(new FunctionValue(paramNodes, bodyNode)));
+        members.set(name, valueNode(
+            new FunctionValue(paramNodes, bodyNode, this.#globalEnv)));
         if (this.#tokens.peek() == ',') {
           this.#tokens.next();
         }
@@ -1104,13 +1108,13 @@ class TreeBuilder {
           for (let i = 0; i < Number(p.get('length')); i++) {
             params.push(p.get(i));
           }
-          constructor.setThis(obj).run(params, env);
+          constructor.setThis(obj).run(params);
         }
       }
       return obj;
     });
     const parameter = new Parameter('$p', /* varArgs= */ true);
-    return new FunctionValue([parameter], constructorNode);
+    return new FunctionValue([parameter], constructorNode, this.#globalEnv);
   }
 
   /**
@@ -1172,8 +1176,8 @@ class TreeBuilder {
     } else {
       bodyNode = this.#buildExpression(scope);
     }
-    return new Node(async env =>
-        new FunctionValue(params, bodyNode, env.variables()));
+    return new Node(env =>
+        new FunctionValue(params, bodyNode, this.#globalEnv, env.variables()));
   }
 
   #readImport() {
@@ -1498,7 +1502,7 @@ class TreeBuilder {
       const functionScope = new Scope(scope).addFunction(name);
       const paramNodes = this.#buildParameters(functionScope);
       const bodyNode = this.#buildStatement(functionScope);
-      const func = new FunctionValue(paramNodes, bodyNode);
+      const func = new FunctionValue(paramNodes, bodyNode, this.#globalEnv);
       this.#globalEnv.setFunction(name, this.#fileName, func);
       return null;
     } else if (token0 == 'return' || token0 == 'break' ||
