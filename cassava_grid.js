@@ -1,7 +1,7 @@
 (() => {
 const { CassavaStatusBarElement } = net.asukaze.import('./cassava_status_bar.js');
 const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
-const { Environment, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
+const { Environment, FunctionValue, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
 const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
 const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
@@ -1874,8 +1874,13 @@ class CassavaGridElement extends HTMLElement {
     },
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(Number(a)),
-    'SetStatusBarPopUp/3': (a, b, c) => this.#statusBarPanel.setPopUp(
-        Number(a), b.toString(), /** @type {(item: string) => any} */(c)),
+    'SetStatusBarPopUp/3': (a, b, c) => {
+      if (!(c instanceof FunctionValue)) {
+        throw 'Not a function: ' + c;
+      }
+      this.#statusBarPanel.setPopUp(
+          Number(a), b.toString(), item => c.run([item]));
+    },
     'SetStatusBarText/2':
         (a, b) => this.#statusBarPanel.setText(Number(a), b.toString()),
     'SetStatusBarWidth/2':

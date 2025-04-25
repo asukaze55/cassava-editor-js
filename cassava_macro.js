@@ -1608,5 +1608,5 @@ async function run(script, env, macroMap) {
   return (result instanceof ReturnValue) ? result.value : result;
 }
 
-net.asukaze.export({ Environment, ObjectValue, run });
+net.asukaze.export({ Environment, FunctionValue, ObjectValue, run });
 })();
