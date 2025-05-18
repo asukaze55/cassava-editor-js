@@ -213,14 +213,6 @@ class FunctionsTest {
     return "FunctionsTest";
   }
 
-  clear() {
-    Right = 1;
-    Bottom = 1;
-    Col = 1;
-    Row = 1;
-    [1,1] = "";
-  }
-
   getValues(l, t, r, b) {
     result = "";
     for (y = t; y <= b; y++) {
@@ -232,7 +224,7 @@ class FunctionsTest {
   }
 
   test(assert) {
-    this.clear();
+    Clear();
 
     moveto(1, 2);
     assert.that(Col).isEqualTo(1);
@@ -369,7 +361,7 @@ class FunctionsTest {
     [1,1] = "AABBaabb";
     ReplaceAll(/(A+)/gi, "($1)");
     assert.that([1,1]).isEqualTo("(AA)BB(aa)bb");
- 
+
     cell(3, 1) = "abc";
     assert.that(cell(3, 1)).isEqualTo("abc");
     assert.that([3, 1]).isEqualTo("abc");
@@ -430,7 +422,7 @@ class FunctionsTest {
     assert.that(SelRight).isEqualTo(4);
     assert.that(SelBottom).isEqualTo(5);
 
-    this.clear();
+    Clear();
   }
 }
 
@@ -558,14 +550,6 @@ class MenuTest {
     return "MenuTest";
   }
 
-  clear() {
-    Right = 1;
-    Bottom = 1;
-    Col = 1;
-    Row = 1;
-    [1,1] = "";
-  }
-
   getValues(l, t, r, b) {
     result = "";
     for (y = t; y <= b; y++) {
@@ -577,7 +561,7 @@ class MenuTest {
   }
 
   test(assert) {
-    this.clear();
+    Clear();
 
     [1,1] = "A";
     [2,1] = "B";
@@ -698,7 +682,7 @@ class MenuTest {
     assert.that([1,2]).isEqualTo("data001");
     assert.that([1,3]).isEqualTo("data001");
 
-    this.clear();
+    Clear();
     [1,1] = "A";
     InsRow();
     assert.that(Bottom).isEqualTo(2);
@@ -750,7 +734,7 @@ class MenuTest {
     assert.that([1,1]).isEqualTo("B");
     assert.that([1,2]).isEqualTo("D");
 
-    this.clear();
+    Clear();
   }
 }
 
@@ -909,19 +893,11 @@ class SpecialVarsTest {
     return "SpecialVarsTest";
   }
 
-  clear() {
-    Right = 1;
-    Bottom = 1;
-    Col = 1;
-    Row = 1;
-    [1,1] = "";
-  }
-
   test(assert) {
     assert.that(x).isEqualTo(Col);
     assert.that(y).isEqualTo(Row);
 
-    this.clear();
+    Clear();
     assert.that(Right).isEqualTo(1);
     assert.that(Bottom).isEqualTo(1);
 
@@ -961,7 +937,7 @@ class SpecialVarsTest {
     assert.that(null).isEqualTo(false);
     assert.that("null").isEqualTo("nul" + "l");
 
-    this.clear();
+    Clear();
   }
 }
 
@@ -1058,7 +1034,6 @@ class StringTest {
     // https://www.asukaze.net/soft/cassava/bbs/index.cgi?t=687
     [1,1] = "test1234567890@test1234567890.co.jp";
     assert.that([1,1].search("^[a-zA-Z0-9_.+-]+@([a-zA-Z0-9_+-]*\.)+[a-zA-Z]{2,}$")).isEqualTo(0);
-    [1,1] = "";
 
     assert.that(question.startsWith("To be")).isTrue();
     assert.that(question.startsWith("not to be")).isFalse();
@@ -1082,6 +1057,8 @@ class StringTest {
     assert.that("   foo   ".trim()).isEqualTo("foo");
     assert.that("   foo   ".trimEnd()).isEqualTo("   foo");
     assert.that("   foo   ".trimStart()).isEqualTo("foo   ");
+
+    Clear();
   }
 }
 

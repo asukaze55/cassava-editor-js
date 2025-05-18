@@ -1729,6 +1729,7 @@ class CassavaGridElement extends HTMLElement {
   #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
+    'Clear/0': () => this.#grid.clear(),
     'Col=/0': () => this.#grid.x,
     'Col=/1': a => this.#grid.moveTo(Number(a), this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
