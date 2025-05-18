@@ -83,7 +83,9 @@ function findFunction(map, name, arity, fileName) {
 class Environment {
   /** @type {Map<string, ValueType>} */
   #variables = new Map();
-  /** @type {Map<string, Function|FunctionValue>} */
+  /** @type {Map<string, Function>} */
+  #api;
+  /** @type {Map<string, FunctionValue>} */
   #functions;
   /** @type {number} */
   #loop;
@@ -93,8 +95,9 @@ class Environment {
    * @param {Map<string, Function>=} api
    */
   constructor(parent, api) {
-    this.#functions = (parent != null) ? parent.#functions : new Map(api);
-    this.#loop = (parent != null) ? parent.#loop - 1: 1000000;
+    this.#api = parent ? parent.#api : api;
+    this.#functions = parent ? parent.#functions : new Map();
+    this.#loop = parent ? parent.#loop - 1: 1000000;
     if (this.#loop <= 0) {
       throw 'Too deep recursion.';
     }
@@ -115,7 +118,7 @@ class Environment {
     if (this.#variables.has(name)) {
       return this.#variables.get(name);
     }
-    const getter = this.#functions.get(name + '=/0');
+    const getter = this.#api.get(name + '=/0');
     if (typeof getter == 'function') {
       return getter();
     }
@@ -126,21 +129,28 @@ class Environment {
    * @param {string} name
    * @param {number} arity
    * @param {string=} fileName
+   * @param {boolean=} apiOnly
    * @returns {ValueType|SwapFunction}
    */
-  getFunction(name, arity, fileName) {
-    if (this.#variables.has(name)) {
-      return this.#variables.get(name);
-    }
-    if (fileName) {
-      const func = findFunction(this.#functions, name, arity, fileName);
+  getFunction(name, arity, fileName, apiOnly) {
+    if (!apiOnly) {
+      if (this.#variables.has(name)) {
+        return this.#variables.get(name);
+      }
+      if (fileName) {
+        const func = findFunction(this.#functions, name, arity, fileName);
+        if (func) {
+          return func;
+        }
+      }
+      const func = findFunction(this.#functions, name, arity);
       if (func) {
         return func;
       }
     }
-    const func = findFunction(this.#functions, name, arity);
-    if (func) {
-      return func;
+    const api = findFunction(this.#api, name, arity);
+    if (api) {
+      return api;
     }
     const builtIn = findFunction(builtInFunctions, name, arity);
     if (builtIn) {
@@ -154,7 +164,7 @@ class Environment {
    * @param {ValueType} value
    */
   set(name, value) {
-    const setter = this.#functions.get(name + '=/1');
+    const setter = this.#api.get(name + '=/1');
     if (typeof setter == 'function') {
       setter(value);
       return;
@@ -317,11 +327,9 @@ class Tokenizer {
           this.#tokens.push(token);
         }
         this.#hasValue = (token != 'return');
-      } else if (c2 == '++' || c2 == '--'
-          || c2 == '<=' || c2 == '>=' || c2 == '=='
-          || c2 == '!=' || c2 == '&&' || c2 == '||'
-          || c2 == '+=' || c2 == '-=' || c2 == '*='
-          || c2 == '/=' || c2 == '=>') {
+      } else if (c2 == '++' || c2 == '--' || c2 == '<=' || c2 == '>=' ||
+          c2 == '==' || c2 == '!=' || c2 == '&&' || c2 == '||' || c2 == '+=' ||
+          c2 == '-=' || c2 == '*=' || c2 == '/=' || c2 == '=>' || c2 == '::') {
         i++;
         this.#tokens.push(c2);
         this.#hasValue = false;
@@ -771,13 +779,14 @@ class Scope {
    * @param {string} name
    * @param {number} arity
    * @param {string} fileName
+   * @param {boolean} apiOnly
    * @param {Environment} env
    */
-  checkFunction(name, arity, fileName, env) {
-    if (this.#functions.has(name) || this.#variables.has(name)) {
+  checkFunction(name, arity, fileName, apiOnly, env) {
+    if (!apiOnly && (this.#functions.has(name) || this.#variables.has(name))) {
       return;
     }
-    env.getFunction(name, arity, fileName);
+    env.getFunction(name, arity, fileName, apiOnly);
   }
 
   /** @param {string} variable */
@@ -915,20 +924,22 @@ class TreeBuilder {
   /**
    * @param {Scope} scope
    * @param {Node} left
+   * @param {boolean=} apiOnly
    * @returns {Node}
    */
-  #buildFunctionCallNode(scope, left) {
+  #buildFunctionCallNode(scope, left, apiOnly) {
     const params = this.#buildTuple(scope, ')');
-    if (left instanceof VariableNode && !this.#imports.has(left.name)) {
+    if (left instanceof VariableNode &&
+        (apiOnly || !this.#imports.has(left.name))) {
       scope.checkFunction(
-          left.name, params.length, this.#fileName, this.#globalEnv);
+          left.name, params.length, this.#fileName, apiOnly, this.#globalEnv);
     }
     const node = new Node(
         async env => {
           const func = (left instanceof VariableNode)
-              ? this.#imports.has(left.name)
+              ? (!apiOnly && this.#imports.has(left.name))
                   ? env.getFunction(this.#imports.get(left.name), params.length)
-                  : env.getFunction(left.name, params.length, this.#fileName)
+                  : env.getFunction(left.name, params.length, this.#fileName, apiOnly)
               : await left.run(env);
           let paramResults = [];
           for (const p of params) {
@@ -1279,6 +1290,10 @@ class TreeBuilder {
           expr.add(this.#buildExpression(scope));
           this.#nextExpected(')');
         }
+      } else if (token == '::') {
+        const func = new VariableNode(this.#tokens.next());
+        this.#nextExpected('(');
+        expr.add(this.#buildFunctionCallNode(scope, func, /* apiOnly= */ true));
       } else if (token == '!') {
         expr.add(operatorNode(15, (l, r) => (Number(r) != 0) ? 0 : 1));
       } else if (token == '++') {
