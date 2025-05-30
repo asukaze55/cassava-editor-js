@@ -1119,7 +1119,7 @@ class TreeBuilder {
           for (let i = 0; i < Number(p.get('length')); i++) {
             params.push(p.get(i));
           }
-          constructor.setThis(obj).run(params);
+          await constructor.setThis(obj).run(params);
         }
       }
       return obj;

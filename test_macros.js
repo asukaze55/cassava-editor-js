@@ -746,6 +746,13 @@ assert.showResult();
 grid.addMacro('tests/ObjectTest.cms', String.raw`
 import { Assert } from "lib/Assert.cms";
 
+class C {
+  constructor() {
+    this.a = 1;
+    this.b = 2;
+  }
+}
+
 class ObjectTest {
   name() {
     return "ObjectTest";
@@ -774,6 +781,8 @@ class ObjectTest {
     assert.that(obj[1][2][3]).isEqualTo("123");
 
     assert.that(this.createObject().a).isEqualTo(5);
+
+    assert.that(new C().b).isEqualTo(2);
   }
 }
 
