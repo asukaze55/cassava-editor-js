@@ -389,10 +389,8 @@ class Parameter {
 }
 
 class FunctionValue {
-  /** @type {Array<string>} */
-  #paramNames;
-  /** @type {Array<Node>} */
-  #defaultValues;
+  /** @type {Array<Parameter>} */
+  #params;
   /** @type {boolean} */
   #varArgs;
   /** @type {Node} */
@@ -409,8 +407,7 @@ class FunctionValue {
    * @param {Map<String, ValueType>=} capturedVariables
    */
   constructor(params, bodyNode, globalEnv, capturedVariables) {
-    this.#paramNames = params.map(p => p.name);
-    this.#defaultValues = params.map(p => p.defaultValueNode);
+    this.#params = params;
     this.#varArgs = params.length > 0 && params.at(-1).varArgs;
     this.#bodyNode = bodyNode;
     this.#globalEnv = globalEnv;
@@ -423,8 +420,8 @@ class FunctionValue {
    * @returns {string}
    */
   id(name, fileName) {
-    let arity = this.#paramNames.length - (this.#varArgs ?  1 : 0);
-    while (arity > 0 && this.#defaultValues[arity - 1] != null) {
+    let arity = this.#params.length - (this.#varArgs ?  1 : 0);
+    while (arity > 0 && this.#params[arity - 1].defaultValueNode != null) {
       arity--;
     }
     return functionId(name, arity, this.#varArgs, fileName);
@@ -440,22 +437,22 @@ class FunctionValue {
     for (const [name, value] of this.#capturedVariables) {
       newEnv.set(name, value);
     }
-    for (let i = 0; i < this.#paramNames.length; i++) {
-      if (this.#varArgs && i == this.#paramNames.length - 1) {
+    for (let i = 0; i < this.#params.length; i++) {
+      if (this.#varArgs && i == this.#params.length - 1) {
         const array = new ObjectValue();
         const length = Math.max(params.length - i, 0);
         array.set('length', length);
         for (let j = 0; j < length; j++) {
           array.set(j, params[i + j]);
         }
-        newEnv.set(this.#paramNames[i], array);
+        newEnv.set(this.#params[i].name, array);
       } else if (params.length > i) {
-        newEnv.set(this.#paramNames[i], params[i]);
-      } else if (this.#defaultValues[i] == null) {
+        newEnv.set(this.#params[i].name, params[i]);
+      } else if (this.#params[i].defaultValueNode == null) {
         throw 'Not enough parameters to call function.';
       } else {
-        newEnv.set(this.#paramNames[i],
-            await this.#defaultValues[i].run(newEnv));
+        newEnv.set(this.#params[i].name,
+            await this.#params[i].defaultValueNode.run(newEnv));
       }
     }
     const value = await this.#bodyNode.run(newEnv);
@@ -469,9 +466,11 @@ class FunctionValue {
    * @param {ObjectValue} value
    * @returns {FunctionValue}
    */
-  setThis(value) {
-    this.#capturedVariables.set('this', value);
-    return this;
+  withThis(value) {
+    const capturedVariables = new Map(this.#capturedVariables);
+    capturedVariables.set('this', value);
+    return new FunctionValue(
+        this.#params, this.#bodyNode, this.#globalEnv, capturedVariables);
   }
 }
 
@@ -994,7 +993,7 @@ class TreeBuilder {
               throw 'Undefined member: ' + name + '\nObject: ' + obj.toString();
             }
             if (result instanceof FunctionValue) {
-              result.setThis(obj);
+              return result.withThis(obj);
             }
             return result;
           }
@@ -1119,7 +1118,7 @@ class TreeBuilder {
           for (let i = 0; i < Number(p.get('length')); i++) {
             params.push(p.get(i));
           }
-          await constructor.setThis(obj).run(params);
+          await constructor.withThis(obj).run(params);
         }
       }
       return obj;
