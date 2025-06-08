@@ -419,8 +419,9 @@ class Grid {
     this.rowHeights.clear();
   }
 
-  async render() {
-    if (this.#suppressRender > 0) {
+  /** @param {boolean=} force */
+  async render(force) {
+    if (this.#suppressRender > 0 && !force) {
       return;
     }
     if (this.#onRender) {
@@ -1842,13 +1843,26 @@ class CassavaGridElement extends HTMLElement {
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
     'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
-    'InputBox/1': a => prompt(a.toString()),
-    'InputBox/2': (a, b) => prompt(a.toString(), b.toString()),
-    'InputBoxMultiLine/1': a => inputBoxMultiLine(a.toString()),
-    'InputBoxMultiLine/2': (a, b) =>
-        inputBoxMultiLine(a.toString(), /* title= */null, b.toString()),
-    'InputBoxMultiLine/3': (a, b, c) =>
-        inputBoxMultiLine(a.toString(), b.toString(), c.toString()),
+    'InputBox/1': a => {
+      this.#grid.render(/* force= */ true);
+      return prompt(a.toString());
+    },
+    'InputBox/2': (a, b) => {
+      this.#grid.render(/* force= */ true);
+      return prompt(a.toString(), b.toString());
+    },
+    'InputBoxMultiLine/1': a => {
+      this.#grid.render(/* force= */ true);
+      return inputBoxMultiLine(a.toString());
+    },
+    'InputBoxMultiLine/2': (a, b) => {
+      this.#grid.render(/* force= */ true);
+      return inputBoxMultiLine(a.toString(), /* title= */null, b.toString());
+    },
+    'InputBoxMultiLine/3': (a, b, c) => {
+      this.#grid.render(/* force= */ true);
+      return inputBoxMultiLine(a.toString(), b.toString(), c.toString());
+    },
     'InsCol/0': () => this.#grid.insertCol(
         this.#grid.selLeft(), this.#grid.selRight(), true),
     'InsRow/0': () => this.#grid.insertRow(
@@ -1865,7 +1879,10 @@ class CassavaGridElement extends HTMLElement {
     'MacroTerminate/0': () => {
       throw macroTerminated;
     },
-    'MessageBox/1': a => alert(a),
+    'MessageBox/1': a => {
+      this.#grid.render(/* force= */ true);
+      alert(a);
+    },
     'New/0': () => this.#grid.clear(),
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
     'Open/0': () => this.#openDialog.show(),
@@ -1962,8 +1979,14 @@ class CassavaGridElement extends HTMLElement {
         (a, b) => this.#statusBarPanel.setText(Number(a), b.toString()),
     'SetStatusBarWidth/2':
         (a, b) => this.#statusBarPanel.setWidth(Number(a), Number(b)),
-    'ShowDialog/1': a => showUserDialog(a),
-    'ShowDialog/2': (a, b) => showUserDialog(a, b.toString()),
+    'ShowDialog/1': a => {
+      this.#grid.render(/* force= */ true);
+      return showUserDialog(a);
+    },
+    'ShowDialog/2': (a, b) => {
+      this.#grid.render(/* force= */ true);
+      return showUserDialog(a, b.toString());
+    },
     'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
         new Range(Number(a), Number(b), Number(c), Number(d)),
         Number(e), !!f, !!g, !!h, !!i),
