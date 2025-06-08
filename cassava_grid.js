@@ -1434,6 +1434,82 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
 const macroTerminated = {};
 
 /**
+ * @param {ValueType} content
+ * @returns {HTMLElement|string}
+ */
+function convertDialogContent(content) {
+  if (!(content instanceof ObjectValue)) {
+    return content.toString();
+  }
+
+  const attributes = {};
+  if (content.has('cols')) {
+    attributes.cols = Number(content.get('cols'));
+  }
+  if (content.has('rows')) {
+    attributes.rows = Number(content.get('rows'));
+  }
+  if (content.has('size')) {
+    attributes.size = Number(content.get('size'));
+  }
+  if (content.has('value')) {
+    attributes.value = content.get('value').toString();
+  }
+
+  const children = [];
+  const childNodes = content.get('childNodes');
+  if (childNodes instanceof ObjectValue) {
+    for (let i = 0; i < Number(childNodes.get('length')); i++) {
+      children.push(convertDialogContent(childNodes.get(i)));
+    }
+  }
+
+  const tagName = content.get('tagName').toString().toUpperCase();
+  if (tagName == 'BUTTON') { 
+    return createElement('button', attributes, children);
+  } else if (tagName == 'INPUT') {
+    const element = createElement('input', attributes, children);
+    element.addEventListener(
+        'input', () => content.set('value', element.value));
+    content.set('value', element.value);
+    return element;
+  } else if (tagName == 'TEXTAREA') {
+    const element = createElement('textarea', {}, children);
+    element.addEventListener(
+        'input', () => content.set('value', element.value));
+    content.set('value', element.value);
+    return element;
+  } else {
+    return createElement('div', {}, children);
+  }
+}
+
+/**
+ * @param {ValueType} content
+ * @param {string=} title
+ * @returns {Promise<string>}
+ */
+function showUserDialog(content, title) {
+  return new Promise((resolve, reject) => {
+    const userDialog = dialog([
+      titleBar(title || 'Cassava Macro', () => {
+        document.body.removeChild(userDialog);
+        reject(macroTerminated);
+      }),
+      createElement('form', {method: 'dialog'}, [
+        convertDialogContent(content)
+      ])
+    ]);
+    userDialog.addEventListener('close', () => {
+      document.body.removeChild(userDialog);
+      resolve(userDialog.returnValue);
+    });
+    document.body.append(userDialog);
+    userDialog.showModal();
+  });
+}
+
+/**
  * @param {string} message
  * @param {string=} title
  * @param {string=} defaultValue
@@ -1886,6 +1962,8 @@ class CassavaGridElement extends HTMLElement {
         (a, b) => this.#statusBarPanel.setText(Number(a), b.toString()),
     'SetStatusBarWidth/2':
         (a, b) => this.#statusBarPanel.setWidth(Number(a), Number(b)),
+    'ShowDialog/1': a => showUserDialog(a),
+    'ShowDialog/2': (a, b) => showUserDialog(a, b.toString()),
     'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
         new Range(Number(a), Number(b), Number(c), Number(d)),
         Number(e), !!f, !!g, !!h, !!i),
