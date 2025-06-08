@@ -391,8 +391,6 @@ class Parameter {
 class FunctionValue {
   /** @type {Array<Parameter>} */
   #params;
-  /** @type {boolean} */
-  #varArgs;
   /** @type {Node} */
   #bodyNode;
   /** @type {Environment} */
@@ -408,7 +406,6 @@ class FunctionValue {
    */
   constructor(params, bodyNode, globalEnv, capturedVariables) {
     this.#params = params;
-    this.#varArgs = params.length > 0 && params.at(-1).varArgs;
     this.#bodyNode = bodyNode;
     this.#globalEnv = globalEnv;
     this.#capturedVariables = capturedVariables || new Map();
@@ -420,11 +417,13 @@ class FunctionValue {
    * @returns {string}
    */
   id(name, fileName) {
-    let arity = this.#params.length - (this.#varArgs ?  1 : 0);
-    while (arity > 0 && this.#params[arity - 1].defaultValueNode != null) {
+    let varArgs = this.#params.length > 0 && this.#params.at(-1).varArgs;
+    let arity = this.#params.length - (varArgs ? 1 : 0);
+    while (arity > 0 && (this.#params[arity - 1].defaultValueNode != null)) {
       arity--;
+      varArgs = true;
     }
-    return functionId(name, arity, this.#varArgs, fileName);
+    return functionId(name, arity, varArgs, fileName);
   }
 
   /**
@@ -438,7 +437,7 @@ class FunctionValue {
       newEnv.set(name, value);
     }
     for (let i = 0; i < this.#params.length; i++) {
-      if (this.#varArgs && i == this.#params.length - 1) {
+      if (i == this.#params.length - 1 && this.#params[i].varArgs) {
         const array = new ObjectValue();
         const length = Math.max(params.length - i, 0);
         array.set('length', length);

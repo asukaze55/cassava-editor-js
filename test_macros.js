@@ -448,6 +448,10 @@ class Sample {
   }
 }
 
+function functionWithDefaultValue(a = {value: 1}) {
+  return a;
+}
+
 class LambdaTest {
   name() {
     return "LambdaTest";
@@ -530,6 +534,13 @@ class LambdaTest {
     assert.that(f(7, 8)).isEqualTo(780);
     assert.that(f(7, 8, 9)).isEqualTo(781);
     assert.that(f(7, 8, 9, 10)).isEqualTo(782);
+
+    f = (a = {value: 1}) => a;
+    assert.that(f().value).isEqualTo(1);
+    assert.that(f({value: 2}).value).isEqualTo(2);
+
+    assert.that(functionWithDefaultValue().value).isEqualTo(1);
+    assert.that(functionWithDefaultValue({value: 2}).value).isEqualTo(2);
 
     min = (a, b) => a - b;
     assert.that(min(3, 5)).isEqualTo(-2);
