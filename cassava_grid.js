@@ -1890,6 +1890,10 @@ class CassavaGridElement extends HTMLElement {
     'Paste/0': () => paste(this.#grid, -1),
     'Paste/1': a => paste(this.#grid, Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
+    'QuickFind/1': a => {
+      this.#findDialog.setFindText(a.toString());
+      this.#findPanel.show();
+    },
     'Redo/0': () => this.#grid.redo(),
     'Refresh/0': () => this.#grid.refresh(),
     'ReloadCodeShiftJIS/0': () => this.#openDialog.reload('Shift_JIS'),
