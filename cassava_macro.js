@@ -227,6 +227,22 @@ function isAlphaNumChar(c) {
   return isAlphaChar(c) || isNumChar(c);
 }
 
+const constants = new Map(Object.entries({
+  IDABORT: '3',
+  IDCANCEL: '2',
+  IDIGNORE: '5',
+  IDNO: '7',
+  IDOK: '1',
+  IDRETRY: '4',
+  IDYES: '6',
+  MB_ABORTRETRYIGNORE: '2',
+  MB_OK: '0',
+  MB_OKCANCEL: '1',
+  MB_RETRYCANCEL: '5',
+  MB_YESNO: '4',
+  MB_YESNOCANCEL:'3'
+}));
+
 class Tokenizer {
   /** @type {Array<string>} */
   #script;
@@ -323,6 +339,8 @@ class Tokenizer {
         } else if (token.toLowerCase() == 'false'
             || token.toLowerCase() == 'null') {
           this.#tokens.push('0');
+        } else if (constants.has(token)) {
+          this.#tokens.push(constants.get(token));
         } else {
           this.#tokens.push(token);
         }

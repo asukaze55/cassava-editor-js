@@ -1513,6 +1513,49 @@ function showUserDialog(content, title) {
 /**
  * @param {string} message
  * @param {string=} title
+ * @param {number=} flag
+ * @returns {Promise<number>}
+ */
+function messageBox(message, title, flag = 0) {
+  return new Promise(resolve => {
+    const buttons = createDiv();
+    const dialog = createDialog([
+      createTitleBar(title || 'Cassava Macro', () => {
+        if (flag == 2 || flag == 4) {
+          return;
+        }
+        dialog.close();
+        document.body.removeChild(dialog);
+        resolve(flag == 0 ? 1 : 2);
+      }),
+      createElement('div', {innerText: message}),
+      buttons
+    ]);
+    for (const button of [
+      {l: 'OK', v: 1, f: [0, 1]},
+      {l: 'はい', v: 6, f: [3, 4]},
+      {l: 'いいえ', v: 7, f: [3, 4]},
+      {l: '中断', v: 3, f: [2]},
+      {l: '再試行', v: 4, f: [2, 5]},
+      {l: '無視', v: 5, f: [2]},
+      {l: 'キャンセル', v: 2, f: [1, 3, 5]}
+    ]) {
+      if (button.f.includes(flag)) {
+        buttons.append(createButton(button.l, () => {
+          dialog.close();
+          document.body.removeChild(dialog);
+          resolve(button.v);
+        }));
+      }
+    }
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+/**
+ * @param {string} message
+ * @param {string=} title
  * @param {string=} defaultValue
  * @returns {Promise<string>}
  */
@@ -1529,7 +1572,7 @@ function inputBoxMultiLine(message, title, defaultValue) {
         document.body.removeChild(dialog);
         reject(macroTerminated);
       }),
-      createDiv(message),
+      createElement('div', {innerText: message}),
       createDiv(textarea),
       createDiv(createButton('OK', () => {
             dialog.close();
@@ -1879,9 +1922,21 @@ class CassavaGridElement extends HTMLElement {
     'MacroTerminate/0': () => {
       throw macroTerminated;
     },
+    'MessageBox/0': () => {
+      this.#grid.render(/* force= */ true);
+      return messageBox('ブレークポイントです');
+    },
     'MessageBox/1': a => {
       this.#grid.render(/* force= */ true);
-      alert(a);
+      return messageBox(a.toString());
+    },
+    'MessageBox/2': (a, b) => {
+      this.#grid.render(/* force= */ true);
+      return messageBox(a.toString(), undefined, Number(b));
+    },
+    'MessageBox/3': (a, b, c) => {
+      this.#grid.render(/* force= */ true);
+      return messageBox(a.toString(), b.toString(), Number(c));
     },
     'New/0': () => this.#grid.clear(),
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
