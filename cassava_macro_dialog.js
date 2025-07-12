@@ -1,5 +1,5 @@
 (() => {
-const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createTitleBar } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 
 class MacroManager {
@@ -99,11 +99,11 @@ function showRenameDialog(defaultName, manager) {
       name: 'macro-name',
       value: defaultName
     });
-    const renameDialog = dialog([
-      titleBar('マクロの名前', () => renameDialog.close()),
+    const renameDialog = createDialog([
+      createTitleBar('マクロの名前', () => renameDialog.close()),
       createElement('form', {method: 'dialog'}, [
         warningDiv,
-        div(macroNameInput),
+        createDiv(macroNameInput),
         createElement('button', {
           onclick: event => {
             const newName = macroNameInput.value;
@@ -143,9 +143,9 @@ class MacroDialog {
   /** @type {string} */
   #macroName = '';
   /** @type {HTMLButtonElement} */
-  #renameButton = button('名前変更', () => this.#rename());
+  #renameButton = createButton('名前変更', () => this.#rename());
   /** @type {HTMLButtonElement} */
-  #deleteButton = button('削除', () => this.#delete());
+  #deleteButton = createButton('削除', () => this.#delete());
   /** @type {HTMLSelectElement} */
   #macroSelect;
   /** @type {HTMLTextAreaElement} */
@@ -167,18 +167,18 @@ class MacroDialog {
       style: 'width: 100%;',
       oninput: () => this.#save()
     });
-    this.element = dialog([
-      titleBar('マクロを編集', () => this.element.close()),
+    this.element = createDialog([
+      createTitleBar('マクロを編集', () => this.element.close()),
       createElement('div', smallScreen ? {} : {style: 'display: flex'}, [
         createElement('div', {style: 'margin-right: 10px;'}, [
-          button('新規作成', () => this.#addNew()),
+          createButton('新規作成', () => this.#addNew()),
           this.#renameButton,
           this.#deleteButton,
           smallScreen ? ' ' : createElement('br'),
           this.#macroSelect
         ]),
-        div(div(this.#macroTextarea),
-            div(button('実行', () => grid.runMacro(this.#macroTextarea.value))))
+        createDiv(createDiv(this.#macroTextarea), createDiv(
+            createButton('実行', () => grid.runMacro(this.#macroTextarea.value))))
       ])
     ]);
   }

@@ -5,7 +5,7 @@ const { Environment, FunctionValue, ObjectValue, run } = net.asukaze.import('./c
 const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
 const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
-const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
 const { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
 
 class Clipboard {
@@ -1492,21 +1492,21 @@ function convertDialogContent(content) {
  */
 function showUserDialog(content, title) {
   return new Promise((resolve, reject) => {
-    const userDialog = dialog([
-      titleBar(title || 'Cassava Macro', () => {
-        document.body.removeChild(userDialog);
+    const dialog = createDialog([
+      createTitleBar(title || 'Cassava Macro', () => {
+        document.body.removeChild(dialog);
         reject(macroTerminated);
       }),
       createElement('form', {method: 'dialog'}, [
         convertDialogContent(content)
       ])
     ]);
-    userDialog.addEventListener('close', () => {
-      document.body.removeChild(userDialog);
-      resolve(userDialog.returnValue);
+    dialog.addEventListener('close', () => {
+      document.body.removeChild(dialog);
+      resolve(dialog.returnValue);
     });
-    document.body.append(userDialog);
-    userDialog.showModal();
+    document.body.append(dialog);
+    dialog.showModal();
   });
 }
 
@@ -1523,27 +1523,27 @@ function inputBoxMultiLine(message, title, defaultValue) {
       rows: 10,
       value: defaultValue || ''
     });
-    const inputBox = dialog([
-      titleBar(title || 'Cassava Macro', () => {
-        inputBox.close();
-        document.body.removeChild(inputBox);
+    const dialog = createDialog([
+      createTitleBar(title || 'Cassava Macro', () => {
+        dialog.close();
+        document.body.removeChild(dialog);
         reject(macroTerminated);
       }),
-      div(message),
-      div(textarea),
-      div(button('OK', () => {
-            inputBox.close();
-            document.body.removeChild(inputBox);
+      createDiv(message),
+      createDiv(textarea),
+      createDiv(createButton('OK', () => {
+            dialog.close();
+            document.body.removeChild(dialog);
             resolve(textarea.value);
           }),
-          button('Cancel', () => {
-            inputBox.close();
-            document.body.removeChild(inputBox);
+          createButton('Cancel', () => {
+            dialog.close();
+            document.body.removeChild(dialog);
             reject(macroTerminated);
           }))
     ]);
-    document.body.append(inputBox);
-    inputBox.showModal();
+    document.body.append(dialog);
+    dialog.showModal();
   });
 }
 
@@ -1665,29 +1665,29 @@ function showPasteDialog(grid, clipText, clipData) {
     const option3Input = radioInput();
     const option4Input = radioInput();
     const option5Input = radioInput();
-    const pasteDialog = dialog([
-      titleBar('貼り付けオプション', () => {
-        pasteDialog.close();
-        document.body.removeChild(pasteDialog);
+    const dialog = createDialog([
+      createTitleBar('貼り付けオプション', () => {
+        dialog.close();
+        document.body.removeChild(dialog);
         resolve();
       }),
-      div('選択サイズ： ' + (selection.right - selection.left + 1) +
+      createDiv('選択サイズ： ' + (selection.right - selection.left + 1) +
           ' × ' + (selection.bottom - selection.top + 1)),
-      div(createElement('details', {}, [
+      createDiv(createElement('details', {}, [
         createElement('summary', {}, ['クリップボードサイズ： ' + clipData.right() +
                       ' × ' + clipData.bottom()]),
         textarea
       ])),
-      div(createElement('fieldset', {}, [
+      createDiv(createElement('fieldset', {}, [
         createElement('legend', {}, ['貼り付け方法']),
-        div(label(option0Input, '選択領域と重なった部分のみに貼り付け')),
-        div(label(option1Input, '選択領域にくり返し処理をして貼り付け')),
-        div(label(option2Input, 'データのサイズで上書き')),
-        div(label(option3Input, '内容を右に移動させてデータを挿入')),
-        div(label(option4Input, '内容を下に移動させてデータを挿入')),
-        div(label(option5Input, 'テキストとして1セル内に貼り付け')),
+        createDiv(createLabel(option0Input, '選択領域と重なった部分のみに貼り付け')),
+        createDiv(createLabel(option1Input, '選択領域にくり返し処理をして貼り付け')),
+        createDiv(createLabel(option2Input, 'データのサイズで上書き')),
+        createDiv(createLabel(option3Input, '内容を右に移動させてデータを挿入')),
+        createDiv(createLabel(option4Input, '内容を下に移動させてデータを挿入')),
+        createDiv(createLabel(option5Input, 'テキストとして1セル内に貼り付け')),
       ])),
-      div(button('OK', async () => {
+      createDiv(createButton('OK', async () => {
         const text = textarea.value;
         const data =  grid.dataFormat.parse(text);
         const option = option1Input.checked ? 1
@@ -1697,13 +1697,13 @@ function showPasteDialog(grid, clipText, clipData) {
                      : option5Input.checked ? 5
                      : 0;
         grid.paste(text, data, grid.selection(), option);
-        pasteDialog.close();
-        document.body.removeChild(pasteDialog);
+        dialog.close();
+        document.body.removeChild(dialog);
         resolve();
       }))
     ]);
-    document.body.append(pasteDialog);
-    pasteDialog.showModal();
+    document.body.append(dialog);
+    dialog.showModal();
   });
 }
 

@@ -28,7 +28,7 @@ function createElement(name, attributes, children) {
  * @param  {...(Node|string)} children
  * @returns {HTMLDivElement}
  */
-function div(...children) {
+function createDiv(...children) {
   return createElement('div', {}, children);
 }
 
@@ -38,7 +38,7 @@ function div(...children) {
  * @param {{}=} attributes
  * @returns {HTMLButtonElement}
  */
-function button(content, onclick, attributes) {
+function createButton(content, onclick, attributes) {
   const element = createElement('button', attributes, [content]);
   element.addEventListener('click', onclick);
   return element;
@@ -48,7 +48,7 @@ function button(content, onclick, attributes) {
  * @param  {...(Node|string)} children
  * @returns {HTMLLabelElement}
  */
-function label(...children) {
+function createLabel(...children) {
   return createElement('label', {}, children);
 }
 
@@ -72,7 +72,7 @@ function isInputElement(element, root) {
  * @param {Array<Node|string>} children
  * @returns {HTMLDialogElement}
  */
-function dialog(children) {
+function createDialog(children) {
   const element = createElement('dialog', {
     style: 'margin-top: 8px; z-index: 3;'
   }, children);
@@ -125,7 +125,7 @@ function dialog(children) {
  * @param {() => any} onClose
  * @returns {HTMLDivElement}
  */
-function titleBar(title, onClose) {
+function createTitleBar(title, onClose) {
   const closeButton = createElement('span',
       {style: 'cursor: pointer; text-align: end;'}, ['×']);
   closeButton.addEventListener('click', onClose);
@@ -135,5 +135,5 @@ function titleBar(title, onClose) {
   ]);
 }
 
-net.asukaze.export({ button, createElement, dialog, div, label, titleBar });
+net.asukaze.export({ createButton, createDialog, createDiv, createElement, createLabel, createTitleBar });
 })();

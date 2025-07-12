@@ -1,6 +1,6 @@
 (() => {
 const { Range } = net.asukaze.import('./cassava_grid_data.js');
-const { button, createElement, dialog, div, label, titleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
 const { createFinder } = net.asukaze.import('./cassava_replacer.js');
 
 /**
@@ -42,24 +42,24 @@ class FindDialog {
     this.#grid = grid;
 
     const buttonAttributes = {style: 'margin-bottom: 4px; width: 100%;'};
-    this.element = dialog([
-      titleBar('検索・置換', () => this.element.close()),
+    this.element = createDialog([
+      createTitleBar('検索・置換', () => this.element.close()),
       createElement('div', {style: 'display: flex;'}, [
-        div(div(createElement('fieldset', {}, [
-              div(label('検索する文字列：', this.#findTextInput)),
-              div(label('置換後の文字列：', this.#replaceInput)),
-              div(label(this.#respectCaseInput, '大文字と小文字を区別')),
-              div(label(this.#wholeCellInput,
+        createDiv(createDiv(createElement('fieldset', {}, [
+              createDiv(createLabel('検索する文字列：', this.#findTextInput)),
+              createDiv(createLabel('置換後の文字列：', this.#replaceInput)),
+              createDiv(createLabel(this.#respectCaseInput, '大文字と小文字を区別')),
+              createDiv(createLabel(this.#wholeCellInput,
                   'セル内容が完全に同一であるものを検索')),
-              div(label(this.#isRegexInput, '正規表現検索')),
+              createDiv(createLabel(this.#isRegexInput, '正規表現検索')),
             ])),
-            div(createElement('fieldset', {}, [
+            createDiv(createElement('fieldset', {}, [
               createElement('legend', {}, ['検索方向']),
-              label(this.#isUpwardInput, '左・上へ'),
-              label(this.#isDownwardInput, '右・下へ')
+              createLabel(this.#isUpwardInput, '左・上へ'),
+              createLabel(this.#isDownwardInput, '右・下へ')
             ]))),
         createElement('div', {style: 'margin-left: 16px;'}, [
-          div(button('先頭から検索', () => {
+          createDiv(createButton('先頭から検索', () => {
             if (this.#isUpwardInput.checked) {
               grid.moveTo(grid.right(), grid.bottom());
             } else {
@@ -68,11 +68,11 @@ class FindDialog {
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
-          div(button('次を検索', () => {
+          createDiv(createButton('次を検索', () => {
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
-          div(button('置換して次に', () => {
+          createDiv(createButton('置換して次に', () => {
             grid.replaceAll(
               this.#findTextInput.value,
               this.#replaceInput.value,
@@ -83,7 +83,7 @@ class FindDialog {
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
           }, buttonAttributes)),
-          div(button('すべて置換', () => {
+          createDiv(createButton('すべて置換', () => {
             grid.replaceAll(
                 this.#findTextInput.value,
                 this.#replaceInput.value,
@@ -93,7 +93,8 @@ class FindDialog {
                 grid.allCells());
             grid.render();
           }, buttonAttributes)),
-          div(button('キャンセル', () => this.element.close(), buttonAttributes))
+          createDiv(createButton(
+              'キャンセル', () => this.element.close(), buttonAttributes))
         ])
       ])
     ]);
@@ -173,15 +174,15 @@ class FindPanel {
       }, ['×']),
       '検索：',
       this.#findTextInput,
-      button('⇩ 次', () => {
+      createButton('⇩ 次', () => {
         updateFindText();
         findDialog.findNext(1);
       }, buttonAttributes),
-      button('⇧ 前', () => {
+      createButton('⇧ 前', () => {
         updateFindText();
         findDialog.findNext(-1);
       }, buttonAttributes),
-      button('オプション', () => findDialog.show(), buttonAttributes)
+      createButton('オプション', () => findDialog.show(), buttonAttributes)
     ]);
   }
 
