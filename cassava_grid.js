@@ -582,14 +582,15 @@ class Grid {
     cell.style.textAlign = align || '';
 
     if (isFixed) {
-      cell.style.backgroundColor = '#eee';
-      cell.style.color = '#000';
+      cell.style.backgroundColor = this.#options.get('Font/FixedColor');
+      cell.style.color = this.#options.get('Font/FixFgColor');
     } else if (isSelected && !isEditing) {
       cell.style.backgroundColor = '#00f';
       cell.style.color = '#fff';
     } else {
-      cell.style.backgroundColor = background || '#fff';
-      cell.style.color = color || '#000';
+      cell.style.backgroundColor = background ||
+          this.#options.get(y % 2 ? 'Font/BgColor' : 'Font/EvenRowBgColor');
+      cell.style.color = color || this.#options.get('Font/FgColor');
     }
   }
 

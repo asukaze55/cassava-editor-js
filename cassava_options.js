@@ -14,6 +14,11 @@ const defaultValues = {
   'DataType:1/Quote': '0',
   'DataType:1/SepChars': '\t',
   'DataType/Count': '2',
+  'Font/BgColor': '#ffffff',
+  'Font/EvenRowBgColor': '#ffffff',
+  'Font/FgColor': '#000000',
+  'Font/FixedColor': '#eeeeee',
+  'Font/FixFgColor': '#000000',
 };
 
 class Options {

@@ -102,6 +102,10 @@ class OptionDialog {
     this.#select.append(
         optgroup,
         createElement('option', {
+          selected: this.#selectedPage == 'color',
+          value: 'color'
+        }, ['色']),
+        createElement('option', {
           selected: this.#selectedPage == 'reset',
           value: 'reset'
         }, ['初期化']));
@@ -110,6 +114,8 @@ class OptionDialog {
   #renderPage() {
     if (this.#selectedPage.startsWith('df-')) {
       this.#renderDataFormatPage(Number(this.#selectedPage.substring(3)));
+    } else if (this.#selectedPage == 'color') {
+      this.#renderColorPage();
     } else if (this.#selectedPage == 'reset') {
       this.#page.innerHTML = '';
       this.#page.append(createButton('初期設定に戻す', () => {
@@ -188,6 +194,26 @@ class OptionDialog {
               quoteInput(QuoteType.ALWAYS), 'すべてのセルを "" で囲む'))
         ])
     );
+  }
+
+  #renderColorPage() {
+    /** @type {(key: string) => HTMLInputElement} */
+    const colorInput = key => createElement('input', {
+      type: 'color',
+      value: this.#options.get(key),
+      oninput: e => this.#options.set(
+          key, /** @type {HTMLInputElement} */(e.target).value)
+    });
+    
+    this.#page.innerHTML = '';
+    this.#page.append(createElement('fieldset', {}, [
+      createElement('legend', {}, ['色']),
+      createDiv('文字色：', colorInput('Font/FgColor')),
+      createDiv('奇数行背景色：', colorInput('Font/BgColor')),
+      createDiv('偶数行背景色：', colorInput('Font/EvenRowBgColor')),
+      createDiv('固定セル文字色：', colorInput('Font/FixFgColor')),
+      createDiv('固定セル背景色：', colorInput('Font/FixedColor'))
+    ]));
   }
 }
 
