@@ -10,21 +10,22 @@ const QuoteType = {
 }
 
 class DataFormat {
-  /** @type {string} */
-  #separators;
-  /** @type {QuoteType} */
-  #quoteType;
-
   /**
-   * @param {string} name
-   * @param {string} separators
-   * @param {QuoteType} quoteType
+   * @param {string=} name
+   * @param {string=} separators
+   * @param {QuoteType=} quoteType
+   * @param {Array<string>=} extensions
    */
-  constructor(name, separators, quoteType) {
+  constructor(name = '', separators =',', quoteType = QuoteType.ONLY_IF_NEEDED,
+      extensions = []) {
     /** @type {string} */
     this.name = name;
-    this.#separators = separators;
-    this.#quoteType = quoteType;
+    /** @type {string} */
+    this.separators = separators;
+    /** @type {QuoteType} */
+    this.quoteType = quoteType;
+    /** @type {Array<string>} */
+    this.extensions = extensions;
   }
 
   /**
@@ -55,9 +56,9 @@ class DataFormat {
         } else {
           current += c;
         }
-      } else if (c == '"' && this.#quoteType != QuoteType.NONE) {
+      } else if (c == '"' && this.quoteType != QuoteType.NONE) {
         quoted = true;
-      } else if (this.#separators.includes(c)) {
+      } else if (this.separators.includes(c)) {
         gridData.setCell(x, y, current);
         current = '';
         x++;
@@ -89,7 +90,7 @@ class DataFormat {
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
         if (x > range.left) {
-          result += this.#separators[0];
+          result += this.separators[0];
         }
         result += this.#maybeQuote(gridData.cell(x, y));
       }
@@ -103,11 +104,11 @@ class DataFormat {
    * @returns {string}
    */
   #maybeQuote(cell) {
-    switch (this.#quoteType) {
+    switch (this.quoteType) {
       case QuoteType.NONE:
         return cell;
       case QuoteType.ONLY_IF_NEEDED:
-        if (Array.from(this.#separators + '"\r\n')
+        if (Array.from(this.separators + '"\r\n')
             .some(c => cell.includes(c))) {
           return this.#quote(cell);
         } else {
@@ -133,12 +134,5 @@ class DataFormat {
   }
 }
 
-DataFormat.CSV = new DataFormat('CSV', ',', QuoteType.ONLY_IF_NEEDED);
-DataFormat.TSV = new DataFormat('TSV', '\t', QuoteType.NONE);
-
-/** @type {(fileName: string) => DataFormat} */
-DataFormat.forFileName =
-    fileName => fileName.endsWith('.tsv') ? DataFormat.TSV : DataFormat.CSV;
-
-net.asukaze.export({ DataFormat });
+net.asukaze.export({ DataFormat, QuoteType });
 })();

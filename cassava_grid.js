@@ -4,6 +4,7 @@ const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
 const { Environment, FunctionValue, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
 const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
 const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
+const { Options } = net.asukaze.import('./cassava_options.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
 const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
 const { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
@@ -51,6 +52,8 @@ function sanitize(text) {
 class Grid {
   /** @type {UndoGrid} */
   #undoGrid;
+  /** @type {Options} */
+  #options;
   /** @type {boolean} */
   #isMouseDown;
   /** @type {number} */
@@ -74,13 +77,14 @@ class Grid {
 
   /**
    * @param {GridData} gridData
+   * @param {Options} options
    * @param {Function} onRender
    * @param {(x: number, y: number) => Promise<ValueType?>} onRenderCell
    */
-  constructor(gridData, onRender, onRenderCell) {
+  constructor(gridData, options, onRender, onRenderCell) {
     this.element = createElement('table', {tabIndex: -1});
-    this.dataFormats = [DataFormat.CSV, DataFormat.TSV];
     this.#undoGrid = new UndoGrid(gridData);
+    this.#options = options;
     this.#suppressRender = 0;
     this.#onRender = onRender;
     this.#onRenderCell = onRenderCell;
@@ -142,7 +146,7 @@ class Grid {
    * @param {string=} fileName
    * @param {DataFormat=} dataFormat
    */
-  clear(fileName = '', dataFormat = this.dataFormats[0]) {
+  clear(fileName = '', dataFormat = this.#options.dataFormats[0]) {
     this.#undoGrid.clear();
     this.dataFormat = dataFormat;
     this.fileName = fileName;
@@ -1840,6 +1844,8 @@ class CassavaGridElement extends HTMLElement {
   #macroMap;
   /** @type {OpenDialog} */
   #openDialog;
+  /** @type {Options} */
+  #options;
   /** @type {OpenDialog} */
   #macroExecuteDialog;
   /** @type {CassavaStatusBarElement} */
@@ -1881,7 +1887,8 @@ class CassavaGridElement extends HTMLElement {
     'GetColWidth/0': () => this.#grid.defaultColWidth,
     'GetColWidth/1':
         a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
-    'GetDataTypes/0': () => this.#grid.dataFormats.map(f => f.name).join('\n'),
+    'GetDataTypes/0':
+        () => this.#options.dataFormats.map(f => f.name).join('\n'),
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
@@ -2000,14 +2007,12 @@ class CassavaGridElement extends HTMLElement {
     'SequenceC/0': () => this.#grid.sequenceC(this.#grid.selection()),
     'SequenceS/0': () => this.#grid.sequenceS(this.#grid.selection()),
     'SetActiveDataType/1': dataType => {
-      for (const dataFormat of this.#grid.dataFormats) {
-        if (dataFormat.name == dataType) {
-          this.#grid.dataFormat = dataFormat;
-          this.#grid.render();
-          return;
-        }
+      const format = this.#options.dataFormats.find(f => f.name == dataType);
+      if (format == null) {
+        throw 'Unsupported data type: ' + dataType;
       }
-      throw 'Unsupported data type: ' + dataType;
+      this.#grid.dataFormat = format;
+      this.#grid.render();
     },
     'SetCharCode/1': charCode => {
       if (charCode != 'UTF-8') {
@@ -2086,14 +2091,18 @@ class CassavaGridElement extends HTMLElement {
   constructor() {
     super();
 
-    this.#grid = new Grid(new GridData(),
+    this.#options = new Options();
+    this.#grid = new Grid(new GridData(), this.#options,
         /* onRender= */ () => this.runNamedMacro('!statusbar.cms'),
         /* onRenderCell= */ (x, y) => this.#runFormatMacro(x, y));
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
     this.#macroMap = new Map();
     this.#openDialog = new OpenDialog((content, fileName) => {
-      const dataFormat = DataFormat.forFileName(fileName);
+      const dataFormats = this.#options.dataFormats;
+      const dataFormat = dataFormats
+          .find(f => f.extensions.some(ext => fileName.endsWith('.' + ext)))
+          ?? dataFormats[0];
       this.#grid.setGridData(dataFormat.parse(content), fileName, dataFormat);
     });
     this.#macroExecuteDialog =
