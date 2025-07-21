@@ -4,6 +4,7 @@ const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
 const { Environment, FunctionValue, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
 const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
 const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
+const { OptionDialog } = net.asukaze.import('./cassava_option_dialog.js');
 const { Options } = net.asukaze.import('./cassava_options.js');
 const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
 const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
@@ -1844,6 +1845,8 @@ class CassavaGridElement extends HTMLElement {
   #macroMap;
   /** @type {OpenDialog} */
   #openDialog;
+  /** @type {OptionDialog} */
+  #optionDialog;
   /** @type {Options} */
   #options;
   /** @type {OpenDialog} */
@@ -1949,6 +1952,7 @@ class CassavaGridElement extends HTMLElement {
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
     'Open/0': () => this.#openDialog.show(),
     'Open/1': () => this.#openDialog.show(),
+    'OptionDlg/0': () => this.#optionDialog.show(),
     'Paste/0': () => paste(this.#grid, -1),
     'Paste/1': a => paste(this.#grid, Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
@@ -2105,6 +2109,7 @@ class CassavaGridElement extends HTMLElement {
           ?? dataFormats[0];
       this.#grid.setGridData(dataFormat.parse(content), fileName, dataFormat);
     });
+    this.#optionDialog = new OptionDialog(this.#grid, this.#options);
     this.#macroExecuteDialog =
         new OpenDialog(content => this.#runMacro(content));
     this.#statusBarPanel = /** @type {CassavaStatusBarElement} */(

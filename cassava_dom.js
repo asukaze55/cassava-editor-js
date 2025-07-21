@@ -35,7 +35,7 @@ function createDiv(...children) {
 /**
  * @param {Node|string} content
  * @param {(this: HTMLButtonElement, event: MouseEvent) => any} onclick
- * @param {{}=} attributes
+ * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {style?: string}=} attributes
  * @returns {HTMLButtonElement}
  */
 function createButton(content, onclick, attributes) {
@@ -70,12 +70,13 @@ function isInputElement(element, root) {
 
 /**
  * @param {Array<Node|string>} children
+ * @param {Omit<Partial<HTMLDialogElement>, 'style'> & {style?: string}=} attributes
  * @returns {HTMLDialogElement}
  */
-function createDialog(children) {
-  const element = createElement('dialog', {
-    style: 'margin-top: 8px; z-index: 3;'
-  }, children);
+function createDialog(children, attributes = {}) {
+  const element = createElement('dialog', attributes, children);
+  element.style.marginTop = '8px';
+  element.style.zIndex = '3';
 
   const eventOption = /** @type {EventListenerOptions} */({passive: true});
   element.addEventListener('mousedown', event => {

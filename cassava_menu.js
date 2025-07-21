@@ -162,6 +162,9 @@ class CassavaMenuElement extends HTMLElement {
         ['マクロを編集...', () => macroDialog.show()],
         ['指定したマクロを実行...', command('MacroExecute')],
       ]), []],
+      ['オプション', toggleSubMenu, [
+        ['オプション...', command('OptionDlg')]
+      ]],
       ['ヘルプ', toggleSubMenu, [
         ['掲示板', () => window.open('https://www.asukaze.net/soft/cassava/bbs/', '_blank')],
         ['GitHub', () => window.open('https://github.com/asukaze55/cassava-editor-js/', '_blank')]
