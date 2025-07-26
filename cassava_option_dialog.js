@@ -212,7 +212,10 @@ class OptionDialog {
       createDiv('奇数行背景色：', colorInput('Font/BgColor')),
       createDiv('偶数行背景色：', colorInput('Font/EvenRowBgColor')),
       createDiv('固定セル文字色：', colorInput('Font/FixFgColor')),
-      createDiv('固定セル背景色：', colorInput('Font/FixedColor'))
+      createDiv('固定セル背景色：', colorInput('Font/FixedColor')),
+      createDiv('カーソル行背景色：', colorInput('Font/CurrentRowBgColor')),
+      createDiv('カーソル列背景色：', colorInput('Font/CurrentColBgColor')),
+      createDiv('ダミーセル背景色：', colorInput('Font/DummyBgColor'))
     ]));
   }
 }

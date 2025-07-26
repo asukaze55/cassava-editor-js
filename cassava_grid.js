@@ -588,10 +588,33 @@ class Grid {
       cell.style.backgroundColor = '#00f';
       cell.style.color = '#fff';
     } else {
-      cell.style.backgroundColor = background ||
-          this.#options.get(y % 2 ? 'Font/BgColor' : 'Font/EvenRowBgColor');
+      cell.style.backgroundColor = background || this.#getBackgroundColor(x, y);
       cell.style.color = color || this.#options.get('Font/FgColor');
     }
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {string}
+   */
+  #getBackgroundColor(x, y) {
+    const bgColor = this.#options.get('Font/BgColor');
+    const currentRowBgColor = this.#options.get('Font/CurrentRowBgColor');
+    if (y == this.y && currentRowBgColor != bgColor) {
+      return currentRowBgColor;
+    }
+    const currentColBgColor = this.#options.get('Font/CurrentColBgColor');
+    if (x == this.x && currentColBgColor != bgColor) {
+      return currentColBgColor;
+    }
+    const isDummyCell =
+        (x > this.#undoGrid.right() || y > this.#undoGrid.bottom());
+    const isCurrentCell = (x == this.x && y == this.y);
+    if (isDummyCell && !isCurrentCell) {
+      return this.#options.get('Font/DummyBgColor');
+    }
+    return (y % 2) ? bgColor : this.#options.get('Font/EvenRowBgColor');
   }
 
   /**
@@ -954,7 +977,7 @@ class Grid {
       this.#isTouchStarted = false;
     });
   }
-  
+
   /**
    * @param {Touch} touch
    * @param {HTMLTableElement} table
@@ -1472,7 +1495,7 @@ function convertDialogContent(content) {
   }
 
   const tagName = content.get('tagName').toString().toUpperCase();
-  if (tagName == 'BUTTON') { 
+  if (tagName == 'BUTTON') {
     return createElement('button', attributes, children);
   } else if (tagName == 'INPUT') {
     const element = createElement('input', attributes, children);
