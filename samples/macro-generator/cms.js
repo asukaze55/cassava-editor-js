@@ -1,4 +1,4 @@
-/** @typedef {import("./cassava_min_20250608.d.ts").CassavaGridElement} CassavaGridElement */
+/** @typedef {import("./cassava_min_20250727.d.ts").CassavaGridElement} CassavaGridElement */
 
 class Builder {
   /** @type {Array<string>} */
@@ -503,7 +503,7 @@ function loadCassava() {
   const element = elem('cassava-editor-js');
   element.style.display = '';
   const script = document.createElement('script');
-  script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250608.js';
+  script.src = 'https://www.asukaze.net/soft/cassava/js/cassava_min_20250727.js';
   element.append(script);
   script.onload = generate;
 }
