@@ -140,6 +140,23 @@ class OptionDialog {
       }
     });
 
+    const defaultExtension = createElement('input', {
+      style: 'width: 4em;',
+      value: dataFormat.extensions[0] ?? ''
+    });
+    const otherExtensions = createElement('input', {
+      style: 'width: 8em;',
+      value: dataFormat.extensions.slice(1).join(';')
+    });
+    const onExtensionsInput = () => {
+      dataFormat.extensions = otherExtensions.value ?
+          [defaultExtension.value, ...otherExtensions.value.split(';')] :
+          [defaultExtension.value];
+      this.#options.save();
+    }
+    defaultExtension.addEventListener('input', onExtensionsInput);
+    otherExtensions.addEventListener('input', onExtensionsInput);
+
     const defaultSeparator = createElement('input', {
       style: 'width: 4em;',
       value: escapeSeparator(dataFormat.separators.substring(0, 1))
@@ -176,6 +193,11 @@ class OptionDialog {
             this.#options.save();
             this.#render();
           })
+        ]),
+        createElement('fieldset', {}, [
+          createElement('legend', {}, ['拡張子']),
+          createDiv('標準拡張子：', defaultExtension),
+          createDiv('この形式で開く拡張子：', otherExtensions)
         ]),
         createElement('fieldset', {}, [
           createElement('legend', {}, ['区切り文字']),
