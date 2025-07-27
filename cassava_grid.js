@@ -1920,6 +1920,7 @@ class CassavaGridElement extends HTMLElement {
         () => this.#options.dataFormats.map(f => f.name).join('\n'),
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
+    'GetIniSetting/2': (a, b) => new Options().get(a + '/' + b),
     'GetRowHeight/0': () => this.#grid.defaultRowHeight,
     'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
     'InputBox/1': a => {
@@ -1954,6 +1955,7 @@ class CassavaGridElement extends HTMLElement {
     'InsertCol/2': (a, b) => this.#grid.insertCol(Number(a), Number(b), false),
     'InsertRow/1': a => this.#grid.insertRow(Number(a), Number(a), false),
     'InsertRow/2': (a, b) => this.#grid.insertRow(Number(a), Number(b), false),
+    'LoadIniSetting/0': () => this.#options.load(),
     'MacroExecute/0': () => this.#macroExecuteDialog.show(),
     'MacroTerminate/0': () => {
       throw macroTerminated;
@@ -2013,6 +2015,7 @@ class CassavaGridElement extends HTMLElement {
       }
     },
     'SaveAs/1': a => saveAs(a.toString(), this.#grid),
+    'SaveIniSetting/0': () => this.#options.save(),
     'SelBottom=/0': () => this.#grid.selBottom(),
     'SelBottom=/1': a => this.#grid.select(
         this.#grid.selLeft(), Math.min(Number(a), this.#grid.selTop()),
@@ -2056,6 +2059,8 @@ class CassavaGridElement extends HTMLElement {
     'SetColWidth/2': (a, b) => {
       this.#grid.colWidths.set(Number(a), Number(b));
     },
+    'SetIniSetting/3':
+        (a, b, c) => new Options().setRaw(a + '/' + b, c.toString()),
     'SetRowHeight/1': a => {
       this.#grid.rowHeights.clear();
       this.#grid.defaultRowHeight = Number(a);

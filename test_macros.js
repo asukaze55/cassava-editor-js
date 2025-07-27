@@ -422,6 +422,26 @@ class FunctionsTest {
     assert.that(SelRight).isEqualTo(4);
     assert.that(SelBottom).isEqualTo(5);
 
+    SaveIniSetting();
+    originalDataType = GetActiveDataType();
+    dataType0Name = GetIniSetting("DataType:0", "Name");
+    dataType0SepChars = GetIniSetting("DataType:0", "SepChars");
+    SetIniSetting("DataType:0", "SepChars", "|");
+    LoadIniSetting();
+    SetActiveDataType(dataType0Name);
+    [1,1] = "A";
+    [2,1] = "B";
+    [1,2] = "C";
+    [2,2] = "D";
+    Select(1, 1, 2, 2);
+    Copy();
+    moveto(1, 1);
+    Paste(5);
+    assert.that([1,1]).isEqualTo("A|B\nC|D");
+    SetIniSetting("DataType:0", "SepChars", dataType0SepChars);
+    LoadIniSetting();
+    SetActiveDataType(originalDataType);
+
     Clear();
   }
 }
@@ -490,15 +510,15 @@ class LambdaTest {
     assert.that(this.invoke0(() => 34567)).isEqualTo(34567);
     assert.that(this.invoke1(x => x * x, 7)).isEqualTo(49);
     assert.that(this.invoke2((x, y) => x * y, 4, 5)).isEqualTo(20);
-    
+
     x = 12;
     f = y => x * y;
     assert.that(f(11)).isEqualTo(132);
-    
+
     f = a => b => x + a + b;
     g = f(1);
     assert.that(g(13)).isEqualTo(26);
-    
+
     f = () => g(14);
     assert.that(f()).isEqualTo(27);
 
@@ -712,7 +732,7 @@ class MenuTest {
     CutCol();
     assert.that(Right).isEqualTo(1);
     assert.that([1,1]).isEqualTo("A");
-    
+
     [1,1] = "A";
     [2,1] = "B";
     [3,1] = "C";
@@ -907,7 +927,7 @@ class OperatorsTest {
 
 assert = new Assert();
 new OperatorsTest().test(assert);
-assert.showResult(); 
+assert.showResult();
 `);
 
 grid.addMacro('tests/SpecialVarsTest.cms', String.raw`

@@ -112,10 +112,9 @@ class Options {
    * @param {string} key
    * @param {string} value
    */
-  update(key, value) {
-    const values = this.#loadFromLocalStorage();
-    values[key] = value;
-    this.#saveToLocalStorage(values);
+  setRaw(key, value) {
+    this.#values[key] = value;
+    this.#saveToLocalStorage(this.#values);
   }
 }
 
