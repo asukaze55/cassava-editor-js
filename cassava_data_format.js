@@ -83,9 +83,10 @@ class DataFormat {
   /**
    * @param {GridData} gridData
    * @param {Range} range
+   * @param {boolean} endingLineBreak
    * @returns {string}
    */
-  stringify(gridData, range) {
+  stringify(gridData, range, endingLineBreak) {
     let result = '';
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
@@ -94,7 +95,9 @@ class DataFormat {
         }
         result += this.#maybeQuote(gridData.cell(x, y));
       }
-      result += '\n';
+      if (endingLineBreak || y < range.bottom) {
+        result += '\n';
+      }
     }
     return result;
   }

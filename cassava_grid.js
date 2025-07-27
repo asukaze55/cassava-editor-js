@@ -1693,7 +1693,8 @@ function saveAs(fileName, grid) {
   grid.fileName = fileName;
   const gridData = grid.gridData();
   const blob = new Blob(
-      [grid.dataFormat.stringify(gridData, gridData.range())],
+      [grid.dataFormat.stringify(
+          gridData, gridData.range(), /* endingLineBreak= */ true)],
       {type: "text/csv"});
   if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
     /** @type {any} */(navigator).msSaveOrOpenBlob(blob, fileName);
@@ -1785,7 +1786,8 @@ function showPasteDialog(grid, clipText, clipData) {
  */
 async function copy(grid, cut) {
   const range = grid.selection();
-  await clipboard.writeText(grid.dataFormat.stringify(grid.gridData(), range));
+  await clipboard.writeText(grid.dataFormat.stringify(
+      grid.gridData(), range, /* endingLineBreak= */ false));
   if (cut) {
     grid.clearCells(range);
     grid.render();
