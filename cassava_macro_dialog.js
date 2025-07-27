@@ -1,5 +1,5 @@
 (() => {
-const { createButton, createDialog, createDiv, createElement, createTitleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
 const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
 
 class MacroManager {
@@ -153,10 +153,9 @@ class MacroDialog {
 
   /** @param {CassavaGridElement} grid */
   constructor(grid) {
-    const smallScreen = document.documentElement.clientWidth <= 480;
     this.#manager = new MacroManager(grid);
     this.#macroSelect = createElement('select', {
-      size: smallScreen ? 0: 10,
+      size: isSmallScreen() ? 0: 10,
       style: 'width: 100%;',
       oninput: () => this.#load(this.#macroSelect.value)
     });
@@ -169,12 +168,12 @@ class MacroDialog {
     });
     this.element = createDialog([
       createTitleBar('マクロを編集', () => this.element.close()),
-      createElement('div', smallScreen ? {} : {style: 'display: flex'}, [
+      createElement('div', isSmallScreen() ? {} : {style: 'display: flex'}, [
         createElement('div', {style: 'margin-right: 10px;'}, [
           createButton('新規作成', () => this.#addNew()),
           this.#renameButton,
           this.#deleteButton,
-          smallScreen ? ' ' : createElement('br'),
+          isSmallScreen() ? ' ' : createElement('br'),
           this.#macroSelect
         ]),
         createDiv(createDiv(this.#macroTextarea), createDiv(

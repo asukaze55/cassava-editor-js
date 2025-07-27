@@ -1,6 +1,6 @@
 (() => {
 const { Range } = net.asukaze.import('./cassava_grid_data.js');
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
 const { createFinder } = net.asukaze.import('./cassava_replacer.js');
 
 /**
@@ -9,7 +9,7 @@ const { createFinder } = net.asukaze.import('./cassava_replacer.js');
  *   y: number,
  *   allCells(): Range,
  *   bottom(): number,
- *   cell(x: number, y: number): string, 
+ *   cell(x: number, y: number): string,
  *   moveTo(x: number, y: number): Promise<void>,
  *   render(): Promise<void>
  *   replaceAll(str1: string, str2: string, ignoreCase: boolean,
@@ -41,10 +41,10 @@ class FindDialog {
   constructor(grid) {
     this.#grid = grid;
 
-    const buttonAttributes = {style: 'margin-bottom: 4px; width: 100%;'};
+    const buttonAttributes = {style: 'margin: 0px 4px 4px 0'};
     this.element = createDialog([
       createTitleBar('検索・置換', () => this.element.close()),
-      createElement('div', {style: 'display: flex;'}, [
+      createElement('div', isSmallScreen() ? {} : {style: 'display: flex'}, [
         createDiv(createDiv(createElement('fieldset', {}, [
               createDiv(createLabel('検索する文字列：', this.#findTextInput)),
               createDiv(createLabel('置換後の文字列：', this.#replaceInput)),
@@ -58,21 +58,22 @@ class FindDialog {
               createLabel(this.#isUpwardInput, '左・上へ'),
               createLabel(this.#isDownwardInput, '右・下へ')
             ]))),
-        createElement('div', {style: 'margin-left: 16px;'}, [
-          createDiv(createButton('先頭から検索', () => {
+        createElement('div', {style: isSmallScreen() ? 'margin-top: 16px'
+            : 'display: flex; flex-direction: column; margin-left: 16px;'}, [
+          createButton('先頭から検索', async () => {
             if (this.#isUpwardInput.checked) {
-              grid.moveTo(grid.right(), grid.bottom());
+              await grid.moveTo(grid.right(), grid.bottom());
             } else {
-              grid.moveTo(1, 1);
+              await grid.moveTo(1, 1);
             }
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
-          }, buttonAttributes)),
-          createDiv(createButton('次を検索', () => {
+          }, buttonAttributes),
+          createButton('次を検索', () => {
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
-          }, buttonAttributes)),
-          createDiv(createButton('置換して次に', () => {
+          }, buttonAttributes),
+          createButton('置換して次に', () => {
             grid.replaceAll(
               this.#findTextInput.value,
               this.#replaceInput.value,
@@ -82,8 +83,8 @@ class FindDialog {
                 new Range(grid.x, grid.y, grid.x, grid.y));
             this.findNext(this.#isUpwardInput.checked ? -1 : 1);
             grid.render();
-          }, buttonAttributes)),
-          createDiv(createButton('すべて置換', () => {
+          }, buttonAttributes),
+          createButton('すべて置換', () => {
             grid.replaceAll(
                 this.#findTextInput.value,
                 this.#replaceInput.value,
@@ -92,9 +93,8 @@ class FindDialog {
                 this.#isRegexInput.checked,
                 grid.allCells());
             grid.render();
-          }, buttonAttributes)),
-          createDiv(createButton(
-              'キャンセル', () => this.element.close(), buttonAttributes))
+          }, buttonAttributes),
+          createButton('キャンセル', () => this.element.close(), buttonAttributes)
         ])
       ])
     ]);

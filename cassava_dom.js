@@ -136,5 +136,9 @@ function createTitleBar(title, onClose) {
   ]);
 }
 
-net.asukaze.export({ createButton, createDialog, createDiv, createElement, createLabel, createTitleBar });
+function isSmallScreen() {
+  return document.documentElement.clientWidth <= 480;
+}
+
+net.asukaze.export({ createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen });
 })();

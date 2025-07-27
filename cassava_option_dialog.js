@@ -1,5 +1,5 @@
 (() => {
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
 const { Options } = net.asukaze.import('./cassava_options.js');
 const { DataFormat, QuoteType } = net.asukaze.import('./cassava_data_format.js');
 
@@ -52,12 +52,11 @@ class OptionDialog {
    * @param {Options} options
    */
   constructor(grid, options) {
-    const smallScreen = document.documentElement.clientWidth <= 480;
     this.#grid = grid;
     this.#options = options;
     this.#page = createDiv();
     this.#select = createElement('select', {
-      size: smallScreen ? 1 : 10,
+      size: isSmallScreen() ? 1 : 10,
       style: 'height: 100%; overflow: auto; width: 100%;',
       oninput: () => {
         this.#selectedPage = this.#select.value;
@@ -67,7 +66,7 @@ class OptionDialog {
     this.#selectedPage = 'df-0';
     this.element = createDialog([
       createTitleBar('Cassava オプション', () => this.element.close()),
-      createElement('div', smallScreen ? {} : {style: 'display: flex'}, [
+      createElement('div', isSmallScreen() ? {} : {style: 'display: flex'}, [
         createElement('div', {style: 'margin-right: 10px'}, [this.#select]),
         createElement('div', {style: 'flex: 1'}, [this.#page])
       ])
@@ -226,7 +225,7 @@ class OptionDialog {
       oninput: e => this.#options.set(
           key, /** @type {HTMLInputElement} */(e.target).value)
     });
-    
+
     this.#page.innerHTML = '';
     this.#page.append(createElement('fieldset', {}, [
       createElement('legend', {}, ['色']),
