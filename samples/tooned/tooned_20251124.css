@@ -1,0 +1,33 @@
+.tabs {
+  padding-left: 8px;
+}
+
+.tabs input {
+  display: none;
+}
+
+.tabs label {
+  border: 1px solid #000;
+  border-radius: 16px 16px 0 0;
+  cursor: pointer;
+  padding: 8px 16px 8px;
+  margin-right: -1px;
+}
+
+.tabs label:has(input:checked) {
+  background: #9cf;
+}
+
+.main {
+  border: 1px solid #000;
+  margin: 8px;
+  padding: 8px;
+}
+
+textarea {
+  max-width: 100%;
+}
+
+footer {
+  text-align: right;
+}

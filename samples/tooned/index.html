@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <meta charset="UTF-8">
+  <meta http-equiv="content-language" content="ja">
+  <title>Toon Editor - あすかぜ・ねっと</title>
+  <link rel="stylesheet" type="text/css" href="tooned_20251124.css">
+</head>
+<body>
+<h1>Toon Editor</h1>
+<div id="main-view"></div>
+
+<ul>
+  <li>
+    <a href="https://github.com/toon-format/toon">Toon 形式</a> のデータを表示・編集するツールです。
+    <ul>
+      <li>「Tree」タブでデータを編集して「Text」タブをクリックすると、Toon 形式に変換します。</li>
+      <li>「Text」タブにデータを入力して「Tree」タブをクリックすると、ツリー + グリッドで表示します。</li>
+    </ul>
+  </li>
+  <li>エラーハンドリングは一切していません。</li>
+  <li>区切り文字は「,」固定です。他の区切り文字は扱えません。</li>
+  <li>グリッド形式ではデータの型は指定できません。null, true, false, 数値に "" はつきません。</li>
+  <li>その他バグがあると思います。</li>
+</ul>
+
+<footer>
+  Last Updated: 2025-11-24<br />
+  <a href="http://www.asukaze.net/">あすかぜ・ねっと</a>
+</footer>
+
+<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20250727.js"></script>
+<script src="module.js"></script>
+<script src="dom.js"></script>
+<script src="tooned.js"></script>
+</body>
+</html>

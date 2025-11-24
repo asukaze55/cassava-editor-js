@@ -4,3 +4,6 @@ pack/decl
 pack/src
 pack/out
 samples/macro-generator/out
+samples/tooned/pack/src
+samples/tooned/pack/out
+
