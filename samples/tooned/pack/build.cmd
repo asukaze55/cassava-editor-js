@@ -1,7 +1,7 @@
 @ECHO OFF
 CALL perl  toModule.pl < ..\dom.js > src\dom.js
 CALL perl  toModule.pl < ..\tooned.js > src\tooned.js
-COPY ..\cassava_min_20250727.d.ts src\
+COPY ..\cassava_min_20251214.d.ts src\
 CALL tsc src\tooned.js --target es2022 --checkJs --noImplicitAny --noEmit
 CALL webpack
 

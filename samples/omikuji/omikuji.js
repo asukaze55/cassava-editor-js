@@ -1,4 +1,4 @@
-/** @typedef {import("./cassava_min_20250727.d.ts").CassavaGridElement} CassavaGridElement */
+/** @typedef {import("./cassava_min_20251214.d.ts").CassavaGridElement} CassavaGridElement */
 
 /** @param {CassavaGridElement} grid */
 function init(grid) {
