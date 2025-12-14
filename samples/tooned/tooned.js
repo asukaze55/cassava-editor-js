@@ -383,8 +383,11 @@ class Node {
         this.#grid =
             /** @type {CassavaGridElement} */(createElement('cassava-grid'));
       }
-      this.#element.append(this.#grid);
+      this.#element.append(
+          createDiv(createButton('Edit column names', () => this.#grid.runMacro('FixFirstRow();'))),
+          this.#grid);
       this.#element.style.display = 'block';
+      this.#grid.runMacro('UnFix(); FixFirstRow();');
     }
   }
 
