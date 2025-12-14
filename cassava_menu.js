@@ -158,6 +158,12 @@ class CassavaMenuElement extends HTMLElement {
         ['次を検索 (F3)', command('FindNext')],
         ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
+      ['表示', toggleSubMenu, [
+        ['１行目を固定', command('FixFirstRow')],
+        ['１列目を固定', command('FixFirstCol')],
+        ['カーソル位置までを固定', command('FixUpLeft')],
+        ['固定を解除', command('UnFix')]
+      ]],
       ['マクロ', event => this.toggleMacroMenu(event, grid, [
         ['マクロを編集...', () => macroDialog.show()],
         ['指定したマクロを実行...', command('MacroExecute')],

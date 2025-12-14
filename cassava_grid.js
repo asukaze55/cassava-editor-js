@@ -57,6 +57,10 @@ class Grid {
   #defaultColWidth;
   /** @type {number} */
   #defaultRowHeight;
+  /** @type {number} */
+  #fixedCols;
+  /** @type {number} */
+  #fixedRows;
   /** @type {boolean} */
   #isMouseDown;
   /** @type {boolean} */
@@ -91,6 +95,7 @@ class Grid {
    * @param {(x: number, y: number) => Promise<ValueType?>} onRenderCell
    */
   constructor(gridData, options, onRender, onRenderCell) {
+    /** @type {HTMLTableElement} */
     this.element = createElement('table', {tabIndex: -1});
     this.#undoGrid = new UndoGrid(gridData);
     this.#options = options;
@@ -146,9 +151,10 @@ class Grid {
    * @param {number} y
    * @returns {HTMLTableCellElement}
    */
-  cellNode(x, y) {
-    const i = (y == 0) ? 0 : y - this.#renderedTop + 1;
-    return this.element.rows[i].cells[x];
+  #cellNode(x, y) {
+    const i = (y < this.#renderedTop) ? 0 : y - this.#renderedTop;
+    const left = (this.#fixedCols == 0 ? 0 : 1);
+    return this.element.tBodies[0].rows[i].cells[x - left];
   }
 
   /**
@@ -166,6 +172,8 @@ class Grid {
     this.#colWidths = new Map();
     this.#defaultColWidth = 48;
     this.#defaultRowHeight = 32;
+    this.#fixedCols = 0;
+    this.#fixedRows = 0;
     this.#isMouseDown = false;
     this.#isTouchCurentCell = false;
     this.#mouseDownX = 1;
@@ -274,6 +282,14 @@ class Grid {
     return this.#defaultRowHeight;
   }
 
+  getFixedCols() {
+    return this.#fixedCols;
+  }
+
+  getFixedRows() {
+    return this.#fixedRows;
+  }
+
   /**
    * @param {number} y
    * @returns {number}
@@ -367,6 +383,12 @@ class Grid {
    * @param {number} y
    */
   async moveTo(x, y) {
+    if (x < 1 || x <= this.#fixedCols) {
+      x = this.#fixedCols + 1;
+    }
+    if (y < 1 || y <= this.#fixedRows) {
+      y = this.#fixedRows + 1;
+    }
     this.anchorX = x;
     this.anchorY = y;
     this.x = x;
@@ -380,7 +402,7 @@ class Grid {
       return;
     }
     await this.render();
-    const cellNode = this.cellNode(x, y);
+    const cellNode = this.#cellNode(x, y);
     cellNode.contentEditable = 'true';
     cellNode.focus();
     setTimeout(() => window.getSelection()
@@ -458,18 +480,38 @@ class Grid {
       this.#suppressRender--;
     }
     const table = this.element;
-    const bottom = Math.max(4, this.#undoGrid.bottom() + 1, this.y, this.anchorY);
-    while (table.rows.length > bottom - this.#renderedTop + 2) {
-      table.deleteRow(-1);
-    }
-    const headerRow = (table.rows.length > 0) ? table.rows[0] : table.insertRow();
+    const bottom =
+        Math.max(4, this.#undoGrid.bottom() + 1, this.y, this.anchorY);
     const right = Math.max(4, this.#undoGrid.right() + 1, this.x, this.anchorX);
-    await this.renderRow(headerRow, 0, right);
     const tableTop = table.getBoundingClientRect().top;
+
+    const tHead = table.tHead ?? table.createTHead();
+    if (this.#fixedRows == 0) {
+      while (tHead.rows.length > 1) {
+        tHead.deleteRow(-1);
+      }
+      const row = (tHead.rows.length > 0) ? tHead.rows[0] : tHead.insertRow();
+      await this.renderRow(row, 0, right);
+    } else {
+      while (tHead.rows.length > this.#fixedRows) {
+        tHead.deleteRow(-1);
+      }
+      for (let y = 1; y <= this.#fixedRows; y++) {
+        const row =
+            (tHead.rows.length >= y) ? tHead.rows[y - 1] : tHead.insertRow();
+        await this.renderRow(row, y, right);
+      }
+    }
+
+    const tBody =
+        table.tBodies.length > 0 ? table.tBodies[0] : table.createTBody();
+    while (tBody.rows.length > bottom - this.#renderedTop + 1) {
+      tBody.deleteRow(-1);
+    }
     this.#renderedBottom = bottom;
     for (let y = this.#renderedTop; y <= bottom; y++) {
-      const i = y - this.#renderedTop + 1;
-      const row = (i < table.rows.length) ? table.rows[i] : table.insertRow();
+      const i = y - this.#renderedTop;
+      const row = (i < tBody.rows.length) ? tBody.rows[i] : tBody.insertRow();
       if (row.getBoundingClientRect().top - tableTop > screen.height * 2) {
         this.#renderedBottom = y - 1;
         break;
@@ -485,11 +527,11 @@ class Grid {
       }
       await this.renderRow(row, y, right);
     }
-    if (table.rows[1].getBoundingClientRect().bottom > tableTop) {
-      const count = Math.min(10, this.#renderedTop - 1);
+    if (tBody.rows[0].getBoundingClientRect().bottom > tableTop) {
+      const count = Math.min(10, this.#renderedTop - this.#fixedRows - 1);
       let prerenderedHeight = 0;
       for (let i = 1; i <= count; i++) {
-        const row = table.insertRow(1);
+        const row = tBody.insertRow(0);
         await this.renderRow(row, this.#renderedTop - i, right);
         prerenderedHeight += row.getBoundingClientRect().height;
       }
@@ -506,21 +548,19 @@ class Grid {
    * @param {number} right
    */
   async renderRow(row, y, right) {
-    while (row.cells.length > right + 1) {
+    const left = (this.#fixedCols == 0 ? 0 : 1);
+    while (row.cells.length > right - left + 1) {
       row.deleteCell(-1);
     }
-    for (let x = 0; x <= right; x++) {
+    for (let x = left; x <= right; x++) {
       let cell;
-      if (x < row.cells.length) {
-        cell = row.cells[x];
+      if (x - left < row.cells.length) {
+        cell = row.cells[x - left];
       } else {
-        cell = createElement((x == 0 || y == 0) ? 'th' : 'td');
+        cell = createElement(
+            (x <= this.#fixedCols || y <= this.#fixedRows) ? 'th' : 'td');
         cell.dataset.x = String(x);
-        if (x == 0 && y == 0) {
-          cell.className = 'fixed-both';
-        } else if (y == 0) {
-          cell.className = 'fixed-row';
-        } else if (x == 0) {
+        if (x <= this.#fixedCols) {
           cell.className = 'fixed-col';
         }
         row.appendChild(cell);
@@ -579,7 +619,7 @@ class Grid {
    * @param {string=} background
    */
   #renderCell(cell, x, y, value, align, color, background) {
-    const isFixed = x == 0 || y == 0;
+    const isFixed = x  <= this.#fixedCols || y <= this.#fixedRows;
     const isSelected = x >= this.selLeft()
         && x <= this.selRight()
         && y >= this.selTop()
@@ -731,7 +771,7 @@ class Grid {
     this.x = x;
     this.y = y;
     await this.render();
-    const cellNode = this.cellNode(x, y);
+    const cellNode = this.#cellNode(x, y);
     this.#renderRawCell(cellNode, x, y);
     cellNode.focus();
     setTimeout(() => {
@@ -804,6 +844,34 @@ class Grid {
   setDefaultRowHeight(h) {
     this.#rowHeights.clear();
     this.#defaultRowHeight = h;
+  }
+
+  /** @param {number} value */
+  setFixedCols(value) {
+    if (value != this.#fixedCols) {
+      this.#fixedCols = value;
+      if (this.x <= value) {
+        this.x = value + 1;
+      }
+      if (this.anchorX <= value) {
+        this.anchorX = value + 1;
+      }
+      this.element.innerHTML = '';
+    }
+  }
+
+  /** @param {number} value */
+  setFixedRows(value) {
+    this.#fixedRows = value;
+    if (this.y <= value) {
+      this.y = value + 1;
+    }
+    if (this.anchorY <= value) {
+      this.anchorY = value + 1;
+    }
+    if (this.#renderedTop <= value) {
+      this.#renderedTop = value + 1;
+    }
   }
 
   /**
@@ -946,11 +1014,11 @@ class Grid {
       return;
     }
     event.preventDefault();
-    if (x == 0 && y == 0) {
+    if (x <= this.#fixedCols && y <= this.#fixedRows) {
       await this.selectAll();
-    } else if (x == 0) {
+    } else if (x <= this.#fixedCols) {
       await this.selectRow(anchorY, y);
-    } else if (y == 0) {
+    } else if (y <= this.#fixedRows) {
       await this.selectCol(anchorX, x);
     } else {
       await this.select(anchorX, anchorY, x, y);
@@ -996,11 +1064,12 @@ class Grid {
     if (this.isEditing && x2 == this.x && y2 == this.y) {
       return;
     }
-    if ((x1 == 0 || x2 == 0) && (y1 == 0 || y2 == 0)) {
+    if ((x1 <= this.#fixedCols || x2 <= this.#fixedCols) &&
+        (y1 <= this.#fixedRows || y2 <= this.#fixedRows)) {
       await this.selectAll();
-    } else if (x1 == 0 || x2 == 0) {
+    } else if (x1 <= this.#fixedCols || x2 <= this.#fixedCols) {
       await this.selectRow(y1, y2);
-    } else if (y1 == 0 || y2 == 0) {
+    } else if (y1 <= this.#fixedRows || y2 <= this.#fixedRows) {
       await this.selectCol(x1, x2);
     } else {
       await this.select(x1, y1, x2, y2);
@@ -1340,8 +1409,8 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       }
       return;
     case 'ArrowLeft':
-      if (x > 1 && (cellNode == null
-                    || containsFirstPosition(selection, cellNode))) {
+      if (x > grid.getFixedCols() + 1 &&
+          (cellNode == null || containsFirstPosition(selection, cellNode))) {
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x - 1, y);
         } else {
@@ -1361,8 +1430,8 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       }
       return;
     case 'ArrowUp':
-      if (y > 1 && (cellNode == null
-                    || containsFirstLine(selection, cellNode))) {
+      if (y > grid.getFixedRows() + 1 &&
+          (cellNode == null || containsFirstLine(selection, cellNode))) {
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x, y - 1);
         } else {
@@ -1876,26 +1945,20 @@ table {
   white-space: nowrap;
 }
 
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 td, th {
   border: 1px solid #ddd;
   min-width: 32px;
 }
 
-.fixed-both {
-  position: sticky;
-  left: 0;
-  top: 0;
-  z-index: 1;
-}
-
 .fixed-col {
   position: sticky;
   left: 0;
-}
-
-.fixed-row {
-  position: sticky;
-  top: 0;
 }
 `;
 
@@ -1954,6 +2017,14 @@ class CassavaGridElement extends HTMLElement {
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
     'FindNext/0': () => this.#findDialog.findNext(1),
+    'FixFirstCol/0':
+        () => this.#grid.setFixedCols(this.#grid.getFixedCols() == 0 ? 1 : 0),
+    'FixFirstRow/0':
+        () => this.#grid.setFixedRows(this.#grid.getFixedRows() == 0 ? 1 : 0),
+    'FixUpLeft/0': () => {
+      this.#grid.setFixedCols(this.#grid.x - 1);
+      this.#grid.setFixedRows(this.#grid.y - 1);
+    },
     'GetActiveDataType/0': () => this.#grid.dataFormat.name,
     'GetCharCode/0': () => 'UTF-8',
     'GetColWidth/0': () => this.#grid.getDefaultColWidth(),
@@ -1997,6 +2068,7 @@ class CassavaGridElement extends HTMLElement {
     'InsertCol/2': (a, b) => this.#grid.insertCol(Number(a), Number(b), false),
     'InsertRow/1': a => this.#grid.insertRow(Number(a), Number(a), false),
     'InsertRow/2': (a, b) => this.#grid.insertRow(Number(a), Number(b), false),
+    'Left:=/0': () => this.#grid.getFixedCols() + 1,
     'LoadIniSetting/0': () => this.#options.load(),
     'MacroExecute/0': () => this.#macroExecuteDialog.show(),
     'MacroTerminate/0': () => {
@@ -2123,6 +2195,7 @@ class CassavaGridElement extends HTMLElement {
     'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
         new Range(Number(a), Number(b), Number(c), Number(d)),
         Number(e), !!f, !!g, !!h, !!i),
+    'Top:=/0': () => this.#grid.getFixedRows() + 1,
     'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
     'TransChar1/0': () => this.#grid.updateSelectedCells(toZenkakuAlphabet),
     'TransChar2/0':
@@ -2132,6 +2205,10 @@ class CassavaGridElement extends HTMLElement {
     'TransChar4/0': () => this.#grid.updateSelectedCells(toHankakuKana),
     'TransChar5/0': () => this.#grid.updateSelectedCells(toZenkakuKana),
     'Undo/0': () => this.#grid.undo(),
+    'UnFix/0': () => {
+      this.#grid.setFixedCols(0);
+      this.#grid.setFixedRows(0);
+    },
     'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(
         new Range(Number(a), Number(b), Number(c), Number(d))).avr,
     'cell/2': (a, b) => {

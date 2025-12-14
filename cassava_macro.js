@@ -106,8 +106,8 @@ class Environment {
   init() {
     this.set('x', this.get('Col'));
     this.set('y', this.get('Row'));
-    this.set('Left', 1);
-    this.set('Top', 1);
+    this.set('Left', this.get('Left:'));
+    this.set('Top', this.get('Top:'));
   }
 
   /**
