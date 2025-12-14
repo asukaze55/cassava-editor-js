@@ -51,30 +51,38 @@ function sanitize(text) {
 }
 
 class Grid {
-  /** @type {UndoGrid} */
-  #undoGrid;
-  /** @type {Options} */
-  #options;
+  /** @type {Map<number, number>} */
+  #colWidths;
+  /** @type {number} */
+  #defaultColWidth;
+  /** @type {number} */
+  #defaultRowHeight;
   /** @type {boolean} */
   #isMouseDown;
+  /** @type {boolean} */
+  #isTouchCurentCell;
+  /** @type {boolean} */
+  #isTouchStarted;
   /** @type {number} */
   #mouseDownX;
   /** @type {number} */
   #mouseDownY;
-  /** @type {boolean} */
-  #isTouchStarted;
-  /** @type {boolean} */
-  #isTouchCurentCell;
-  /** @type {number} */
-  #suppressRender;
-  /** @type {number} */
-  #renderedTop;
-  /** @type {number} */
-  #renderedBottom;
   /** @type {Function} */
   #onRender;
   /** @type {(x: number, y: number) => Promise<ValueType?>} */
   #onRenderCell;
+  /** @type {Options} */
+  #options;
+  /** @type {number} */
+  #renderedBottom;
+  /** @type {number} */
+  #renderedTop;
+  /** @type {Map<number, number>} */
+  #rowHeights;
+  /** @type {number} */
+  #suppressRender;
+  /** @type {UndoGrid} */
+  #undoGrid;
 
   /**
    * @param {GridData} gridData
@@ -148,27 +156,24 @@ class Grid {
    * @param {DataFormat=} dataFormat
    */
   clear(fileName = '', dataFormat = this.#options.dataFormats[0]) {
-    this.#undoGrid.clear();
+    this.anchorX = 1;
+    this.anchorY = 1;
     this.dataFormat = dataFormat;
     this.fileName = fileName;
     this.isEditing = false;
-    this.#isMouseDown = false;
-    this.#mouseDownX = 1;
-    this.#mouseDownY = 1;
-    this.#isTouchCurentCell = false;
-    this.defaultColWidth = 48;
-    /** @type {Map<number, number>} */
-    this.colWidths = new Map();
-    this.defaultRowHeight = 32;
-    /** @type {Map<number, number>} */
-    this.rowHeights = new Map();
-    /** @type {number} */
-    this.anchorX = 1;
-    this.anchorY = 1;
     this.x = 1;
     this.y = 1;
-    this.#renderedTop = 1;
+    this.#colWidths = new Map();
+    this.#defaultColWidth = 48;
+    this.#defaultRowHeight = 32;
+    this.#isMouseDown = false;
+    this.#isTouchCurentCell = false;
+    this.#mouseDownX = 1;
+    this.#mouseDownY = 1;
     this.#renderedBottom = 0;
+    this.#renderedTop = 1;
+    this.#rowHeights = new Map();
+    this.#undoGrid.clear();
   }
 
   /** @param {Range} range */
@@ -252,12 +257,29 @@ class Grid {
   }
 
   /**
+   * @param {number} x
+   * @returns {number}
+   */
+  getColWidth(x) {
+    return this.#colWidths.get(x) ?? this.#defaultColWidth;
+  }
+
+  /** @returns {number} */
+  getDefaultColWidth() {
+    return this.#defaultColWidth;
+  }
+
+  /** @returns {number} */
+  getDefaultRowHeight() {
+    return this.#defaultRowHeight;
+  }
+
+  /**
    * @param {number} y
    * @returns {number}
    */
   getRowHeight(y) {
-    const rowHeight = this.rowHeights.get(y);
-    return rowHeight != null ? rowHeight : this.defaultRowHeight;
+    return this.#rowHeights.get(y) ?? this.#defaultRowHeight;
   }
 
   /** @returns {GridData} */
@@ -421,7 +443,8 @@ class Grid {
   }
 
   refresh() {
-    this.rowHeights.clear();
+    this.#colWidths.clear();
+    this.#rowHeights.clear();
   }
 
   /** @param {boolean=} force */
@@ -764,6 +787,26 @@ class Grid {
   }
 
   /**
+   * @param {number} x
+   * @param {number} w
+   */
+  setColWidth(x, w) {
+    this.#colWidths.set(x, w);
+  }
+
+  /** @param {number} w */
+  setDefaultColWidth(w) {
+    this.#colWidths.clear();
+    this.#defaultColWidth = w;
+  }
+
+  /** @param {number} h */
+  setDefaultRowHeight(h) {
+    this.#rowHeights.clear();
+    this.#defaultRowHeight = h;
+  }
+
+  /**
    * @param {GridData} gridData
    * @param {string} fileName
    * @param {DataFormat} dataFormat
@@ -784,7 +827,7 @@ class Grid {
    * @param {number} h
    */
   setRowHeight(y, h) {
-    this.rowHeights.set(y, h);
+    this.#rowHeights.set(y, h);
   }
 
   /** @param {Range} range */
@@ -1913,15 +1956,14 @@ class CassavaGridElement extends HTMLElement {
     'FindNext/0': () => this.#findDialog.findNext(1),
     'GetActiveDataType/0': () => this.#grid.dataFormat.name,
     'GetCharCode/0': () => 'UTF-8',
-    'GetColWidth/0': () => this.#grid.defaultColWidth,
-    'GetColWidth/1':
-        a => this.#grid.colWidths.get(Number(a)) ?? this.#grid.defaultColWidth,
+    'GetColWidth/0': () => this.#grid.getDefaultColWidth(),
+    'GetColWidth/1': a => this.#grid.getColWidth(Number(a)),
     'GetDataTypes/0':
         () => this.#options.dataFormats.map(f => f.name).join('\n'),
     'GetFilePath/0': () => '',
     'GetFileName/0': () => this.#grid.fileName,
     'GetIniSetting/2': (a, b) => new Options().get(a + '/' + b),
-    'GetRowHeight/0': () => this.#grid.defaultRowHeight,
+    'GetRowHeight/0': () => this.#grid.getDefaultRowHeight(),
     'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
     'InputBox/1': a => {
       this.#grid.render(/* force= */ true);
@@ -2052,19 +2094,11 @@ class CassavaGridElement extends HTMLElement {
         throw 'Unsupported encoding: ' + charCode;
       }
     },
-    'SetColWidth/1': a => {
-      this.#grid.colWidths.clear();
-      this.#grid.defaultColWidth = Number(a);
-    },
-    'SetColWidth/2': (a, b) => {
-      this.#grid.colWidths.set(Number(a), Number(b));
-    },
+    'SetColWidth/1': a => this.#grid.setDefaultColWidth(Number(a)),
+    'SetColWidth/2': (a, b) => this.#grid.setColWidth(Number(a), Number(b)),
     'SetIniSetting/3':
         (a, b, c) => new Options().setRaw(a + '/' + b, c.toString()),
-    'SetRowHeight/1': a => {
-      this.#grid.rowHeights.clear();
-      this.#grid.defaultRowHeight = Number(a);
-    },
+    'SetRowHeight/1': a => this.#grid.setDefaultRowHeight(Number(a)),
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(Number(a)),
     'SetStatusBarPopUp/3': (a, b, c) => {
