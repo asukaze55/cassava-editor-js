@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width">
+  <meta charset="UTF-8">
+  <meta http-equiv="content-language" content="ja">
+  <title>グラフ</title>
+  <style>
+    body { text-align: center; }
+    cassava-grid { display: inline-block; }
+  </style>
+</head>
+<body>
+<h1>グラフ</h1>
+<p>
+  <cassava-grid id="grid"></cassava-grid>
+</p>
+<p>
+  <div style="display: inline-block; text-align: left;">
+    <label><input checked id="line" name="style" type="radio"> 折れ線グラフ</label><br>
+    <label><input id="stack" name="style" type="radio"> 積み上げ棒グラフ</label><br>
+    <label><input id="summed-stack" name="style" type="radio"> 積み上げ棒グラフ＋合計値折れ線グラフ</label><br>
+  </div>
+</p>
+<p>
+  <button id="draw-button">描画</button>
+</p>
+<p>
+  <canvas id="canvas" width="400" height="300"></canvas>
+</p>
+<script src="https://www.asukaze.net/soft/cassava/js/cassava_min_20251214.js"></script>
+<script src="graph.js"></script>
+</body>
+</html>
