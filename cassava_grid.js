@@ -34,10 +34,6 @@ class Clipboard {
 
 const clipboard = new Clipboard();
 
-function blurActiveElement() {
-  /** @type {HTMLElement} */(document.activeElement).blur();
-}
-
 /** @param {string} text */
 function sanitize(text) {
   if (text == null) {
@@ -190,8 +186,8 @@ class Grid {
   }
 
   /** @param {Range} range */
-  connectCells(range) {
-    blurActiveElement();
+  async connectCells(range) {
+    await this.endEditing();
     const l = range.left;
     const t = range.top;
     const r = range.right;
@@ -256,6 +252,12 @@ class Grid {
    */
   deleteRow(t, b) {
     this.#undoGrid.deleteRow(t, b);
+  }
+
+  endEditing() {
+    this.element.focus();
+    // Wait until #onFocusOut fnishes.
+    return new Promise(resolve => setTimeout(resolve));
   }
 
   endMacro() {
@@ -355,11 +357,11 @@ class Grid {
    * @param {number} selAnchor
    * @param {number} selFocus
    */
-  insertRowAtCursor(selAnchor, selFocus) {
+  async insertRowAtCursor(selAnchor, selFocus) {
     const isEditing = this.isEditing;
     const t = this.selTop();
     const l = this.selLeft();
-    blurActiveElement();
+    await this.endEditing();
     this.#undoGrid.push();
     const cellText = this.#undoGrid.cell(l, t);
     const selStart = Math.min(selAnchor, selFocus);
@@ -456,7 +458,7 @@ class Grid {
   }
 
   async redo() {
-    blurActiveElement();
+    await this.endEditing();
     const range = this.#undoGrid.redo();
     if (range) {
       await this.render();
@@ -729,8 +731,7 @@ class Grid {
       await this.moveTo(x1, y1);
       return;
     }
-    blurActiveElement();
-    this.element.focus();
+    await this.endEditing();
     this.isEditing = false;
     this.anchorX = x1;
     this.anchorY = y1;
@@ -926,7 +927,7 @@ class Grid {
   }
 
   async undo() {
-    blurActiveElement();
+    await this.endEditing();
     const range = this.#undoGrid.undo();
     if (range) {
       await this.render();
@@ -1112,11 +1113,12 @@ class Grid {
 }
 
 /**
- * @param {Element} node
+ * @param {Node} node
  * @returns {HTMLTableCellElement?}
  */
 function getCellNode(node) {
-  while (node != null && node.tagName != 'TD' && node.tagName != 'TH') {
+  while (node != null && /** @type {Element} */(node).tagName != 'TD' &&
+      /** @type {Element} */(node).tagName != 'TH') {
     node = node.parentElement;
   }
   return /** @type {HTMLTableCellElement?} */(node);
@@ -1159,7 +1161,7 @@ function getTextContent(node) {
 }
 
 /**
- * @param {Element} node
+ * @param {Node} node
  * @param {number} offset
  * @returns {number}
  */
@@ -1321,7 +1323,8 @@ function containsLastPosition(selection, cellNode) {
  * @param {FindPanel} findPanel
  * @param {ShadowRoot} shadow
  */
-function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
+async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
+  /** @type {Selection} */
   const selection = /** @type {any} */(shadow).getSelection
       ? /** @type {any} */(shadow).getSelection() : document.getSelection();
   let cellNode = grid.isEditing ? getCellNode(selection.focusNode) : null;
@@ -1338,137 +1341,138 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
   switch (event.key) {
     case ' ':
       if (event.ctrlKey) {
+        event.preventDefault();
         grid.selectCol(grid.selLeft(), grid.selRight());
-        event.preventDefault();
       } else if (event.shiftKey) {
-        grid.selectRow(grid.selTop(), grid.selBottom());
         event.preventDefault();
+        grid.selectRow(grid.selTop(), grid.selBottom());
       }
       return;
     case 'a':
       if (event.ctrlKey) {
-        grid.selectAll()
         event.preventDefault();
+        grid.selectAll()
       }
       return;
     case 'c':
       if (event.ctrlKey) {
         if (!grid.isEditing) {
-          copy(grid, /* cut= */ false);
           event.preventDefault();
+          copy(grid, /* cut= */ false);
         }
       }
       return;
     case 'f':
       if (event.ctrlKey) {
-        findPanel.show();
         event.preventDefault();
+        findPanel.show();
       }
       return;
     case 's':
       if (event.ctrlKey) {
-        saveAs(grid.fileName || '無題.csv', grid);
         event.preventDefault();
+        saveAs(grid.fileName || '無題.csv', grid);
       }
     case 'v':
       if (event.ctrlKey) {
         if (!grid.isEditing) {
-          paste(grid, -1);
           event.preventDefault();
+          paste(grid, -1);
         }
       }
       return;
     case 'x':
       if (event.ctrlKey) {
         if (!grid.isEditing) {
-          copy(grid, /* cut= */ true);
           event.preventDefault();
+          copy(grid, /* cut= */ true);
         }
       }
       return;
     case 'y':
       if (event.ctrlKey) {
-        grid.redo();
         event.preventDefault();
+        grid.redo();
       }
       return;
     case 'z':
       if (event.ctrlKey) {
-        grid.undo();
         event.preventDefault();
+        grid.undo();
       }
       return;
     case 'ArrowDown':
       if (cellNode == null || containsLastLine(selection, cellNode)) {
+        event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x, y + 1);
         } else {
           grid.moveTo(x, y + 1);
         }
-        event.preventDefault();
       }
       return;
     case 'ArrowLeft':
       if (x > grid.getFixedCols() + 1 &&
           (cellNode == null || containsFirstPosition(selection, cellNode))) {
+        event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x - 1, y);
         } else {
           grid.moveTo(x - 1, y);
         }
-        event.preventDefault();
       }
       return;
     case 'ArrowRight':
       if (cellNode == null || containsLastPosition(selection, cellNode)) {
+        event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x + 1, y);
         } else {
           grid.moveTo(x + 1, y);
         }
-        event.preventDefault();
       }
       return;
     case 'ArrowUp':
       if (y > grid.getFixedRows() + 1 &&
           (cellNode == null || containsFirstLine(selection, cellNode))) {
+        event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x, y - 1);
         } else {
           grid.moveTo(x, y - 1);
         }
-        event.preventDefault();
       }
       return;
     case 'Backspace':
       if (event.ctrlKey) {
-        grid.connectCells(grid.selection());
         event.preventDefault();
+        grid.connectCells(grid.selection());
       }
       return;
     case 'Delete':
       if (event.ctrlKey) {
+        event.preventDefault();
         const isEditing = grid.isEditing;
         if (isEditing) {
-          blurActiveElement();
+          await grid.endEditing();
         }
         if (event.shiftKey) {
-          grid.deleteCellUp(selection);
+          grid.deleteCellUp(grid.selection());
         } else {
-          grid.deleteCellLeft(selection);
+          grid.deleteCellLeft(grid.selection());
         }
         grid.render();
         if (isEditing) {
           grid.moveTo(grid.selLeft(), grid.selTop());
         }
-        event.preventDefault();
       } else if (!grid.isEditing) {
+        event.preventDefault();
         grid.clearCells(grid.selection());
         grid.render();
-        event.preventDefault();
       }
       return;
     case 'Enter':
+      event.preventDefault();
       if (event.ctrlKey) {
         if (grid.isEditing) {
           const p1 =
@@ -1513,42 +1517,42 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       } else {
         grid.moveTo(x, y);
       }
-      event.preventDefault();
       return;
     case 'F2':
       if (cellNode != null) {
+        event.preventDefault();
         const offset = childrenCountWithoutBr(cellNode);
         setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
-        event.preventDefault();
       }
       return;
     case 'F3':
+      event.preventDefault();
       if (event.shiftKey) {
         findDialog.findNext(-1);
       } else {
         findDialog.findNext(1);
       }
-      event.preventDefault();
       return;
     case 'Insert':
       if (event.ctrlKey) {
+        event.preventDefault();
         const isEditing = grid.isEditing;
         if (isEditing) {
-          blurActiveElement();
+          await grid.endEditing();
         }
         if (event.shiftKey) {
-          grid.insertCellDown(selection);
+          grid.insertCellDown(grid.selection());
         } else {
-          grid.insertCellRight(selection);
+          grid.insertCellRight(grid.selection());
         }
         grid.render();
         if (isEditing) {
           grid.moveTo(grid.selLeft(), grid.selTop());
         }
-        event.preventDefault();
       }
       return;
     case 'Tab':
+      event.preventDefault();
       if (event.shiftKey) {
         if (grid.x == 1) {
           if (grid.y == 1) {
@@ -1568,7 +1572,6 @@ function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
           grid.moveTo(grid.x + 1, grid.y);
         }
       }
-      event.preventDefault();
       return;
   }
 }
