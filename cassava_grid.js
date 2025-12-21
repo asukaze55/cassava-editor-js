@@ -235,7 +235,32 @@ class Grid {
 
   /** @param {Range} range */
   deleteCellLeft(range) {
-    this.#undoGrid.deleteCellLeft(range);
+    const dataRight = this.right();
+    const dataBottom = this.bottom();
+    if (range.left > dataRight || range.top > dataBottom) {
+      return;
+    }
+    if (range.left != range.right || range.top != range.bottom) {
+      this.#undoGrid.deleteCellLeft(range);
+      return;
+    }
+    for (let x = range.left; x <= dataRight; x++) {
+      if (this.cell(x, range.top) != '') {
+        this.#undoGrid.deleteCellLeft(range);
+        return;
+      }
+    }
+    if (range.top < dataBottom) {
+      this.connectCells(new Range(1, range.top + 1, 1, range.top + 1));
+    }
+    if (dataRight > 1) {
+      for (let y = 1; y <= dataBottom; y++) {
+        if (this.cell(dataRight, y) != '') {
+          return;
+        }
+      }
+      this.deleteCol(dataRight, dataRight);
+    }
   }
 
   /**
