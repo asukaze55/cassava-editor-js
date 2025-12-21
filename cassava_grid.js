@@ -252,6 +252,7 @@ class Grid {
     }
     if (range.top < dataBottom) {
       this.connectCells(new Range(1, range.top + 1, 1, range.top + 1));
+      return;
     }
     if (dataRight > 1) {
       for (let y = 1; y <= dataBottom; y++) {
@@ -260,6 +261,7 @@ class Grid {
         }
       }
       this.deleteCol(dataRight, dataRight);
+      return;
     }
   }
 
