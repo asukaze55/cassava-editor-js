@@ -150,6 +150,7 @@ class CanvasDrawer {
     const maxX = this.#axisX.max;
     const minY = this.#axisY.min;
     const maxY = this.#axisY.max;
+    this.#context.font = '10px sans-serif';
     this.#context.textAlign = 'center';
     this.#context.textBaseline = 'top';
     for (let x = minX; x <= maxX; x += this.#axisX.scale) {
@@ -163,6 +164,14 @@ class CanvasDrawer {
       this.#context.fillText(this.#axisY.label(y), 45, this.#axisY.map(y));
     }
     this.line(minX, minY, minX, maxY);
+  }
+
+  /** @param {string} title */
+  drawTitle(title) {
+    this.#context.font = '12px sans-serif';
+    this.#context.textAlign = 'center';
+    this.#context.textBaseline = 'top';
+    this.#context.fillText(title, 200, 10);
   }
 
   /**
@@ -209,6 +218,7 @@ class CanvasDrawer {
   text(value, x, y, deltaX, deltaY, textAlign, textBaseline) {
     const mx = this.#axisX.map(x) + deltaX;
     let my = this.#axisY.map(y) + deltaY;
+    this.#context.font = '10px sans-serif';
     this.#context.textAlign = textAlign;
     this.#context.textBaseline = textBaseline;
     for (const line of value.split('\n')) {
@@ -261,6 +271,8 @@ function drawLineChart() {
       new RangeAxis((minY > 0) ? 0 : minY, (maxY < 0) ? 0 : maxY, 200, 50,
           /* flip= */ true));
   drawer.clear();
+  drawer.drawTitle(
+      /** @type {HTMLInputElement} */(document.getElementById('title')).value);
   drawer.drawAxis();
   for (let x = 2; x <= grid.right(); x++) {
     drawer.setColor(color(x));
@@ -311,6 +323,8 @@ function drawStackChart(summed) {
   const drawer = new CanvasDrawer(canvas, new ListAxis(1, xLabels, 300, 50),
       new RangeAxis(minY, maxY, 200, 50, /* flip= */ true));
   drawer.clear();
+  drawer.drawTitle(
+      /** @type {HTMLInputElement} */(document.getElementById('title')).value);
   drawer.drawAxis();
   let previousValue;
   const labelRendered = new Set();
