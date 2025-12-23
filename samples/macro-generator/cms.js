@@ -483,10 +483,6 @@ function updateUrl() {
 function download() {
   const blob = new Blob(["\ufeff" + elem('content').value], {type: "text/plain"});
   const name = elem('name').value + '.cms';
-  if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
-    /** @type {any} */(navigator).msSaveOrOpenBlob(blob, name);
-    return;
-  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   document.body.appendChild(a);

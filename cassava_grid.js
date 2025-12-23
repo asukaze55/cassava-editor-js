@@ -1838,10 +1838,6 @@ function saveAs(fileName, grid) {
       [grid.dataFormat.stringify(
           gridData, gridData.range(), /* endingLineBreak= */ true)],
       {type: "text/csv"});
-  if (/** @type {any} */(navigator).msSaveOrOpenBlob) {
-    /** @type {any} */(navigator).msSaveOrOpenBlob(blob, fileName);
-    return;
-  }
   const url = URL.createObjectURL(blob);
   const a = createElement("a", {
     download: fileName,
