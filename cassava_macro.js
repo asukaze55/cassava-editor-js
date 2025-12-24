@@ -163,10 +163,10 @@ class Environment {
    * @param {string} name
    * @param {ValueType} value
    */
-  set(name, value) {
+  async set(name, value) {
     const setter = this.#api.get(name + '=/1');
     if (typeof setter == 'function') {
-      setter(value);
+      await setter(value);
       return;
     }
     this.#variables.set(name, value);
