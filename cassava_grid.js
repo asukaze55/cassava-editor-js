@@ -283,7 +283,7 @@ class Grid {
 
   endEditing() {
     this.element.focus();
-    // Wait until #onFocusOut fnishes.
+    // Wait until #onFocusOut finishes.
     return new Promise(resolve => setTimeout(resolve));
   }
 
@@ -434,9 +434,8 @@ class Grid {
     const cellNode = this.#cellNode(x, y);
     cellNode.contentEditable = 'true';
     cellNode.focus();
-    setTimeout(() => window.getSelection()
-        .setBaseAndExtent(cellNode, 0, cellNode,
-            childrenCountWithoutBr(cellNode)));
+    setTimeout(() => getSelection().setBaseAndExtent(
+        cellNode, 0, cellNode, childrenCountWithoutBr(cellNode)));
   }
 
   /**
@@ -649,10 +648,8 @@ class Grid {
    */
   #renderCell(cell, x, y, value, align, color, background) {
     const isFixed = x  <= this.#fixedCols || y <= this.#fixedRows;
-    const isSelected = x >= this.selLeft()
-        && x <= this.selRight()
-        && y >= this.selTop()
-        && y <= this.selBottom();
+    const isSelected = x >= this.selLeft() && x <= this.selRight() &&
+        y >= this.selTop() && y <= this.selBottom();
     const isEditing = this.isEditing && x == this.x && y == this.y;
 
     if (value == null) {
@@ -823,9 +820,11 @@ class Grid {
         }
       }
       if (anchorNode && focusNode) {
-        window.getSelection().setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
+        getSelection().setBaseAndExtent(
+            anchorNode, anchorOffset, focusNode, focusOffset);
       } else {
-        window.getSelection().setBaseAndExtent(cellNode, 0, cellNode, childrenCountWithoutBr(cellNode));
+        getSelection().setBaseAndExtent(
+            cellNode, 0, cellNode, childrenCountWithoutBr(cellNode));
       }
     });
   }
@@ -1177,6 +1176,14 @@ function parseCellInput(cellNode) {
 }
 
 /**
+ * @param {ShadowRoot} shadow
+ * @returns {StaticRange}
+ */
+function getComposedRange(shadow) {
+  return getSelection().getComposedRanges({shadowRoots: [shadow]})[0];
+}
+
+/**
  * @param {Node} node
  * @returns {string}
  */
@@ -1253,15 +1260,14 @@ function isFirstLine(node, offset, cellNode) {
 }
 
 /**
- * @param {Selection} selection
+ * @param {StaticRange} staticRange
  * @param {Node} cellNode
  * @returns {boolean}
  */
-function containsFirstLine(selection, cellNode) {
-  return isFirstLine(selection.focusNode,
-          selection.focusOffset, cellNode)
-      || isFirstLine(selection.anchorNode,
-          selection.anchorOffset, cellNode);
+function containsFirstLine(staticRange, cellNode) {
+  return isFirstLine(
+          staticRange.startContainer, staticRange.startOffset, cellNode) ||
+      isFirstLine(staticRange.endContainer, staticRange.endOffset, cellNode);
 }
 
 /**
@@ -1271,21 +1277,19 @@ function containsFirstLine(selection, cellNode) {
  * @returns {boolean}
  */
 function isFirstPosition(node, offset, cellNode) {
-  return offset == 0
-      && (node == cellNode
-          || node == cellNode.firstChild);
+  return offset == 0 && (node == cellNode || node == cellNode.firstChild);
 }
 
 /**
- * @param {Selection} selection
+ * @param {StaticRange} staticRange
  * @param {Node} cellNode
  * @returns {boolean}
  */
-function containsFirstPosition(selection, cellNode) {
-  return isFirstPosition(selection.focusNode,
-          selection.focusOffset, cellNode)
-      || isFirstPosition(selection.anchorNode,
-          selection.anchorOffset, cellNode);
+function containsFirstPosition(staticRange, cellNode) {
+  return isFirstPosition(
+          staticRange.startContainer, staticRange.startOffset, cellNode) ||
+      isFirstPosition(
+          staticRange.endContainer, staticRange.endOffset, cellNode);
 }
 
 /**
@@ -1296,23 +1300,21 @@ function containsFirstPosition(selection, cellNode) {
  */
 function isLastLine(node, offset, cellNode) {
   if (node == cellNode) {
-    return offset
-           >= childrenCountWithoutBr(cellNode);
+    return offset >= childrenCountWithoutBr(cellNode);
   } else {
     return node == lastChildWithoutBr(cellNode);
   }
 }
 
 /**
- * @param {Selection} selection
+ * @param {StaticRange} staticRange
  * @param {Node} cellNode
  * @returns {boolean}
  */
-function containsLastLine(selection, cellNode) {
-  return isLastLine(selection.focusNode,
-          selection.focusOffset, cellNode)
-      || isLastLine(selection.anchorNode,
-          selection.anchorOffset, cellNode);
+function containsLastLine(staticRange, cellNode) {
+  return isLastLine(
+          staticRange.startContainer, staticRange.startOffset, cellNode) ||
+      isLastLine(staticRange.endContainer, staticRange.endOffset, cellNode);
 }
 
 /**
@@ -1323,24 +1325,31 @@ function containsLastLine(selection, cellNode) {
  */
 function isLastPosition(node, offset, cellNode) {
   if (node == cellNode) {
-    return offset
-           >= childrenCountWithoutBr(cellNode);
+    return offset >= childrenCountWithoutBr(cellNode);
   } else {
-    return node == lastChildWithoutBr(cellNode)
-        && offset == node.textContent.length;
+    return node == lastChildWithoutBr(cellNode) &&
+        offset == node.textContent.length;
   }
 }
 
 /**
- * @param {Selection} selection
+ * @param {StaticRange} staticRange
  * @param {Node} cellNode
  * @returns {boolean}
  */
-function containsLastPosition(selection, cellNode) {
-  return isLastPosition(selection.focusNode,
-          selection.focusOffset, cellNode)
-      || isLastPosition(selection.anchorNode,
-          selection.anchorOffset, cellNode);
+function containsLastPosition(staticRange, cellNode) {
+  return isLastPosition(
+          staticRange.startContainer, staticRange.startOffset, cellNode) ||
+      isLastPosition(staticRange.endContainer, staticRange.endOffset, cellNode);
+}
+
+/** @param {StaticRange} staticRange */
+function deleteSelection(staticRange) {
+  const selection = getSelection();
+  selection.setBaseAndExtent(
+      staticRange.startContainer, staticRange.startOffset,
+      staticRange.endContainer, staticRange.endOffset);
+  selection.deleteFromDocument();
 }
 
 /**
@@ -1351,16 +1360,12 @@ function containsLastPosition(selection, cellNode) {
  * @param {ShadowRoot} shadow
  */
 async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
-  /** @type {Selection} */
-  const selection = /** @type {any} */(shadow).getSelection
-      ? /** @type {any} */(shadow).getSelection() : document.getSelection();
-  let cellNode = grid.isEditing ? getCellNode(selection.focusNode) : null;
+  const staticRange = getComposedRange(shadow);
+  let cellNode = grid.isEditing ? getCellNode(staticRange.endContainer) : null;
   let x = grid.x;
   let y = grid.y;
-  if (cellNode != null
-      && cellNode.dataset != null
-      && cellNode.dataset.x != null
-      && cellNode.dataset.y != null) {
+  if (cellNode != null && cellNode.dataset != null &&
+      cellNode.dataset.x != null && cellNode.dataset.y != null) {
     x = Number(cellNode.dataset.x);
     y = Number(cellNode.dataset.y);
   }
@@ -1429,7 +1434,7 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       }
       return;
     case 'ArrowDown':
-      if (cellNode == null || containsLastLine(selection, cellNode)) {
+      if (cellNode == null || containsLastLine(staticRange, cellNode)) {
         event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x, y + 1);
@@ -1440,7 +1445,7 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       return;
     case 'ArrowLeft':
       if (x > grid.getFixedCols() + 1 &&
-          (cellNode == null || containsFirstPosition(selection, cellNode))) {
+          (cellNode == null || containsFirstPosition(staticRange, cellNode))) {
         event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x - 1, y);
@@ -1450,7 +1455,7 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       }
       return;
     case 'ArrowRight':
-      if (cellNode == null || containsLastPosition(selection, cellNode)) {
+      if (cellNode == null || containsLastPosition(staticRange, cellNode)) {
         event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x + 1, y);
@@ -1461,7 +1466,7 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       return;
     case 'ArrowUp':
       if (y > grid.getFixedRows() + 1 &&
-          (cellNode == null || containsFirstLine(selection, cellNode))) {
+          (cellNode == null || containsFirstLine(staticRange, cellNode))) {
         event.preventDefault();
         if (event.shiftKey) {
           grid.select(grid.anchorX, grid.anchorY, x, y - 1);
@@ -1502,10 +1507,10 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       event.preventDefault();
       if (event.ctrlKey) {
         if (grid.isEditing) {
-          const p1 =
-              getInCellOffset(selection.anchorNode, selection.anchorOffset);
-          const p2 =
-              getInCellOffset(selection.focusNode, selection.focusOffset);
+          const p1 = getInCellOffset(
+              staticRange.startContainer, staticRange.startOffset);
+          const p2 = getInCellOffset(
+              staticRange.endContainer, staticRange.endOffset);
           grid.insertRowAtCursor(p1, p2);
         } else {
           grid.insertRowAtCursor(0, 0);
@@ -1516,31 +1521,31 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
         if (cellNode == null) {
           return;
         }
-        selection.deleteFromDocument();
-        const focusNode = selection.focusNode;
-        if (focusNode == cellNode) {
-          const focusOffset = selection.focusOffset;
+        deleteSelection(staticRange);
+        const {endContainer, endOffset} = getComposedRange(shadow);
+        if (endContainer == cellNode) {
           cellNode.insertBefore(
-              createElement('br'), cellNode.childNodes[focusOffset]);
-          selection.setBaseAndExtent(
-              cellNode, focusOffset + 1, cellNode, focusOffset + 1);
+              createElement('br'), cellNode.childNodes[endOffset]);
+          getSelection().setBaseAndExtent(
+              cellNode, endOffset + 1, cellNode, endOffset + 1);
         } else {
           cellNode.insertBefore(
               document.createTextNode(
-                  focusNode.textContent.substring(0, selection.focusOffset)),
-              focusNode);
-          cellNode.insertBefore(createElement('br'), focusNode);
-          focusNode.textContent =
-              focusNode.textContent.substring(selection.focusOffset);
-          if (focusNode.textContent == '' && focusNode.nextSibling == null) {
-            cellNode.appendChild(createElement('br'));
+                  endContainer.textContent.substring(0, endOffset)),
+              endContainer);
+          cellNode.insertBefore(createElement('br'), endContainer);
+          endContainer.textContent =
+              endContainer.textContent.substring(endOffset);
+          if (endContainer.textContent == '' &&
+              endContainer.nextSibling == null) {
+            endContainer.appendChild(createElement('br'));
           }
         }
         grid.setCell(x, y, parseCellInput(cellNode));
-      } else if (cellNode != null
-                 && containsFirstPosition(selection, cellNode)
-                 && containsLastPosition(selection, cellNode)) {
-        selection.collapseToEnd();
+      } else if (cellNode != null &&
+          containsFirstPosition(staticRange, cellNode) &&
+          containsLastPosition(staticRange, cellNode)) {
+        getSelection().collapseToEnd();
       } else {
         grid.moveTo(x, y);
       }
@@ -1549,7 +1554,8 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
       if (cellNode != null) {
         event.preventDefault();
         const offset = childrenCountWithoutBr(cellNode);
-        setTimeout(() => selection.setBaseAndExtent(cellNode, offset, cellNode, offset));
+        setTimeout(() => getSelection()
+            .setBaseAndExtent(cellNode, offset, cellNode, offset));
       }
       return;
     case 'F3':
