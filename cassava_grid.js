@@ -380,18 +380,20 @@ class Grid {
     }
   }
 
-  /**
-   * @param {number} selAnchor
-   * @param {number} selFocus
-   */
-  async insertRowAtCursor(selAnchor, selFocus) {
+  /** @param {StaticRange?} staticRange */
+  async insertRowAtCursor(staticRange) {
     const isEditing = this.isEditing;
     const t = this.selTop();
     const l = this.selLeft();
-    await this.endEditing();
-    this.#undoGrid.push();
     const cellText = this.#undoGrid.cell(l, t);
+    const selAnchor = (isEditing && staticRange)
+        ? getInCellOffset(staticRange.startContainer, staticRange.startOffset)
+        : 0;
+    const selFocus = (isEditing && staticRange)
+        ? getInCellOffset(staticRange.endContainer, staticRange.endOffset)
+        : cellText.length;
     const selStart = Math.min(selAnchor, selFocus);
+    this.#undoGrid.push();
     this.#undoGrid.insertRow(t + 1, t + 1);
     this.#undoGrid.setCell(1, t + 1, cellText.substring(selStart));
     this.#undoGrid.setCell(l, t, cellText.substring(0, selStart))
@@ -795,38 +797,40 @@ class Grid {
     this.anchorY = y;
     this.x = x;
     this.y = y;
+    if (this.#suppressRender > 0) {
+      return;
+    }
     await this.render();
     const cellNode = this.#cellNode(x, y);
+    cellNode.contentEditable = 'true';
     this.#renderRawCell(cellNode, x, y);
-    cellNode.focus();
-    setTimeout(() => {
-      let anchorNode = null;
-      let anchorOffset;
-      let focusNode = null;
-      let focusOffset;
-      for (const child of cellNode.childNodes) {
-        const length = getTextContent(child).length;
-        if (!anchorNode && selAnchor <= length) {
-          anchorNode = child;
-          anchorOffset = selAnchor;
-        } else {
-          selAnchor -= length;
-        }
-        if (!focusNode && selFocus <= length) {
-          focusNode = child;
-          focusOffset = selFocus;
-        } else {
-          selFocus -= length;
-        }
-      }
-      if (anchorNode && focusNode) {
-        getSelection().setBaseAndExtent(
-            anchorNode, anchorOffset, focusNode, focusOffset);
+
+    let anchorNode = null;
+    let anchorOffset;
+    let focusNode = null;
+    let focusOffset;
+    for (const child of cellNode.childNodes) {
+      const length = getTextContent(child).length;
+      if (!anchorNode && selAnchor <= length) {
+        anchorNode = child;
+        anchorOffset = selAnchor;
       } else {
-        getSelection().setBaseAndExtent(
-            cellNode, 0, cellNode, childrenCountWithoutBr(cellNode));
+        selAnchor -= length;
       }
-    });
+      if (!focusNode && selFocus <= length) {
+        focusNode = child;
+        focusOffset = selFocus;
+      } else {
+        selFocus -= length;
+      }
+    }
+    if (anchorNode && focusNode) {
+      getSelection().setBaseAndExtent(
+          anchorNode, anchorOffset, focusNode, focusOffset);
+    } else {
+      getSelection().setBaseAndExtent(
+          cellNode, 0, cellNode, childrenCountWithoutBr(cellNode));
+    }
   }
 
   /** @returns {Range} */
@@ -1506,15 +1510,7 @@ async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
     case 'Enter':
       event.preventDefault();
       if (event.ctrlKey) {
-        if (grid.isEditing) {
-          const p1 = getInCellOffset(
-              staticRange.startContainer, staticRange.startOffset);
-          const p2 = getInCellOffset(
-              staticRange.endContainer, staticRange.endOffset);
-          grid.insertRowAtCursor(p1, p2);
-        } else {
-          grid.insertRowAtCursor(0, 0);
-        }
+        grid.insertRowAtCursor(staticRange);
       } else if (event.shiftKey) {
         grid.insertRow(grid.selTop(), grid.selBottom(), true);
       } else if (event.altKey) {
@@ -2045,7 +2041,7 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.clear();
       throw macroTerminated;
     },
-    'Enter/0': () => this.#grid.insertRowAtCursor(0, 0),
+    'Enter/0': () => this.#grid.insertRowAtCursor(/* staticRange= */ null),
     'Find/0': () => this.#findDialog.show(),
     'FindBack/0': () => this.#findDialog.findNext(-1),
     'FindNext/0': () => this.#findDialog.findNext(1),
