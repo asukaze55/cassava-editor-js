@@ -286,7 +286,7 @@ class GridData {
       if (isNumber(first) && isNumber(second)) {
         const step = Number(second) - Number(first);
         for (let y = range.top + 2; y <= range.bottom; y++) {
-          this.setCell(x, y, Number(first) + (step * (y - range.top)));
+          this.setCell(x, y, String(Number(first) + (step * (y - range.top))));
         }
       } else {
         for (let y = range.top + 1; y <= range.bottom; y++) {
@@ -310,7 +310,7 @@ class GridData {
   /**
    * @param {number} x
    * @param {number} y
-   * @param {any} value
+   * @param {string} value
    */
   setCell(x, y, value) {
     if (value != '' && x > this.#maxColCount) {
@@ -322,7 +322,7 @@ class GridData {
       }
       this.#data[y - 1] = [];
     }
-    this.#data[y - 1][x - 1] = value.toString();
+    this.#data[y - 1][x - 1] = value;
   }
 
   /** @param {number} r */

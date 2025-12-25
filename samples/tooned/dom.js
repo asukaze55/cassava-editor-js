@@ -34,7 +34,7 @@ function createDiv(...children) {
 
 /**
  * @param {Node|string} content
- * @param {(this: HTMLButtonElement, event: MouseEvent) => any} onclick
+ * @param {(this: HTMLButtonElement, event: MouseEvent) => void} onclick
  * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {style?: string}=} attributes
  * @returns {HTMLButtonElement}
  */
@@ -123,7 +123,7 @@ function createDialog(children, attributes = {}) {
 
 /**
  * @param {string} title
- * @param {() => any} onClose
+ * @param {() => void} onClose
  * @returns {HTMLDivElement}
  */
 function createTitleBar(title, onClose) {

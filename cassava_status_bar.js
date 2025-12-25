@@ -74,7 +74,7 @@ class CassavaStatusBarElement extends HTMLElement {
   /**
    * @param {number} index
    * @param {string} items
-   * @param {(item: string) => any} onclick
+   * @param {(item: string) => void} onclick
    */
   setPopUp(index, items, onclick) {
     const panel = this.#panel(index);
@@ -109,10 +109,10 @@ class CassavaStatusBarElement extends HTMLElement {
 
   /**
    * @param {number} index
-   * @param {any} text
+   * @param {string} text
    */
   setText(index, text) {
-    this.#panel(index).innerText = text.toString().replaceAll('\n', ' ');
+    this.#panel(index).innerText = text.replaceAll('\n', ' ');
   }
 
   /**

@@ -1870,7 +1870,7 @@ function showPasteDialog(grid, clipText, clipData) {
       rows: 10,
       value: clipText
     })
-    /** @type {(c: any) => HTMLInputElement} */
+    /** @type {(c?: boolean) => HTMLInputElement} */
     const radioInput = c => createElement('input', {
       checked: !!c,
       name: 'cassava-paste',
