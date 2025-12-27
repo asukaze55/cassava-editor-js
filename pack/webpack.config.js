@@ -23,13 +23,14 @@ class CassavaJsPlugin {
           }
         }
         fs.mkdirSync('decl', {recursive: true});
-        const tscResult = spawnSync('tsc', ['src/cassava_menu.js',
-            '--target es2022', '--checkJs', '--noImplicitAny', '--declaration',
-            '--emitDeclarationOnly', '--outDir decl'], {shell: true});
-        if (tscResult.error) {
-          logger.error(error);
+        const tscResult = spawnSync('npx tsc src/cassava_menu.js ' +
+            '--target es2022 --checkJs --noImplicitAny --declaration ' +
+            '--emitDeclarationOnly --outDir decl --module NodeNext ' +
+            '--moduleResolution NodeNext', {shell: true});
+        if (tscResult.error && tscResult.error.toString()) {
+          logger.error(tscResult.error.toString());
         }
-        if (tscResult.stdout.toString()) {
+        if (tscResult.stdout && tscResult.stdout.toString()) {
           logger.error('tsc error:\n' + tscResult.stdout.toString());
         }
         fs.rmSync('src', {recursive: true});
