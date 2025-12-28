@@ -1,7 +1,7 @@
 const { createButton, createElement, createDiv, createLabel } = net.asukaze.import('./dom.js');
 
 /**
- * @typedef {import("./cassava_min_20251214.d.ts").CassavaGridElement} CassavaGridElement
+ * @typedef {import("./cassava_min_20251228.d.ts").CassavaGridElement} CassavaGridElement
  */
 
 /** @enum {number} */

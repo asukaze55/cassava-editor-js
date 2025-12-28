@@ -1,5 +1,5 @@
 /**
- * @typedef {import("./cassava_min_20251214.d.ts").CassavaGridElement} CassavaGridElement
+ * @typedef {import("./cassava_min_20251228.d.ts").CassavaGridElement} CassavaGridElement
  * @typedef {{min: number, max: number, scale: number, label: (value: number) => string, map: (value: number|string) => number}} Axis
  */
 
