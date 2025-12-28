@@ -386,24 +386,23 @@ class Grid {
     const t = this.selTop();
     const l = this.selLeft();
     const cellText = this.#undoGrid.cell(l, t);
-    const selAnchor = (isEditing && staticRange)
+    const startOffset = (isEditing && staticRange)
         ? getInCellOffset(staticRange.startContainer, staticRange.startOffset)
         : 0;
-    const selFocus = (isEditing && staticRange)
+    const endOffset = (isEditing && staticRange)
         ? getInCellOffset(staticRange.endContainer, staticRange.endOffset)
         : cellText.length;
-    const selStart = Math.min(selAnchor, selFocus);
     this.#undoGrid.push();
     this.#undoGrid.insertRow(t + 1, t + 1);
-    this.#undoGrid.setCell(1, t + 1, cellText.substring(selStart));
-    this.#undoGrid.setCell(l, t, cellText.substring(0, selStart))
+    this.#undoGrid.setCell(1, t + 1, cellText.substring(startOffset));
+    this.#undoGrid.setCell(l, t, cellText.substring(0, startOffset))
     for (let x = l + 1; x <= this.#undoGrid.right(); x++) {
       this.#undoGrid.setCell(x - l + 1, t + 1, this.#undoGrid.cell(x, t));
       this.#undoGrid.setCell(x, t, '');
     }
     this.#undoGrid.pop(this.selection(), new Range(1, t + 1, this.selRight() - l + 1, t + 1));
     if (isEditing) {
-      this.selectText(1, t + 1, selAnchor - selStart, selFocus - selStart);
+      this.selectText(1, t + 1, 0, endOffset - startOffset);
     } else {
       this.select(1, t + 1, this.selRight() - l + 1, t + 1);
     }
@@ -1250,38 +1249,16 @@ function lastChildWithoutBr(cellNode) {
 }
 
 /**
- * @param {Node} node
- * @param {number} offset
- * @param {Node} cellNode
- * @returns {boolean}
- */
-function isFirstLine(node, offset, cellNode) {
-  if (node == cellNode) {
-    return offset == 0;
-  } else {
-    return node == cellNode.firstChild;
-  }
-}
-
-/**
  * @param {StaticRange} staticRange
  * @param {Node} cellNode
  * @returns {boolean}
  */
 function containsFirstLine(staticRange, cellNode) {
-  return isFirstLine(
-          staticRange.startContainer, staticRange.startOffset, cellNode) ||
-      isFirstLine(staticRange.endContainer, staticRange.endOffset, cellNode);
-}
-
-/**
- * @param {Node} node
- * @param {number} offset
- * @param {Node} cellNode
- * @returns {boolean}
- */
-function isFirstPosition(node, offset, cellNode) {
-  return offset == 0 && (node == cellNode || node == cellNode.firstChild);
+  if (staticRange.startContainer == cellNode) {
+    return staticRange.startOffset == 0;
+  } else {
+    return staticRange.startContainer == cellNode.firstChild;
+  }
 }
 
 /**
@@ -1290,24 +1267,9 @@ function isFirstPosition(node, offset, cellNode) {
  * @returns {boolean}
  */
 function containsFirstPosition(staticRange, cellNode) {
-  return isFirstPosition(
-          staticRange.startContainer, staticRange.startOffset, cellNode) ||
-      isFirstPosition(
-          staticRange.endContainer, staticRange.endOffset, cellNode);
-}
-
-/**
- * @param {Node} node
- * @param {number} offset
- * @param {Node} cellNode
- * @returns {boolean}
- */
-function isLastLine(node, offset, cellNode) {
-  if (node == cellNode) {
-    return offset >= childrenCountWithoutBr(cellNode);
-  } else {
-    return node == lastChildWithoutBr(cellNode);
-  }
+  return staticRange.startOffset == 0 &&
+      (staticRange.startContainer == cellNode ||
+          staticRange.startContainer == cellNode.firstChild);
 }
 
 /**
@@ -1316,23 +1278,10 @@ function isLastLine(node, offset, cellNode) {
  * @returns {boolean}
  */
 function containsLastLine(staticRange, cellNode) {
-  return isLastLine(
-          staticRange.startContainer, staticRange.startOffset, cellNode) ||
-      isLastLine(staticRange.endContainer, staticRange.endOffset, cellNode);
-}
-
-/**
- * @param {Node} node
- * @param {number} offset
- * @param {Node} cellNode
- * @returns {boolean}
- */
-function isLastPosition(node, offset, cellNode) {
-  if (node == cellNode) {
-    return offset >= childrenCountWithoutBr(cellNode);
+  if (staticRange.endContainer == cellNode) {
+    return staticRange.endOffset >= childrenCountWithoutBr(cellNode);
   } else {
-    return node == lastChildWithoutBr(cellNode) &&
-        offset == node.textContent.length;
+    return staticRange.endContainer == lastChildWithoutBr(cellNode);
   }
 }
 
@@ -1342,9 +1291,12 @@ function isLastPosition(node, offset, cellNode) {
  * @returns {boolean}
  */
 function containsLastPosition(staticRange, cellNode) {
-  return isLastPosition(
-          staticRange.startContainer, staticRange.startOffset, cellNode) ||
-      isLastPosition(staticRange.endContainer, staticRange.endOffset, cellNode);
+  if (staticRange.endContainer == cellNode) {
+    return staticRange.endOffset >= childrenCountWithoutBr(cellNode);
+  } else {
+    return staticRange.endContainer == lastChildWithoutBr(cellNode) &&
+        staticRange.endOffset == staticRange.endContainer.textContent.length;
+  }
 }
 
 /** @param {StaticRange} staticRange */
