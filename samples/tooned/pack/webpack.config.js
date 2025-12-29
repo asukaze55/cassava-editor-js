@@ -25,12 +25,13 @@ class ToonedPlugin {
         for (const decl of fs.globSync('../*.d.ts')) {
           fs.copyFileSync(decl, decl.replace('..', 'src'));
         }
-        const tscResult = spawnSync('tsc', ['src/tooned.js', '--target es2022',
-            '--checkJs', '--noImplicitAny', '--noEmit'], {shell: true});
-        if (tscResult.error) {
-          logger.error(error);
+        const tscResult = spawnSync('npx tsc src/tooned.js --target es2022 ' +
+            '--checkJs --noImplicitAny --noEmit --module NodeNext ' +
+            '--moduleResolution NodeNext', {shell: true});
+        if (tscResult.error && tscResult.error.toString()) {
+          logger.error(tscResult.error.toString());
         }
-        if (tscResult.stdout.toString()) {
+        if (tscResult.stdout && tscResult.stdout.toString()) {
           logger.error('tsc error:\n' + tscResult.stdout.toString());
         }
         fs.rmSync('src', {recursive: true});
