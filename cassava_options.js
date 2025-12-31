@@ -1,5 +1,5 @@
-(() => {
-const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
+net.asukaze.module((module, require) => {
+const { DataFormat } = require('./cassava_data_format.js');
 
 const itemName = 'Cassava.ini.json';
 
@@ -118,5 +118,5 @@ class Options {
   }
 }
 
-net.asukaze.export({ Options });
-})();
+module.exports = { Options };
+});

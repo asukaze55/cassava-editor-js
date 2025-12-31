@@ -1,4 +1,5 @@
-const { createButton, createElement, createDiv, createLabel } = net.asukaze.import('./dom.js');
+net.asukaze.module((module, require) => {
+const { createButton, createElement, createDiv, createLabel } = require('./dom.js');
 
 /**
  * @typedef {import("./cassava_min_20251228.d.ts").CassavaGridElement} CassavaGridElement
@@ -559,4 +560,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const editor = new Editor(root);
   editor.render();
   document.querySelector('#main-view').append(editor.element);
+});
+
 });

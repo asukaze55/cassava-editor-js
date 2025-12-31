@@ -1,14 +1,14 @@
-(() => {
-const { CassavaStatusBarElement } = net.asukaze.import('./cassava_status_bar.js');
-const { DataFormat } = net.asukaze.import('./cassava_data_format.js');
-const { Environment, FunctionValue, ObjectValue, run } = net.asukaze.import('./cassava_macro.js');
-const { FindDialog, FindPanel } = net.asukaze.import('./cassava_find_dialog.js');
-const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
-const { OptionDialog } = net.asukaze.import('./cassava_option_dialog.js');
-const { Options } = net.asukaze.import('./cassava_options.js');
-const { UndoGrid } = net.asukaze.import('./cassava_undo_grid.js');
-const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = net.asukaze.import('./cassava_dom.js');
-const { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = net.asukaze.import('./cassava_replacer.js');
+net.asukaze.module((module, require) => {
+const { CassavaStatusBarElement } = require('./cassava_status_bar.js');
+const { DataFormat } = require('./cassava_data_format.js');
+const { Environment, FunctionValue, ObjectValue, run } = require('./cassava_macro.js');
+const { FindDialog, FindPanel } = require('./cassava_find_dialog.js');
+const { GridData, Range } = require('./cassava_grid_data.js');
+const { OptionDialog } = require('./cassava_option_dialog.js');
+const { Options } = require('./cassava_options.js');
+const { UndoGrid } = require('./cassava_undo_grid.js');
+const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = require('./cassava_dom.js');
+const { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = require('./cassava_replacer.js');
 
 class Clipboard {
   /** @type {string} */
@@ -2403,5 +2403,5 @@ class CassavaGridElement extends HTMLElement {
 
 customElements.define('cassava-grid', CassavaGridElement);
 
-net.asukaze.export({ CassavaGridElement });
-})();
+module.exports = { CassavaGridElement };
+});

@@ -1,5 +1,5 @@
-(() => {
-const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
+net.asukaze.module((module, require) => {
+const { createReplacer } = require('./cassava_replacer.js');
 
 /**
  * @param {string} value
@@ -412,5 +412,5 @@ class GridData {
   }
 }
 
-net.asukaze.export({ GridData, Range, isNumber });
-})();
+module.exports = { GridData, Range, isNumber };
+});

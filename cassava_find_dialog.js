@@ -1,7 +1,7 @@
-(() => {
-const { Range } = net.asukaze.import('./cassava_grid_data.js');
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
-const { createFinder } = net.asukaze.import('./cassava_replacer.js');
+net.asukaze.module((module, require) => {
+const { Range } = require('./cassava_grid_data.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { createFinder } = require('./cassava_replacer.js');
 
 /**
  * @typedef {{
@@ -194,5 +194,5 @@ class FindPanel {
   }
 }
 
-net.asukaze.export({ FindDialog, FindPanel });
-})();
+module.exports = { FindDialog, FindPanel };
+});

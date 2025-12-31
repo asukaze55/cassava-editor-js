@@ -1,5 +1,5 @@
-(() => {
-const { GridData, Range } = net.asukaze.import('./cassava_grid_data.js');
+net.asukaze.module((module, require) => {
+const { GridData, Range } = require('./cassava_grid_data.js');
 
 /**
  * @typedef {{redo(gridData: GridData): Range, undo(gridData: GridData): Range}} Action
@@ -451,5 +451,5 @@ class UndoGrid {
   }
 }
 
-net.asukaze.export({ UndoGrid });
-})();
+module.exports = { UndoGrid };
+});

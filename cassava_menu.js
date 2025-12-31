@@ -1,7 +1,7 @@
-(() => {
-const { createElement } = net.asukaze.import('./cassava_dom.js');
-const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
-const { MacroDialog } = net.asukaze.import('./cassava_macro_dialog.js');
+net.asukaze.module((module, require) => {
+const { createElement } = require('./cassava_dom.js');
+const { CassavaGridElement } = require('./cassava_grid.js');
+const { MacroDialog } = require('./cassava_macro_dialog.js');
 
 /** @typedef {[string, (event: Event) => void, Array<MenuItemType>?]} MenuItemType */
 
@@ -232,4 +232,4 @@ class CassavaMenuElement extends HTMLElement {
 
 customElements.define('cassava-menu', CassavaMenuElement);
 
-})();
+});

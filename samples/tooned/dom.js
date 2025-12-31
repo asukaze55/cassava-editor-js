@@ -1,4 +1,4 @@
-(() => {
+net.asukaze.module((module, require) => {
 
 /**
  * @template {string} K
@@ -140,5 +140,5 @@ function isSmallScreen() {
   return document.documentElement.clientWidth <= 480;
 }
 
-net.asukaze.export({ createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen });
-})();
+module.exports = { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen };
+});

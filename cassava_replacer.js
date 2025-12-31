@@ -1,4 +1,4 @@
-(() => {
+net.asukaze.module((module, require) => {
 
 /**
  * @param {string} replaceText
@@ -352,5 +352,5 @@ function toZenkakuKana(value) {
   return result;
 }
 
-net.asukaze.export({ createFinder, createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana });
-})();
+module.exports = { createFinder, createReplacer, toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana };
+});

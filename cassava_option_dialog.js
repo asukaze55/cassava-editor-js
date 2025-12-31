@@ -1,7 +1,7 @@
-(() => {
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
-const { Options } = net.asukaze.import('./cassava_options.js');
-const { DataFormat, QuoteType } = net.asukaze.import('./cassava_data_format.js');
+net.asukaze.module((module, require) => {
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { Options } = require('./cassava_options.js');
+const { DataFormat, QuoteType } = require('./cassava_data_format.js');
 
 /** @typedef {{dataFormat: DataFormat}} Grid */
 
@@ -241,5 +241,5 @@ class OptionDialog {
   }
 }
 
-net.asukaze.export({ OptionDialog });
-})();
+module.exports = { OptionDialog };
+});

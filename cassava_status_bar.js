@@ -1,5 +1,5 @@
-(() => {
-const { createElement } = net.asukaze.import('./cassava_dom.js');
+net.asukaze.module((module, require) => {
+const { createElement } = require('./cassava_dom.js');
 
 const styleContent = `
 :host {
@@ -126,5 +126,5 @@ class CassavaStatusBarElement extends HTMLElement {
 
 customElements.define('cassava-status-bar', CassavaStatusBarElement);
 
-net.asukaze.export({ CassavaStatusBarElement });
-})();
+module.exports = { CassavaStatusBarElement };
+});

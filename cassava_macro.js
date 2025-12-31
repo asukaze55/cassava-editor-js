@@ -1,5 +1,5 @@
-(() => {
-const { createReplacer } = net.asukaze.import('./cassava_replacer.js');
+net.asukaze.module((module, require) => {
+const { createReplacer } = require('./cassava_replacer.js');
 
 /**
  * @param {string} name
@@ -1639,5 +1639,5 @@ async function run(script, env, macroMap) {
   return (result instanceof ReturnValue) ? result.value : result;
 }
 
-net.asukaze.export({ Environment, FunctionValue, ObjectValue, run });
-})();
+module.exports = { Environment, FunctionValue, ObjectValue, run };
+});

@@ -1,10 +1,13 @@
 (() => {
 
-let exported = {};
+let exports = {};
 
 window.net = window.net || {};
 net.asukaze = net.asukaze || {};
-net.asukaze.export = values => exported = {...exported, ...values};
-net.asukaze.import = () => exported;
+net.asukaze.module = (callback) => {
+  const module = {exports: {}};
+  callback(module, () => exports);
+  exports = {...exports, ...module.exports};
+};
 
 })();

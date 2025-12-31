@@ -1,5 +1,5 @@
-(() => {
-const { GridData, Range, isNumber } = net.asukaze.import('./cassava_grid_data.js');
+net.asukaze.module((module, require) => {
+const { GridData, Range, isNumber } = require('./cassava_grid_data.js');
 
 /** @enum {number} */
 const QuoteType = {
@@ -137,5 +137,5 @@ class DataFormat {
   }
 }
 
-net.asukaze.export({ DataFormat, QuoteType });
-})();
+module.exports = { DataFormat, QuoteType };
+});

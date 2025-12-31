@@ -1,6 +1,6 @@
-(() => {
-const { createButton, createDialog, createDiv, createElement, createTitleBar, isSmallScreen } = net.asukaze.import('./cassava_dom.js');
-const { CassavaGridElement } = net.asukaze.import('./cassava_grid.js');
+net.asukaze.module((module, require) => {
+const { createButton, createDialog, createDiv, createElement, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { CassavaGridElement } = require('./cassava_grid.js');
 
 class MacroManager {
   /** @type {CassavaGridElement} */
@@ -276,6 +276,6 @@ class MacroDialog {
   }
 }
 
-net.asukaze.export({ MacroDialog });
+module.exports = { MacroDialog };
 
-})();
+});
