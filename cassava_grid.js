@@ -203,13 +203,13 @@ class Grid {
       }
       this.#undoGrid.setCell(l, t, result);
       this.#undoGrid.pop(range, range);
-      this.select(l, t, r, b);
+      await this.select(l, t, r, b);
     } else if (l > 1) {
       this.#undoGrid.push();
       this.#undoGrid.setCell(l - 1, t, this.#undoGrid.cell(l - 1, t) + this.#undoGrid.cell(l, t));
       this.#undoGrid.deleteCellLeft(new Range(l, t, l, t));
       this.#undoGrid.pop(range, new Range(l - 1, t, l - 1, t));
-      this.moveTo(l - 1, t);
+      await this.moveTo(l - 1, t);
     } else if (t > 1) {
       this.#undoGrid.push();
       const right = this.#undoGrid.right();
@@ -222,9 +222,9 @@ class Grid {
       }
       this.#undoGrid.deleteRow(t, t);
       this.#undoGrid.pop(range, new Range(ux + 1, t - 1, ux + 1, t - 1));
-      this.moveTo(ux + 1, t - 1);
+      await this.moveTo(ux + 1, t - 1);
     } else {
-      this.moveTo(l, t);
+      await this.moveTo(l, t);
     }
   }
 
@@ -347,10 +347,10 @@ class Grid {
    * @param {number} r
    * @param {boolean} move
    */
-  insertCol(l, r, move) {
+  async insertCol(l, r, move) {
     this.#undoGrid.insertCol(l, r);
     if (move) {
-      this.moveTo(l, 1);
+      await this.moveTo(l, 1);
     } else {
       if (this.anchorX >= l) {
         this.anchorX += r - l + 1;
@@ -366,10 +366,10 @@ class Grid {
    * @param {number} b
    * @param {boolean} move
    */
-  insertRow(t, b, move) {
+  async insertRow(t, b, move) {
     this.#undoGrid.insertRow(t, b);
     if (move) {
-      this.moveTo(1, t);
+      await this.moveTo(1, t);
     } else {
       if (this.anchorY >= t) {
         this.anchorY += b - t + 1;
@@ -402,9 +402,9 @@ class Grid {
     }
     this.#undoGrid.pop(this.selection(), new Range(1, t + 1, this.selRight() - l + 1, t + 1));
     if (isEditing) {
-      this.selectText(1, t + 1, 0, endOffset - startOffset);
+      await this.selectText(1, t + 1, 0, endOffset - startOffset);
     } else {
-      this.select(1, t + 1, this.selRight() - l + 1, t + 1);
+      await this.select(1, t + 1, this.selRight() - l + 1, t + 1);
     }
   }
 
@@ -489,7 +489,7 @@ class Grid {
     const range = this.#undoGrid.redo();
     if (range) {
       await this.render();
-      this.select(range.left, range.top, range.right, range.bottom);
+      await this.select(range.left, range.top, range.right, range.bottom);
     }
   }
 
@@ -974,7 +974,7 @@ class Grid {
     const range = this.#undoGrid.undo();
     if (range) {
       await this.render();
-      this.select(range.left, range.top, range.right, range.bottom);
+      await this.select(range.left, range.top, range.right, range.bottom);
     }
   }
 
@@ -1128,7 +1128,7 @@ class Grid {
     this.#isTouchStarted = false;
     if (this.#isTouchCurentCell && this.x == this.anchorX &&
         this.y == this.anchorY) {
-      this.moveTo(this.x, this.y);
+      await this.moveTo(this.x, this.y);
     }
     this.#isTouchCurentCell = false;
   }
