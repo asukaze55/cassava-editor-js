@@ -1043,7 +1043,7 @@ class Grid {
 
   /** @param {MouseEvent} event */
   async #onMouseMove(event) {
-    if (!this.#isMouseDown) {
+    if (!this.#isMouseDown || this.#isTouchStarted) {
       return;
     }
     const target = getEventTarget(event);
@@ -1078,7 +1078,7 @@ class Grid {
   /** @param {TouchEvent} event */
   async #onTouchStart(event) {
     this.#isTouchStarted = true;
-    if (this.isEditing || this.x != this.anchorX || this.y != this.anchorY) {
+    if (this.isEditing) {
       return;
     }
     const target = getEventTarget(event.changedTouches[0]);
@@ -1123,15 +1123,14 @@ class Grid {
   /** @param {TouchEvent} event */
   async #onTouchEnd(event) {
     await this.#onTouchMove(event);
+    // Wait until all mouse events complete.
+    await new Promise(resolve => setTimeout(resolve));
+    this.#isTouchStarted = false;
     if (this.#isTouchCurentCell && this.x == this.anchorX &&
         this.y == this.anchorY) {
       this.moveTo(this.x, this.y);
     }
     this.#isTouchCurentCell = false;
-    // Clean up #isTouchStarted after mouse events complete.
-    setTimeout(() => {
-      this.#isTouchStarted = false;
-    });
   }
 
   /**
