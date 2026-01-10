@@ -1,6 +1,6 @@
 net.asukaze.module((module, require) => {
 const { Range } = require('./cassava_grid_data.js');
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./asukaze_dom.js');
 const { createFinder } = require('./cassava_replacer.js');
 
 /**

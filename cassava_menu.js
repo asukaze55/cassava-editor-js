@@ -1,5 +1,5 @@
 net.asukaze.module((module, require) => {
-const { createElement } = require('./cassava_dom.js');
+const { createElement } = require('./asukaze_dom.js');
 const { CassavaGridElement } = require('./cassava_grid.js');
 const { MacroDialog } = require('./cassava_macro_dialog.js');
 

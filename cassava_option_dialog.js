@@ -1,5 +1,5 @@
 net.asukaze.module((module, require) => {
-const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createLabel, createTitleBar, isSmallScreen } = require('./asukaze_dom.js');
 const { Options } = require('./cassava_options.js');
 const { DataFormat, QuoteType } = require('./cassava_data_format.js');
 

@@ -1,5 +1,5 @@
 net.asukaze.module((module, require) => {
-const { createElement } = require('./cassava_dom.js');
+const { createElement } = require('./asukaze_dom.js');
 
 const styleContent = `
 :host {

@@ -7,7 +7,7 @@ const { GridData, Range } = require('./cassava_grid_data.js');
 const { OptionDialog } = require('./cassava_option_dialog.js');
 const { Options } = require('./cassava_options.js');
 const { UndoGrid } = require('./cassava_undo_grid.js');
-const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = require('./cassava_dom.js');
+const { createButton, createElement, createDialog, createDiv, createLabel, createTitleBar } = require('./asukaze_dom.js');
 const { toHankakuAlphabet, toHankakuKana, toZenkakuAlphabet, toZenkakuKana } = require('./cassava_replacer.js');
 
 class Clipboard {

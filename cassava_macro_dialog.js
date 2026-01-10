@@ -1,5 +1,5 @@
 net.asukaze.module((module, require) => {
-const { createButton, createDialog, createDiv, createElement, createTitleBar, isSmallScreen } = require('./cassava_dom.js');
+const { createButton, createDialog, createDiv, createElement, createTitleBar, isSmallScreen } = require('./asukaze_dom.js');
 const { CassavaGridElement } = require('./cassava_grid.js');
 
 class MacroManager {
