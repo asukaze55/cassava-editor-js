@@ -20,7 +20,8 @@ module.exports = {
       output: `cassava_min_${date}.d.ts`,
       strip: 'cassava_macro.js',
     },
-    extraJs: ['sample_macros.js', 'test_macros.js']
+    extraJs: ['sample_macros.js', 'test_macros.js'],
+    strict: false
   })],
   output: {
     path: path.resolve(__dirname, 'out/'),

@@ -20,6 +20,10 @@ class RangeAxis {
    * @param {boolean} flip;
    */
   constructor(min, max, size, margin, flip) {
+    this.#flip = flip;
+    this.#margin = margin;
+    this.#size = size;
+
     let diff = (max > 0 && min < 0) ? Math.max(max, -min) : max - min;
     if (diff < 0.001) {
       this.min = Math.floor(min);
@@ -43,9 +47,6 @@ class RangeAxis {
     this.min = Math.floor(min) * scale;
     this.max = Math.ceil(max) * scale;
     this.scale = scale;
-    this.#size = size;
-    this.#margin = margin;
-    this.#flip = flip;
   }
 
   /**
@@ -122,7 +123,11 @@ class CanvasDrawer {
    * @param {Axis} axisY
    */
   constructor(canvas, axisX, axisY) {
-    this.#context = canvas.getContext('2d');
+    const context = canvas.getContext('2d');
+    if (context == null) {
+      throw 'Failed to get canvas context.'
+    }
+    this.#context = context;
     this.#axisX = axisX;
     this.#axisY = axisY;
   }
@@ -241,10 +246,10 @@ function color(x) {
 function drawLineChart() {
   const grid =
       /** @type {CassavaGridElement} */(document.getElementById('grid'));
-  let minX;
-  let maxX;
-  let minY;
-  let maxY;
+  let minX = NaN;
+  let maxX = NaN;
+  let minY = NaN;
+  let maxY = NaN;
   for (let y = 2; y <= grid.bottom(); y++) {
     const xValue = Number(grid.cell(1, y));
     if (isNaN(minX) || xValue < minX) {
@@ -326,7 +331,7 @@ function drawStackChart(summed) {
   drawer.drawTitle(
       /** @type {HTMLInputElement} */(document.getElementById('title')).value);
   drawer.drawAxis();
-  let previousValue;
+  let previousValue = 0;
   const labelRendered = new Set();
   for (let y = grid.bottom(); y >= 2; y--) {
     let plusValue = 0;
@@ -394,6 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
   grid.setCell(2, 6, '2.72');
   grid.addEventListener('input', () => draw());
   document.getElementById('draw-button')
-      .addEventListener('click', () => draw());
+      ?.addEventListener('click', () => draw());
   draw();
 });

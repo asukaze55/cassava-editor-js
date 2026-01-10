@@ -5,6 +5,8 @@ const path = require('path');
 const PLUGIN_NAME = 'AsukazePlugin';
 
 class AsukazePluginHelper {
+  /** @type {import('webpack').Compilation} */
+  #compilation;
   /** @type {string} */
   #entryBaseName;
   /** @type {string} */
@@ -13,20 +15,22 @@ class AsukazePluginHelper {
   #outputBaseName;
   /** @type {string} */
   #outputPath;
-  /** @type {import('webpack').Compilation} */
-  #compilation;
+  /** @type {boolean} */
+  #strict;
 
   /**
    * @param {import('webpack').WebpackOptionsNormalized} options
    * @param {import('webpack').Compilation} compilation
+   * @param {boolean} strict
    */
-  constructor(options, compilation) {
+  constructor(options, compilation, strict) {
+    this.#compilation = compilation;
     const entry = options.entry.main.import[0];
     this.#entryPath = path.dirname(entry);
     this.#entryBaseName = path.basename(entry);
     this.#outputPath = options.output.path;
     this.#outputBaseName = options.output.filename;
-    this.#compilation = compilation;
+    this.#strict = strict;
   }
 
   /**
@@ -58,9 +62,10 @@ class AsukazePluginHelper {
     const emitParams = (declDirName != null)
         ? `--declaration --emitDeclarationOnly --outDir ${declDirName}`
         : '--noEmit'
+    const strictParam = this.#strict ? '--strict' : '--noImplicitAny';
     const tscResult = spawnSync(
         `npx tsc ${path.resolve(srcDirName, this.#entryBaseName)} \
-        --target es2022 --checkJs --noImplicitAny ${emitParams} \
+        --target es2022 --checkJs ${emitParams} ${strictParam} \
         --module NodeNext --moduleResolution NodeNext`, {shell: true});
     if (tscResult.error && tscResult.error.toString()) {
       logger.error(tscResult.error.toString());
@@ -134,18 +139,22 @@ class AsukazePlugin {
   #decl;
   /** @type {Array<string>} */
   #extraJs;
+  /** @type {boolean} */
+  #strict
 
-  /** @param {{decl?: {module: string, output: string, strip?: string}, extraJs?: string[]}?} options */
+  /** @param {{decl?: {module: string, output: string, strip?: string}, extraJs?: string[], strict?: boolean}?} options */
   constructor(options) {
     this.#decl = options?.decl;
     this.#extraJs = options?.extraJs ?? [];
+    this.#strict = options?.strict ?? true;
   }
 
   /** @param {import('webpack').Compiler} compiler */
   apply(compiler) {
     const logger = compiler.getInfrastructureLogger(PLUGIN_NAME);
     compiler.hooks.thisCompilation.tap(PLUGIN_NAME, compilation => {
-      const helper = new AsukazePluginHelper(compiler.options, compilation);
+      const helper =
+          new AsukazePluginHelper(compiler.options, compilation, this.#strict);
 
       compilation.hooks.finishModules.tap(PLUGIN_NAME, modules => {
         fs.mkdirSync('src', {recursive: true});

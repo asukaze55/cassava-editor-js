@@ -474,7 +474,7 @@ function updateUrl() {
   }
   const hash = '#' + results.join('&');
   try {
-    history.replaceState(null, null, hash);
+    history.replaceState(null, '', hash);
   } catch (e) {
     location.hash = hash;
   }

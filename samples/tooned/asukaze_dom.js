@@ -35,7 +35,11 @@ function createDiv(...children) {
 /**
  * @param {Node|string} content
  * @param {(this: HTMLButtonElement, event: MouseEvent) => void} onclick
- * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {style?: string}=} attributes
+ * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {
+ *         onclick?: (event: PointerEvent) => void,
+ *         onmousedown?: (event: MouseEvent) => void,
+ *         onmousemove?: (event: MouseEvent) => void,
+ *         style?: string}=} attributes
  * @returns {HTMLButtonElement}
  */
 function createButton(content, onclick, attributes) {
@@ -53,7 +57,7 @@ function createLabel(...children) {
 }
 
 /**
- * @param {Element} element
+ * @param {Element?} element
  * @param {Element} root
  * @return {boolean}
  */
@@ -70,7 +74,11 @@ function isInputElement(element, root) {
 
 /**
  * @param {Array<Node|string>} children
- * @param {Omit<Partial<HTMLDialogElement>, 'style'> & {style?: string}=} attributes
+ * @param {Omit<Partial<HTMLDialogElement>, 'style'> & {
+ *         onclick?: (event: PointerEvent) => void,
+ *         onmousedown?: (event: MouseEvent) => void,
+ *         onmousemove?: (event: MouseEvent) => void,
+ *         style?: string}=} attributes
  * @returns {HTMLDialogElement}
  */
 function createDialog(children, attributes = {}) {

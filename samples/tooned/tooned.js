@@ -128,13 +128,13 @@ class Node {
   /** @type {HTMLDivElement} */
   #element;
   /** @type {Type} */
-  #type;
+  #type = Type.OBJECT;
   /** @type {string} */
   #primitive = '';
   /** @type {Array<[Node, string?]>} */
   #object = [];
-  /** @type {CassavaGridElement} */
-  #grid;
+  /** @type {CassavaGridElement?} */
+  #grid = null;
 
   /**
    * @param {Array<string>} lines
@@ -249,11 +249,11 @@ class Node {
       this.#grid =
           /** @type {CassavaGridElement} */(createElement('cassava-grid'));
       splitInlineArray(tabular[1]).forEach((s, x) => {
-        this.#grid.setCell(x + 1, 1, unquote(s)[0]);
+        this.#grid?.setCell(x + 1, 1, unquote(s)[0]);
       });
       for (let y = 1; y < lines.length; y++) {
         splitInlineArray(lines[y].trim()).forEach((s, x) => {
-          this.#grid.setCell(x + 1, y + 1, unquote(s)[0]);
+          this.#grid?.setCell(x + 1, y + 1, unquote(s)[0]);
         });
       }
       return;
@@ -305,7 +305,7 @@ class Node {
         if (remaining.startsWith('[')) {
           child.push(remaining);
         }
-        const indent = (lines[i + 1] ?? '').match(/^\s*/)[0];
+        const indent = lines[i + 1]?.match(/^\s*/)?.[0] ?? '';
         if (indent.length > 0) {
           while (i + 1 < lines.length && lines[i + 1].startsWith(indent)) {
             i++;
@@ -385,7 +385,8 @@ class Node {
             /** @type {CassavaGridElement} */(createElement('cassava-grid'));
       }
       this.#element.append(
-          createDiv(createButton('Edit column names', () => this.#grid.runMacro('FixFirstRow();'))),
+          createDiv(createButton('Edit column names',
+              () => this.#grid?.runMacro('FixFirstRow();'))),
           this.#grid);
       this.#element.style.display = 'block';
       this.#grid.runMacro('UnFix(); FixFirstRow();');
@@ -422,6 +423,9 @@ class Node {
         return result;
       }
       case Type.TABULAR_ARRAY: {
+        if (this.#grid == null) {
+          return `${key}[0]:\n`;
+        }
         let result = `${key}[${this.#grid.bottom() - 1}]{` +
             maybeQuotePrimitive(this.#grid.cell(1, 1));
         for (let x = 2; x <= this.#grid.right(); x++) {
@@ -559,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ]);
   const editor = new Editor(root);
   editor.render();
-  document.querySelector('#main-view').append(editor.element);
+  document.querySelector('#main-view')?.append(editor.element);
 });
 
 });
