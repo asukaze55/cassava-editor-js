@@ -149,18 +149,18 @@ class Node {
         this.render();
       }
     }, [
-      createElement('option', {value: Type.NULL.toString()}, ['null']),
-      createElement('option', {value: Type.STRING.toString()}, ['string']),
-      createElement('option', {value: Type.NUMBER.toString()}, ['number']),
-      createElement('option', {value: Type.TRUE.toString()}, ['true']),
-      createElement('option', {value: Type.FALSE.toString()}, ['false']),
-      createElement('option', {value: Type.OBJECT.toString()}, ['object']),
+      createElement('option', {value: String(Type.NULL)}, ['null']),
+      createElement('option', {value: String(Type.STRING)}, ['string']),
+      createElement('option', {value: String(Type.NUMBER)}, ['number']),
+      createElement('option', {value: String(Type.TRUE)}, ['true']),
+      createElement('option', {value: String(Type.FALSE)}, ['false']),
+      createElement('option', {value: String(Type.OBJECT)}, ['object']),
       createElement('option',
-          {value: Type.INLINE_ARRAY.toString()}, ['array (inline)']),
+          {value: String(Type.INLINE_ARRAY)}, ['array (inline)']),
       createElement('option',
-          {value: Type.EXPANDED_ARRAY.toString()}, ['array (expanded)']),
+          {value: String(Type.EXPANDED_ARRAY)}, ['array (expanded)']),
       createElement('option',
-          {value: Type.TABULAR_ARRAY.toString()}, ['array (tabular)'])
+          {value: String(Type.TABULAR_ARRAY)}, ['array (tabular)'])
     ]);
     this.#element = createDiv();
     /** @type {Array<HTMLElement>} */
@@ -318,7 +318,7 @@ class Node {
   }
 
   render() {
-    this.#select.value = this.#type.toString();
+    this.#select.value = String(this.#type);
     this.#element.innerHTML = '';
     if (this.#type == Type.STRING ||
         this.#type == Type.NUMBER) {
@@ -539,14 +539,6 @@ class Editor {
     }
     this.element.append(main);
   }
-}
-
-/**
- * @param {Node} root
- * @param {HTMLTextAreaElement} textarea
- */
-function save(root, textarea) {
-  textarea.value = root.toString();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

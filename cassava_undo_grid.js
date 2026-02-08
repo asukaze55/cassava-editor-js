@@ -392,7 +392,7 @@ class UndoGrid {
    * @param {any} value
    */
   setCell(x, y, value) {
-    const stringValue = value.toString().replaceAll('\r\n', '\n');
+    const stringValue = String(value).replaceAll('\r\n', '\n');
     const prevAction = this.#undoList.at(-1);
     if (prevAction instanceof SetCellUndoAction && prevAction.x == x && prevAction.y == y) {
       prevAction.to = stringValue;

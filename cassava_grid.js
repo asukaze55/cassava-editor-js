@@ -614,15 +614,14 @@ class Grid {
       this.#suppressRender--;
       if (cellToRender instanceof ObjectValue) {
         /** @type {(value: ValueType?) => string?} */
-        const toString = value => value != null ? value.toString() : null;
         this.#renderCell(cell, x, y,
-            toString(cellToRender.get('text')),
-            toString(cellToRender.get('align')),
-            toString(cellToRender.get('color')),
-            toString(cellToRender.get('background')));
+            cellToRender.get('text')?.toString(),
+            cellToRender.get('align')?.toString(),
+            cellToRender.get('color')?.toString(),
+            cellToRender.get('background')?.toString());
         return;
       } else if (cellToRender) {
-        this.#renderCell(cell, x, y, cellToRender.toString());
+        this.#renderCell(cell, x, y, String(cellToRender));
         return;
       }
     }
@@ -657,9 +656,9 @@ class Grid {
       if (x == 0 && y == 0) {
         value = '';
       } else if (y == 0) {
-        value = (x <= this.#undoGrid.right()) ? x.toString() : ' ';
+        value = (x <= this.#undoGrid.right()) ? String(x) : ' ';
       } else if (x == 0) {
-        value = (y <= this.#undoGrid.bottom()) ? y.toString() : ' ';
+        value = (y <= this.#undoGrid.bottom()) ? String(y) : ' ';
       } else {
         value = this.#undoGrid.cell(x, y);
       }
@@ -1564,7 +1563,7 @@ const macroTerminated = {};
  */
 function convertDialogContent(content) {
   if (!(content instanceof ObjectValue)) {
-    return content.toString();
+    return String(content);
   }
 
   const attributes = {};
@@ -1578,7 +1577,7 @@ function convertDialogContent(content) {
     attributes.size = Number(content.get('size'));
   }
   if (content.has('value')) {
-    attributes.value = content.get('value').toString();
+    attributes.value = String(content.get('value'));
   }
 
   const children = [];
@@ -1589,7 +1588,7 @@ function convertDialogContent(content) {
     }
   }
 
-  const tagName = content.get('tagName').toString().toUpperCase();
+  const tagName = String(content.get('tagName')).toUpperCase();
   if (tagName == 'BUTTON') {
     return createElement('button', attributes, children);
   } else if (tagName == 'INPUT') {
@@ -1975,9 +1974,9 @@ class CassavaGridElement extends HTMLElement {
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
     'CopyAvr/0': () => clipboard.writeText(
-        this.#grid.sumAndAvr(this.#grid.selection()).avr.toString()),
+        String(this.#grid.sumAndAvr(this.#grid.selection()).avr)),
     'CopySum/0': () => clipboard.writeText(
-        this.#grid.sumAndAvr(this.#grid.selection()).sum.toString()),
+        String(this.#grid.sumAndAvr(this.#grid.selection()).sum)),
     'Cut/0': () => copy(this.#grid, /* cut= */ true),
     'CutCol/0': () =>
         this.#grid.deleteCol(this.#grid.selLeft(), this.#grid.selRight()),
@@ -2017,23 +2016,23 @@ class CassavaGridElement extends HTMLElement {
     'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
     'InputBox/1': a => {
       this.#grid.render(/* force= */ true);
-      return prompt(a.toString());
+      return prompt(String(a));
     },
     'InputBox/2': (a, b) => {
       this.#grid.render(/* force= */ true);
-      return prompt(a.toString(), b.toString());
+      return prompt(String(a), String(b));
     },
     'InputBoxMultiLine/1': a => {
       this.#grid.render(/* force= */ true);
-      return inputBoxMultiLine(a.toString());
+      return inputBoxMultiLine(String(a));
     },
     'InputBoxMultiLine/2': (a, b) => {
       this.#grid.render(/* force= */ true);
-      return inputBoxMultiLine(a.toString(), /* title= */null, b.toString());
+      return inputBoxMultiLine(String(a), /* title= */null, String(b));
     },
     'InputBoxMultiLine/3': (a, b, c) => {
       this.#grid.render(/* force= */ true);
-      return inputBoxMultiLine(a.toString(), b.toString(), c.toString());
+      return inputBoxMultiLine(String(a), String(b), String(c));
     },
     'InsCol/0': () => this.#grid.insertCol(
         this.#grid.selLeft(), this.#grid.selRight(), true),
@@ -2059,15 +2058,15 @@ class CassavaGridElement extends HTMLElement {
     },
     'MessageBox/1': a => {
       this.#grid.render(/* force= */ true);
-      return messageBox(a.toString());
+      return messageBox(String(a));
     },
     'MessageBox/2': (a, b) => {
       this.#grid.render(/* force= */ true);
-      return messageBox(a.toString(), undefined, Number(b));
+      return messageBox(String(a), undefined, Number(b));
     },
     'MessageBox/3': (a, b, c) => {
       this.#grid.render(/* force= */ true);
-      return messageBox(a.toString(), b.toString(), Number(c));
+      return messageBox(String(a), String(b), Number(c));
     },
     'New/0': () => this.#grid.clear(),
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
@@ -2078,7 +2077,7 @@ class CassavaGridElement extends HTMLElement {
     'Paste/1': a => paste(this.#grid, Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
     'QuickFind/1': a => {
-      this.#findDialog.setFindText(a.toString());
+      this.#findDialog.setFindText(String(a));
       this.#findPanel.show();
     },
     'Redo/0': () => this.#grid.redo(),
@@ -2087,14 +2086,14 @@ class CassavaGridElement extends HTMLElement {
     'ReloadCodeUTF8/0': () => this.#openDialog.reload('UTF-8'),
     'ReplaceAll/2': (a, b) => {
       const isRegex = a instanceof RegExp;
-      this.#grid.replaceAll(isRegex ? a.source : a.toString(), b.toString(),
+      this.#grid.replaceAll(isRegex ? a.source : String(a), String(b),
           isRegex && a.ignoreCase, false, isRegex, this.#grid.allCells());
     },
     'ReplaceAll/5': (a, b, c, d, e) => this.#grid.replaceAll(
-        (a instanceof RegExp) ? a.source : a.toString(), b.toString(),
+        (a instanceof RegExp) ? a.source : String(a), String(b),
         !!c, !!d, !!e, this.#grid.allCells()),
     'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) => this.#grid.replaceAll(
-        (a instanceof RegExp) ? a.source : a.toString(), b.toString(),
+        (a instanceof RegExp) ? a.source : String(a), String(b),
         !!c, !!d, !!e, new Range(Number(f), Number(g), Number(h), Number(i))),
     'Right=/0': () => this.#grid.right(),
     'Right=/1': a => this.#grid.setRight(Number(a)),
@@ -2107,7 +2106,7 @@ class CassavaGridElement extends HTMLElement {
         saveAs(fileName, this.#grid);
       }
     },
-    'SaveAs/1': a => saveAs(a.toString(), this.#grid),
+    'SaveAs/1': a => saveAs(String(a), this.#grid),
     'SaveIniSetting/0': () => this.#options.save(),
     'SelBottom=/0': () => this.#grid.selBottom(),
     'SelBottom=/1': a => this.#grid.select(
@@ -2148,7 +2147,7 @@ class CassavaGridElement extends HTMLElement {
     'SetColWidth/1': a => this.#grid.setDefaultColWidth(Number(a)),
     'SetColWidth/2': (a, b) => this.#grid.setColWidth(Number(a), Number(b)),
     'SetIniSetting/3':
-        (a, b, c) => new Options().setRaw(a + '/' + b, c.toString()),
+        (a, b, c) => new Options().setRaw(a + '/' + b, String(c)),
     'SetRowHeight/1': a => this.#grid.setDefaultRowHeight(Number(a)),
     'SetRowHeight/2': (a, b) => this.#grid.setRowHeight(Number(a), Number(b)),
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(Number(a)),
@@ -2157,10 +2156,10 @@ class CassavaGridElement extends HTMLElement {
         throw 'Not a function: ' + c;
       }
       this.#statusBarPanel.setPopUp(
-          Number(a), b.toString(), item => c.run([item]));
+          Number(a), String(b), item => c.run([item]));
     },
     'SetStatusBarText/2':
-        (a, b) => this.#statusBarPanel.setText(Number(a), b.toString()),
+        (a, b) => this.#statusBarPanel.setText(Number(a), String(b)),
     'SetStatusBarWidth/2':
         (a, b) => this.#statusBarPanel.setWidth(Number(a), Number(b)),
     'ShowDialog/1': a => {
@@ -2169,7 +2168,7 @@ class CassavaGridElement extends HTMLElement {
     },
     'ShowDialog/2': (a, b) => {
       this.#grid.render(/* force= */ true);
-      return showUserDialog(a, b.toString());
+      return showUserDialog(a, String(b));
     },
     'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
         new Range(Number(a), Number(b), Number(c), Number(d)),
@@ -2192,7 +2191,7 @@ class CassavaGridElement extends HTMLElement {
         new Range(Number(a), Number(b), Number(c), Number(d))).avr,
     'cell/2': (a, b) => {
       const value = this.#grid.cell(Number(a), Number(b));
-      if ((Number(value)).toString() == value) {
+      if (String(Number(value)) == value) {
         return Number(value);
       }
       return value;
@@ -2389,7 +2388,7 @@ class CassavaGridElement extends HTMLElement {
 
   /**
    * Sets the cell data.
-   * The value will be converted to a string using toString().
+   * The value will be converted to a string using String().
    *
    * @param {number} x
    * @param {number} y

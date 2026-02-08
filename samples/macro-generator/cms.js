@@ -377,7 +377,7 @@ function elem(id) {
 function numValue(element) {
   const value = element.value;
   const numValue = Number(value) || 0;
-  if (value == '' || value != numValue.toString()) {
+  if (value == '' || value != String(numValue)) {
     element.className += ' error';
   }
   return numValue;

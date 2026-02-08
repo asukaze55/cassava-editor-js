@@ -246,9 +246,10 @@ class GridData {
    * @param {Range} range
    */
   replaceAll(str1, str2, ignoreCase, wholeCell, isRegex, range) {
-    str1 = str1.toString();
-    str2 = str2.toString();
-    const replacer = createReplacer(str1.toString(), str2.toString(), ignoreCase, wholeCell, isRegex);
+    str1 = String(str1);
+    str2 = String(str2);
+    const replacer = createReplacer(
+        String(str1), String(str2), ignoreCase, wholeCell, isRegex);
     for (let y = range.top; y <= range.bottom; y++) {
       if (this.#data[y - 1] == null) {
         continue;

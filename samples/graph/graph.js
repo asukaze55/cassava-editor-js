@@ -54,7 +54,7 @@ class RangeAxis {
    * @returns {string}
    */
   label(value) {
-    return (Math.round(value * 10000) / 10000).toString();
+    return String(Math.round(value * 10000) / 10000);
   }
 
   /**

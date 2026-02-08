@@ -24,7 +24,7 @@ const swapFunction = new SwapFunction();
 /** @type {Map<string, MacroFunction|SwapFunction>} */
 const builtInFunctions = new Map(Object.entries({
   'acos/1': a => Math.acos(Number(a)),
-  'ascW/1': a => a.toString().charCodeAt(0),
+  'ascW/1': a => String(a).charCodeAt(0),
   'asin/1': a => Math.asin(Number(a)),
   'atan/1': a => Math.atan(Number(a)),
   'atan2/2': (a, b) => Math.atan2(Number(a), Number(b)),
@@ -32,23 +32,22 @@ const builtInFunctions = new Map(Object.entries({
   'cos/1': a => Math.cos(Number(a)),
   'double/1': a => Number(a),
   'int/1': a => Math.trunc(Number(a)),
-  'left/2': (a, b) => a.toString().slice(0, Number(b)),
-  'len/1': a => a.toString().length,
+  'left/2': (a, b) => String(a).slice(0, Number(b)),
+  'len/1': a => String(a).length,
   'max/+1': (...a) => Math.max(...a.map(Number)),
-  'mid/2': (a, b) => a.toString().substring(Number(b) - 1),
+  'mid/2': (a, b) => String(a).substring(Number(b) - 1),
   'mid/3': (a, b, c) =>
-      a.toString().substring(Number(b) - 1, Number(b) - 1 + Number(c)),
+      String(a).substring(Number(b) - 1, Number(b) - 1 + Number(c)),
   'min/+1': (...a) => Math.min(...a.map(Number)),
-  'pos/2': (a, b) => a.toString().indexOf(b.toString()) + 1,
+  'pos/2': (a, b) => String(a).indexOf(String(b)) + 1,
   'pow/2': (a, b) => Math.pow(Number(a), Number(b)),
   'random/1': a => Math.floor(Math.random() * Number(a)),
   'replace/+3': (str1, str2, str3, ignoreCase, isRegex) => createReplacer(
-      str2.toString(), str3.toString(), !!ignoreCase, false, !!isRegex)(
-          str1.toString()),
-  'right/2': (a, b) => a.toString().slice(-b),
+      String(str2), String(str3), !!ignoreCase, false, !!isRegex)(String(str1)),
+  'right/2': (a, b) => String(a).slice(-b),
   'sin/1': a => Math.sin(Number(a)),
   'sqrt/1': a => Math.sqrt(Number(a)),
-  'str/1': a => a.toString(),
+  'str/1': a => String(a),
   'swap/2': swapFunction,
   'tan/1': a => Math.tan(Number(a)),
   'GetDate/0': () => new Date().getDate(),
@@ -500,7 +499,7 @@ class ObjectValue {
    * @returns {ValueType?}
    */
   get(name) {
-    const key = name.toString();
+    const key = String(name);
     if (this.#value.has(key)) {
       return this.#value.get(key);
     }
@@ -509,7 +508,7 @@ class ObjectValue {
 
   /** @param {ValueType} name */
   has(name) {
-    return this.#value.has(name.toString());
+    return this.#value.has(String(name));
   }
 
   /**
@@ -517,7 +516,7 @@ class ObjectValue {
    * @param {ValueType} value
    */
   set(name, value) {
-    this.#value.set(name.toString(), value);
+    this.#value.set(String(name), value);
   }
 
   /** @returns {string} */
@@ -538,7 +537,7 @@ class ObjectValue {
       } else if (typeof value == 'number') {
         result += value;
       } else if (value instanceof FunctionValue
-          || value.toString().indexOf('\n') >= 0) {
+          || String(value).indexOf('\n') >= 0) {
         result += '...';
       } else {
         result += '\"' + value + '\"';
@@ -873,7 +872,7 @@ function optionalNumber(value) {
  * @returns {string?}
  */
 function optionalString(value) {
-  return value == undefined ? undefined : value.toString();
+  return value == undefined ? undefined : String(value);
 }
 
 /**
@@ -881,7 +880,7 @@ function optionalString(value) {
  * @returns {string|RegExp}
  */
 function stringOrRegExp(value) {
-  return value instanceof RegExp ? value : value.toString();
+  return value instanceof RegExp ? value : String(value);
 }
 
 class TreeBuilder {
@@ -982,7 +981,7 @@ class TreeBuilder {
             /** @type {(x: ValueType, y: ValueType, value: ValueType) => void}*/(
                 env.getFunction('cell=', 3))(x, y, value);
           } else if (left.name == 'mid') {
-            const str = (await params[0].run(env)).toString();
+            const str = String(await params[0].run(env));
             const start = Number(await params[1].run(env)) - 1;
             const len = Number(await params[2].run(env));
             await params[0].assign(env, str.substring(0, start) + value
@@ -1007,24 +1006,24 @@ class TreeBuilder {
           if (obj instanceof ObjectValue) {
             const result = obj.get(name);
             if (result == null) {
-              throw 'Undefined member: ' + name + '\nObject: ' + obj.toString();
+              throw 'Undefined member: ' + name + '\nObject: ' + String(obj);
             }
             if (result instanceof FunctionValue) {
               return result.withThis(obj);
             }
             return result;
           }
-          const str = /** @type {string} */(obj.toString());
+          const str = String(obj);
           if (name == 'endsWith') {
             return (a, b) =>
-                str.endsWith(a.toString(), optionalNumber(b)) ? 1 : 0;
+                str.endsWith(String(a), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'includes') {
             return (a, b) =>
-                str.includes(a.toString(), optionalNumber(b)) ? 1 : 0;
+                str.includes(String(a), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'indexOf') {
-            return (a, b) => str.indexOf(a.toString(), optionalNumber(b));
+            return (a, b) => str.indexOf(String(a), optionalNumber(b));
           } else if (name == 'lastIndexOf') {
-            return (a, b) => str.lastIndexOf(a.toString(), optionalNumber(b));
+            return (a, b) => str.lastIndexOf(String(a), optionalNumber(b));
           } else if (name == 'length') {
             return str.length;
           } else if (name == 'padEnd') {
@@ -1034,19 +1033,19 @@ class TreeBuilder {
           } else if (name == 'repeat') {
             return a => str.repeat(Number(a));
           } else if (name == 'replace') {
-            return (a, b) => str.replace(stringOrRegExp(a), b.toString());
+            return (a, b) => str.replace(stringOrRegExp(a), String(b));
           } else if (name == 'replaceAll') {
-            return (a, b) => str.replaceAll(stringOrRegExp(a), b.toString());
+            return (a, b) => str.replaceAll(stringOrRegExp(a), String(b));
           } else if (name == 'search') {
             return a => str.search(stringOrRegExp(a));
           } else if (name == 'startsWith') {
-            return (a, b) => str.startsWith(a.toString(), optionalNumber(b)) ? 1 : 0;
+            return (a, b) => str.startsWith(String(a), optionalNumber(b)) ? 1 : 0;
           } else if (name == 'substring') {
             return (a, b) => str.substring(Number(a), optionalNumber(b));
           } else if (name == 'toLowerCase') {
             return () => str.toLowerCase();
           } else if (name == 'toString') {
-            return () => str.toString();
+            return () => String(str);
           } else if (name == 'toUpperCase') {
             return () => str.toUpperCase();
           } else if (name == 'trim') {
@@ -1058,8 +1057,7 @@ class TreeBuilder {
           } else if (!isNaN(Number(name))) {
             return str[Number(name)] || '';
           } else {
-            throw 'Undefined member: ' + name
-                  + '\nString: ' + obj.toString();
+            throw 'Undefined member: ' + name + '\nString: ' + String(obj);
           }
         },
         async (env, value) => {
@@ -1087,7 +1085,7 @@ class TreeBuilder {
       if (name[0] == '"' || name[0] == "'") {
         name = parseString(name);
       } else if (isNumCharOrDot(name[0])) {
-        name = Number(name).toString();
+        name = String(Number(name));
       }
       const token = this.#tokens.next();
       if (token == ':') {
@@ -1248,7 +1246,7 @@ class TreeBuilder {
       } else if (token == 'in' && expr.hasValueNode) {
         expr.add(operatorNode(10, (a, b) => {
           if (b instanceof ObjectValue) {
-            return b.has(a.toString()) ? 1 : 0;
+            return b.has(String(a)) ? 1 : 0;
           } else {
             throw 'right-hand side of "in" should be an object. Found: ' + b;
           }
@@ -1353,10 +1351,10 @@ class TreeBuilder {
         expr.add(operatorNode(10, (a, b) => a >= b ? 1 : 0));
       } else if (token == '==') {
         expr.add(operatorNode(9,
-            (a, b) => (a.toString() === b.toString()) ? 1 : 0));
+            (a, b) => (String(a) === String(b)) ? 1 : 0));
       } else if (token == '!=') {
         expr.add(operatorNode(9,
-            (a, b) => (a.toString() !== b.toString()) ? 1 : 0));
+            (a, b) => (String(a) !== String(b)) ? 1 : 0));
       } else if (token == '&&' || token == '&') {
         expr.add(new BinaryNode(5, async (env, left, right) => {
           const l = await left.run(env);

@@ -81,12 +81,12 @@ class Options {
       }
     }
     const dataFormats = this.dataFormats;
-    this.#values['DataType/Count'] = dataFormats.length.toString();
+    this.#values['DataType/Count'] = String(dataFormats.length);
     for (let i = 0; i < dataFormats.length; i++) {
       const section = 'DataType:' + i;
       this.#values[section + '/Exts'] = dataFormats[i].extensions.join(';');
       this.#values[section + '/Name'] = dataFormats[i].name;
-      this.#values[section + '/Quote'] = dataFormats[i].quoteType.toString();
+      this.#values[section + '/Quote'] = String(dataFormats[i].quoteType);
       this.#values[section + '/SepChars'] = dataFormats[i].separators;
     }
     this.#saveToLocalStorage(this.#values);
