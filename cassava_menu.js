@@ -159,6 +159,8 @@ class CassavaMenuElement extends HTMLElement {
         ['前を検索 (Shift+F3)', command('FindBack')],
       ]],
       ['表示', toggleSubMenu, [
+        ['セル内計算式を処理', command('CalcExpression')],
+        SEPARATOR,
         ['１行目を固定', command('FixFirstRow')],
         ['１列目を固定', command('FixFirstCol')],
         ['カーソル位置までを固定', command('FixUpLeft')],

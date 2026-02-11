@@ -123,15 +123,15 @@ class Grid {
   #undoGrid;
 
   /**
-   * @param {GridData} gridData
+   * @param {UndoGrid} undoGrid
    * @param {Options} options
    * @param {Function} onRender
    * @param {(x: number, y: number) => Promise<StyledValue>} formatCell
    */
-  constructor(gridData, options, onRender, formatCell) {
+  constructor(undoGrid, options, onRender, formatCell) {
     /** @type {HTMLTableElement} */
     this.element = createElement('table', {tabIndex: -1});
-    this.#undoGrid = new UndoGrid(gridData);
+    this.#undoGrid = undoGrid;
     this.#options = options;
     this.#suppressRender = 0;
     this.#onRender = onRender;
@@ -946,13 +946,13 @@ class Grid {
   }
 
   /**
-   * @param {GridData} gridData
+   * @param {UndoGrid} undoGrid
    * @param {string} fileName
    * @param {DataFormat} dataFormat
    */
-  setGridData(gridData, fileName, dataFormat) {
+  setUndoGrid(undoGrid, fileName, dataFormat) {
     this.clear(fileName, dataFormat);
-    this.#undoGrid = new UndoGrid(gridData);
+    this.#undoGrid = undoGrid;
     this.render();
   }
 
@@ -1968,6 +1968,12 @@ td, th {
 
 /** The custom element used for <cassava-grid>. */
 class CassavaGridElement extends HTMLElement {
+  /** @type {boolean} */
+  #calculateCellExpressions = false;
+  /** @type {Map<string, StyledValue>} */
+  #calculatedCellCache = new Map();
+  /** @type {Map<string, string>} */
+  #calculatingCells = new Map();
   /** @type {FindDialog} */
   #findDialog;
   /** @type {FindPanel} */
@@ -1991,15 +1997,18 @@ class CassavaGridElement extends HTMLElement {
   #api = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
+    'CalcExpression/0': () => {
+      this.#calculateCellExpressions = !this.#calculateCellExpressions;
+    },
     'Clear/0': () => this.#grid.clear(),
     'Col=/0': () => this.#grid.x,
     'Col=/1': a => this.#grid.moveTo(Number(a), this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
-    'CopyAvr/0': () => clipboard.writeText(
-        String(this.#sumAndAvr(this.#grid.selection()).avr)),
-    'CopySum/0': () => clipboard.writeText(
-        String(this.#sumAndAvr(this.#grid.selection()).sum)),
+    'CopyAvr/0': async () => clipboard.writeText(
+        String((await this.#sumAndAvr(this.#grid.selection())).avr)),
+    'CopySum/0': async () => clipboard.writeText(
+        String((await this.#sumAndAvr(this.#grid.selection())).sum)),
     'Cut/0': () => copy(this.#grid, /* cut= */ true),
     'CutCol/0': () =>
         this.#grid.deleteCol(this.#grid.selLeft(), this.#grid.selRight()),
@@ -2210,10 +2219,10 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.setFixedCols(0);
       this.#grid.setFixedRows(0);
     },
-    'avr/4': (a, b, c, d) => this.#sumAndAvr(
-        new Range(Number(a), Number(b), Number(c), Number(d))).avr,
-    'cell/2': (a, b) => {
-      const value = this.#grid.cell(Number(a), Number(b));
+    'avr/4': async (a, b, c, d) => (await this.#sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d)))).avr,
+    'cell/2': async (a, b) => {
+      const value = (await this.#calculateCell(Number(a), Number(b))).text;
       if (String(Number(value)) == value) {
         return Number(value);
       }
@@ -2223,8 +2232,8 @@ class CassavaGridElement extends HTMLElement {
     'move/2': (a, b) =>
         this.#grid.moveTo(this.#grid.x + Number(a), this.#grid.y + Number(b)),
     'moveto/2': (a, b) => this.#grid.moveTo(Number(a), Number(b)),
-    'sum/4': (a, b, c, d) => this.#sumAndAvr(
-        new Range(Number(a), Number(b), Number(c), Number(d))).sum,
+    'sum/4': async (a, b, c, d) => (await this.#sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d)))).sum,
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(this.#grid.x + 1, this.#grid.y);
@@ -2239,7 +2248,9 @@ class CassavaGridElement extends HTMLElement {
     super();
 
     this.#options = new Options();
-    this.#grid = new Grid(new GridData(), this.#options,
+    this.#grid = new Grid(new UndoGrid(new GridData(),
+            /* onChange= */ () => this.#clearCalculatedCellCache()),
+        this.#options,
         /* onRender= */ () => this.runNamedMacro('!statusbar.cms'),
         /* formatCell= */ (x, y) => this.#formatCell(x, y));
     this.#findDialog = new FindDialog(this.#grid);
@@ -2250,7 +2261,9 @@ class CassavaGridElement extends HTMLElement {
       const dataFormat = dataFormats
           .find(f => f.extensions.some(ext => fileName.endsWith('.' + ext)))
           ?? dataFormats[0];
-      this.#grid.setGridData(dataFormat.parse(content), fileName, dataFormat);
+      this.#grid.setUndoGrid(new UndoGrid(dataFormat.parse(content),
+              /* onChange= */ () => this.#clearCalculatedCellCache()),
+          fileName, dataFormat);
     });
     this.#optionDialog = new OptionDialog(this.#grid, this.#options);
     this.#macroExecuteDialog =
@@ -2314,6 +2327,48 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {Promise<StyledValue>}
+   */
+  async #calculateCell(x, y) {
+    const cell = this.#grid.cell(x, y);
+    if (!this.#calculateCellExpressions || !cell.startsWith('=')) {
+      return new StyledValue(cell);
+    }
+    const key = x + ',' + y;
+    if (this.#calculatingCells.has(key)) {
+      this.#setCalculatedCellCacheErrors();
+    }
+    const cache = this.#calculatedCellCache.get(key);
+    if (cache) {
+      return cache;
+    }
+
+    this.#calculatingCells.set(key, cell);
+    const result = await this.#runMacro(
+        `x=${x};y=${y};return ${cell.substring(1)};`, /* ignoreErrors= */ true);
+    if (result == null) {
+      this.#setCalculatedCellCacheErrors();
+    }
+    this.#calculatingCells.delete(key);
+
+    const maybeUpdatedCache = this.#calculatedCellCache.get(key);
+    if (maybeUpdatedCache) {
+      return maybeUpdatedCache;
+    }
+    const calculated = new StyledValue(String(result), '#0ff', '#000');
+    this.#calculatedCellCache.set(key, calculated);
+    return calculated;
+  }
+
+  #setCalculatedCellCacheErrors() {
+    for (const [k, v] of this.#calculatingCells.entries()) {
+      this.#calculatedCellCache.set(k, new StyledValue(v, '#f00', '#000'));
+    }
+  }
+
+  /**
    * Gets the cell data.
    *
    * @param {number} x
@@ -2322,6 +2377,10 @@ class CassavaGridElement extends HTMLElement {
    */
   cell(x, y) {
     return this.#grid.cell(x, y);
+  }
+
+  #clearCalculatedCellCache() {
+    this.#calculatedCellCache.clear();
   }
 
   /**
@@ -2338,7 +2397,7 @@ class CassavaGridElement extends HTMLElement {
     } else if (x == 0) {
       result = new StyledValue((y <= this.#grid.bottom()) ? String(y) : ' ');
     } else {
-      result = new StyledValue(this.#grid.cell(Number(x), Number(y)))
+      result = await this.#calculateCell(x, y);
     }
 
     const macro = this.#macroMap.get('!format.cms');
@@ -2435,14 +2494,14 @@ class CassavaGridElement extends HTMLElement {
 
   /**
    * @param {Range} range
-   * @returns {{avr: number, sum: number}}
+   * @returns {Promise<{avr: number, sum: number}>}
    */
-  #sumAndAvr(range) {
+  async #sumAndAvr(range) {
     let sum = 0;
     let count = 0;
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
-        const value = this.#grid.cell(x, y);
+        const value = (await this.#calculateCell(x, y)).text;
         if (isNumber(value)) {
           sum += Number(value);
           count++;

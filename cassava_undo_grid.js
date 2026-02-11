@@ -131,6 +131,8 @@ class UndoAction {
 class UndoGrid {
   /** @type {GridData} */
   #gridData;
+  /** @type {() => void} */
+  #onChange;
   /** @type {Array<Action>} */
   #redoList = [];
   /** @type {Array<Action>} */
@@ -138,9 +140,13 @@ class UndoGrid {
   /** @type {Array<Array<Action>>} */
   #undoGroups = [];
 
-  /** @param {GridData} gridData */
-  constructor(gridData) {
+  /**
+   * @param {GridData} gridData
+   * @param {() => void} onChange
+   */
+  constructor(gridData, onChange) {
     this.#gridData = gridData;
+    this.#onChange = onChange;
   }
 
   /** @returns {number} */
@@ -162,6 +168,7 @@ class UndoGrid {
     this.#redoList = [];
     this.#undoList = [];
     this.#undoGroups = [];
+    this.#onChange();
   }
 
   /** @param {Range} range */
@@ -234,6 +241,7 @@ class UndoGrid {
     action.redo(this.#gridData);
     this.#undoList.push(action);
     this.#redoList = [];
+    this.#onChange();
   }
 
   gridData() {
@@ -333,7 +341,9 @@ class UndoGrid {
     }
     const action = this.#redoList.pop();
     this.#undoList.push(action);
-    return action.redo(this.#gridData);
+    const range = action.redo(this.#gridData);
+    this.#onChange();
+    return range;
   }
 
   /**
@@ -397,6 +407,7 @@ class UndoGrid {
     if (prevAction instanceof SetCellUndoAction && prevAction.x == x && prevAction.y == y) {
       prevAction.to = stringValue;
       this.#gridData.setCell(x, y, stringValue);
+      this.#onChange();
     } else {
       this.do(new SetCellUndoAction(x, y,
           this.#gridData.cell(x, y), stringValue,
@@ -442,7 +453,9 @@ class UndoGrid {
       return;
     }
     this.#redoList.push(action);
-    return action.undo(this.#gridData);
+    const range = action.undo(this.#gridData);
+    this.#onChange();
+    return range;
   }
 }
 
