@@ -46,6 +46,44 @@ function sanitize(text) {
              .replaceAll(' ', '&nbsp;');
 }
 
+class StyledValue {
+  /**
+   * @param {string} text
+   * @param {string=} background
+   * @param {string=} color
+   * @param {string=} align
+   */
+  constructor(text, background, color, align) {
+    /** @type {string} */
+    this.text = text;
+    /** @type {string?} */
+    this.background = background;
+    /** @type {string?} */
+    this.color = color;
+    /** @type {string?} */
+    this.align = align;
+  }
+
+  /**
+   * @param {ValueType?} value
+   * @returns {StyledValue}
+   */
+  merge(value) {
+    if (value instanceof ObjectValue) {
+      return new StyledValue(
+          value.get('text')?.toString() ?? this.text,
+          value.get('background')?.toString() ?? this.background,
+          value.get('color')?.toString() ?? this.color,
+          value.get('align')?.toString() ?? this.align);
+    }
+    if (value) {
+      return new StyledValue(
+          String(value), this.background, this.color, this.align);
+    }
+    return this;
+  }
+}
+
 class Grid {
   /** @type {Map<number, number>} */
   #colWidths;
@@ -69,8 +107,8 @@ class Grid {
   #mouseDownY;
   /** @type {Function} */
   #onRender;
-  /** @type {(x: number, y: number) => Promise<ValueType?>} */
-  #onRenderCell;
+  /** @type {(x: number, y: number) => Promise<StyledValue>} */
+  #formatCell;
   /** @type {Options} */
   #options;
   /** @type {number} */
@@ -88,16 +126,16 @@ class Grid {
    * @param {GridData} gridData
    * @param {Options} options
    * @param {Function} onRender
-   * @param {(x: number, y: number) => Promise<ValueType?>} onRenderCell
+   * @param {(x: number, y: number) => Promise<StyledValue>} formatCell
    */
-  constructor(gridData, options, onRender, onRenderCell) {
+  constructor(gridData, options, onRender, formatCell) {
     /** @type {HTMLTableElement} */
     this.element = createElement('table', {tabIndex: -1});
     this.#undoGrid = new UndoGrid(gridData);
     this.#options = options;
     this.#suppressRender = 0;
     this.#onRender = onRender;
-    this.#onRenderCell = onRenderCell;
+    this.#formatCell = formatCell;
     this.clear();
 
     this.element.tabIndex = 0;
@@ -608,24 +646,14 @@ class Grid {
     if (this.isEditing && x == this.x && y == this.y) {
       return;
     }
-    if (x <= this.right() && y <= this.bottom()) {
-      this.#suppressRender++;
-      let cellToRender = await this.#onRenderCell(x, y);
-      this.#suppressRender--;
-      if (cellToRender instanceof ObjectValue) {
-        /** @type {(value: ValueType?) => string?} */
-        this.#renderCell(cell, x, y,
-            cellToRender.get('text')?.toString(),
-            cellToRender.get('align')?.toString(),
-            cellToRender.get('color')?.toString(),
-            cellToRender.get('background')?.toString());
-        return;
-      } else if (cellToRender) {
-        this.#renderCell(cell, x, y, String(cellToRender));
-        return;
-      }
+    if (x > this.right() || y > this.bottom()) {
+      this.#renderCell(cell, x, y, new StyledValue(''));
+      return;
     }
-    this.#renderCell(cell, x, y, /* value= */ null);
+    this.#suppressRender++;
+    const styledValue = await this.#formatCell(x, y);
+    this.#suppressRender--;
+    this.#renderCell(cell, x, y, styledValue);
   }
 
   /**
@@ -634,41 +662,39 @@ class Grid {
    * @param {number} y
    */
   #renderRawCell(cell, x, y) {
-    this.#renderCell(cell, x, y, /* value= */ null);
+    this.#renderCell(cell, x, y, new StyledValue(this.#undoGrid.cell(x, y)));
   }
 
   /**
    * @param {HTMLTableCellElement} cell
    * @param {number} x
    * @param {number} y
-   * @param {string?} value
-   * @param {string=} align
-   * @param {string=} color
-   * @param {string=} background
+   * @param {StyledValue} styledValue
    */
-  #renderCell(cell, x, y, value, align, color, background) {
+  #renderCell(cell, x, y, styledValue) {
     const isFixed = x  <= this.#fixedCols || y <= this.#fixedRows;
     const isSelected = x >= this.selLeft() && x <= this.selRight() &&
         y >= this.selTop() && y <= this.selBottom();
     const isEditing = this.isEditing && x == this.x && y == this.y;
 
-    if (value == null) {
+    let text = styledValue.text;
+    if (text == null) {
       if (x == 0 && y == 0) {
-        value = '';
+        text = '';
       } else if (y == 0) {
-        value = (x <= this.#undoGrid.right()) ? String(x) : ' ';
+        text = (x <= this.#undoGrid.right()) ? String(x) : ' ';
       } else if (x == 0) {
-        value = (y <= this.#undoGrid.bottom()) ? String(y) : ' ';
+        text = (y <= this.#undoGrid.bottom()) ? String(y) : ' ';
       } else {
-        value = this.#undoGrid.cell(x, y);
+        text = this.#undoGrid.cell(x, y);
       }
     }
     const html =
-        value.split('\n').map(line => sanitize(line) + '<br>').join('');
+        text.split('\n').map(line => sanitize(line) + '<br>').join('');
     if (cell.innerHTML !== html) {
       cell.innerHTML = html;
     }
-    cell.style.textAlign = align || '';
+    cell.style.textAlign = styledValue.align || '';
 
     if (isFixed) {
       cell.style.backgroundColor = this.#options.get('Font/FixedColor');
@@ -677,8 +703,10 @@ class Grid {
       cell.style.backgroundColor = '#00f';
       cell.style.color = '#fff';
     } else {
-      cell.style.backgroundColor = background || this.#getBackgroundColor(x, y);
-      cell.style.color = color || this.#options.get('Font/FgColor');
+      cell.style.backgroundColor =
+          styledValue.background || this.#getBackgroundColor(x, y);
+      cell.style.color =
+          styledValue.color || this.#options.get('Font/FgColor');
     }
   }
 
@@ -2218,7 +2246,7 @@ class CassavaGridElement extends HTMLElement {
     this.#options = new Options();
     this.#grid = new Grid(new GridData(), this.#options,
         /* onRender= */ () => this.runNamedMacro('!statusbar.cms'),
-        /* onRenderCell= */ (x, y) => this.#runFormatMacro(x, y));
+        /* formatCell= */ (x, y) => this.#formatCell(x, y));
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
     this.#macroMap = new Map();
@@ -2302,6 +2330,31 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {Promise<StyledValue>}
+   */
+  async #formatCell(x, y) {
+    let result;
+    if (x == 0 && y == 0) {
+      result = new StyledValue('');
+    } else if (y == 0) {
+      result = new StyledValue((x <= this.#grid.right()) ? String(x) : ' ');
+    } else if (x == 0) {
+      result = new StyledValue((y <= this.#grid.bottom()) ? String(y) : ' ');
+    } else {
+      result = new StyledValue(this.#grid.cell(Number(x), Number(y)))
+    }
+
+    const macro = this.#macroMap.get('!format.cms');
+    if (!macro) {
+      return result;
+    }
+    return result.merge(await this.#runMacro(
+        `x=${x};y=${y};${macro}`, /* ignoreErrors= */ true));
+  }
+
+  /**
    * Gets the macro text for the given name.
    *
    * @param {string} macroName
@@ -2327,19 +2380,6 @@ class CassavaGridElement extends HTMLElement {
    */
   async runNamedMacro(macroName) {
     await this.#runMacro(this.#macroMap.get(macroName));
-  }
-
-  /**
-   * @param {number} x
-   * @param {number} y
-   * @returns {Promise<ValueType?>}
-   */
-  #runFormatMacro(x, y) {
-    const macro = this.#macroMap.get('!format.cms');
-    if (!macro) {
-      return;
-    }
-    return this.#runMacro(`x=${x};y=${y};${macro}`, /* ignoreErrors= */ true);
   }
 
   /**
