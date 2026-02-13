@@ -2104,7 +2104,10 @@ class CassavaGridElement extends HTMLElement {
     'NewLine/0': () => this.#grid.setCell(this.#grid.x, this.#grid.y, '\n'),
     'Open/0': () => this.#openDialog.show(),
     'Open/1': () => this.#openDialog.show(),
-    'OptionDlg/0': () => this.#optionDialog.show(),
+    'OptionDlg/0': async () => {
+      await this.#optionDialog.show();
+      this.#clearCalculatedCellCache();
+    },
     'Paste/0': () => paste(this.#grid, -1),
     'Paste/1': a => paste(this.#grid, Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
@@ -2357,14 +2360,18 @@ class CassavaGridElement extends HTMLElement {
     if (maybeUpdatedCache) {
       return maybeUpdatedCache;
     }
-    const calculated = new StyledValue(String(result), '#0ff', '#000');
+    const calculated = new StyledValue(String(result),
+        this.#options.get('Font/CalcBgColor'),
+        this.#options.get('Font/CalcFgColor'));
     this.#calculatedCellCache.set(key, calculated);
     return calculated;
   }
 
   #setCalculatedCellCacheErrors() {
     for (const [k, v] of this.#calculatingCells.entries()) {
-      this.#calculatedCellCache.set(k, new StyledValue(v, '#f00', '#000'));
+      this.#calculatedCellCache.set(k, new StyledValue(v,
+          this.#options.get('Font/CalcErrorBgColor'),
+          this.#options.get('Font/CalcErrorFgColor')));
     }
   }
 

@@ -71,14 +71,20 @@ class OptionDialog {
         createElement('div', {style: 'flex: 1'}, [this.#page])
       ])
     ], {style: 'width: min(100%, 500px);'});
-    this.element.addEventListener(
-        'close', () => document.body.removeChild(this.element));
   }
 
   show() {
-    this.#render();
-    document.body.append(this.element);
-    this.element.showModal();
+    return new Promise(resolve => {
+      const onClose = () => {
+        this.element.removeEventListener('close', onClose);
+        document.body.removeChild(this.element);
+        resolve();
+      }
+      this.#render();
+      this.element.addEventListener('close', onClose);
+      document.body.append(this.element);
+      this.element.showModal();
+    });
   }
 
   #render() {
@@ -236,7 +242,11 @@ class OptionDialog {
       createDiv('固定セル背景色：', colorInput('Font/FixedColor')),
       createDiv('カーソル行背景色：', colorInput('Font/CurrentRowBgColor')),
       createDiv('カーソル列背景色：', colorInput('Font/CurrentColBgColor')),
-      createDiv('ダミーセル背景色：', colorInput('Font/DummyBgColor'))
+      createDiv('ダミーセル背景色：', colorInput('Font/DummyBgColor')),
+      createDiv('計算結果文字色：', colorInput('Font/CalcFgColor')),
+      createDiv('計算結果背景色：', colorInput('Font/CalcBgColor')),
+      createDiv('計算エラー文字色：', colorInput('Font/CalcErrorFgColor')),
+      createDiv('計算エラー背景色：', colorInput('Font/CalcErrorBgColor')),
     ]));
   }
 }
