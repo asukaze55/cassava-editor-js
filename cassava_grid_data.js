@@ -390,27 +390,6 @@ class GridData {
       }
     }
   }
-
-  /** @param {Range} range */
-  sumAndAvr(range) {
-    let sum = 0;
-    let count = 0;
-    for (let y = range.top; y <= range.bottom; y++) {
-      if (this.#data[y - 1] == null) {
-        continue;
-      }
-      for (let x = range.left; x <= range.right; x++) {
-        const value = this.#data[y - 1][x - 1];
-        if (value == null || !isNumber(value)) {
-          continue;
-        }
-        sum += Number(value);
-        count++;
-      }
-    }
-    return (count == 0) ? {sum :0, avr: 0}
-                        : {sum, avr: sum / count};
-  }
 }
 
 module.exports = { GridData, Range, isNumber };

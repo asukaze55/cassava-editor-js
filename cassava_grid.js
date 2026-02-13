@@ -3,7 +3,7 @@ const { CassavaStatusBarElement } = require('./cassava_status_bar.js');
 const { DataFormat } = require('./cassava_data_format.js');
 const { Environment, FunctionValue, ObjectValue, run } = require('./cassava_macro.js');
 const { FindDialog, FindPanel } = require('./cassava_find_dialog.js');
-const { GridData, Range } = require('./cassava_grid_data.js');
+const { GridData, Range, isNumber } = require('./cassava_grid_data.js');
 const { OptionDialog } = require('./cassava_option_dialog.js');
 const { Options } = require('./cassava_options.js');
 const { UndoGrid } = require('./cassava_undo_grid.js');
@@ -989,11 +989,6 @@ class Grid {
    */
   sort(range, p, dir, num, ignoreCase, zenhan) {
     this.#undoGrid.sort(range, p, dir, num, ignoreCase, zenhan);
-  }
-
-  /** @param {Range} range */
-  sumAndAvr(range) {
-    return this.#undoGrid.sumAndAvr(range);
   }
 
   async undo() {
@@ -2002,9 +1997,9 @@ class CassavaGridElement extends HTMLElement {
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
     'CopyAvr/0': () => clipboard.writeText(
-        String(this.#grid.sumAndAvr(this.#grid.selection()).avr)),
+        String(this.#sumAndAvr(this.#grid.selection()).avr)),
     'CopySum/0': () => clipboard.writeText(
-        String(this.#grid.sumAndAvr(this.#grid.selection()).sum)),
+        String(this.#sumAndAvr(this.#grid.selection()).sum)),
     'Cut/0': () => copy(this.#grid, /* cut= */ true),
     'CutCol/0': () =>
         this.#grid.deleteCol(this.#grid.selLeft(), this.#grid.selRight()),
@@ -2215,7 +2210,7 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.setFixedCols(0);
       this.#grid.setFixedRows(0);
     },
-    'avr/4': (a, b, c, d) => this.#grid.sumAndAvr(
+    'avr/4': (a, b, c, d) => this.#sumAndAvr(
         new Range(Number(a), Number(b), Number(c), Number(d))).avr,
     'cell/2': (a, b) => {
       const value = this.#grid.cell(Number(a), Number(b));
@@ -2228,7 +2223,7 @@ class CassavaGridElement extends HTMLElement {
     'move/2': (a, b) =>
         this.#grid.moveTo(this.#grid.x + Number(a), this.#grid.y + Number(b)),
     'moveto/2': (a, b) => this.#grid.moveTo(Number(a), Number(b)),
-    'sum/4': (a, b, c, d) => this.#grid.sumAndAvr(
+    'sum/4': (a, b, c, d) => this.#sumAndAvr(
         new Range(Number(a), Number(b), Number(c), Number(d))).sum,
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
@@ -2436,6 +2431,25 @@ class CassavaGridElement extends HTMLElement {
    */
   setCell(x, y, value) {
     this.#grid.setCell(x, y, value);
+  }
+
+  /**
+   * @param {Range} range
+   * @returns {{avr: number, sum: number}}
+   */
+  #sumAndAvr(range) {
+    let sum = 0;
+    let count = 0;
+    for (let y = range.top; y <= range.bottom; y++) {
+      for (let x = range.left; x <= range.right; x++) {
+        const value = this.#grid.cell(x, y);
+        if (isNumber(value)) {
+          sum += Number(value);
+          count++;
+        }
+      }
+    }
+    return (count == 0) ? {sum: 0, avr: 0} : {sum, avr: sum / count};
   }
 }
 

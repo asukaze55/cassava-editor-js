@@ -430,11 +430,6 @@ class UndoGrid {
         range));
   }
 
-  /** @param {Range} range */
-  sumAndAvr(range) {
-    return this.#gridData.sumAndAvr(range);
-  }
-
   /** @returns {Range?} */
   undo() {
     let action;
