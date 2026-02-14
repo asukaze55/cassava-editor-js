@@ -2,7 +2,8 @@ const AsukazePlugin = require('../../../pack/asukaze_plugin.js');
 const path = require('path');
 
 const now = new Date();
-const date = `${now.getFullYear()}${now.getMonth() + 1}${now.getDate()}`;
+const date = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0');
 const finalFileName = `tooned_min_${date}.js`;
 
 module.exports = {
