@@ -60,7 +60,7 @@ export class CassavaGridElement extends HTMLElement {
     right(): number;
     /**
      * Sets the cell data.
-     * The value will be converted to a string using toString().
+     * The value will be converted to a string using String().
      *
      * @param {number} x
      * @param {number} y

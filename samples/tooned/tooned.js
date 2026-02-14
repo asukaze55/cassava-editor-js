@@ -2,7 +2,7 @@ net.asukaze.module((module, require) => {
 const { createButton, createElement, createDiv, createLabel } = require('./asukaze_dom.js');
 
 /**
- * @typedef {import("./cassava_min_20251228.d.ts").CassavaGridElement} CassavaGridElement
+ * @typedef {import("./cassava_min_20260214.d.ts").CassavaGridElement} CassavaGridElement
  */
 
 /** @enum {number} */
