@@ -706,11 +706,11 @@ class ExpressionBuilder {
 
   /** @param {Node} node */
   add(node) {
-    if (node instanceof BinaryNode) {
+    if (node instanceof BinaryNode && node.precedence < 18) {
       const current = this.#currentNode(node.precedence);
       node.left = current.right;
       current.right = node;
-      this.hasValueNode = node.precedence >= 18;
+      this.hasValueNode = false;
     } else {
       const current = this.#currentNode(18);
       if (current.right != null) {

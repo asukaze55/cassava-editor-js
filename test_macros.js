@@ -837,6 +837,7 @@ class OperatorsTest {
 
   test(assert) {
     assert.that(1 + 2).isEqualTo(3);
+    assert.that((1 + 2)).isEqualTo(3);
     assert.that("1" + "2").isEqualTo("12");
     assert.that("1" + 2).isEqualTo("12");
     assert.that(1 + "2").isEqualTo("12");
