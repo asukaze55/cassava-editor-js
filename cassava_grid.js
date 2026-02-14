@@ -1994,14 +1994,49 @@ class CassavaGridElement extends HTMLElement {
   #statusBarPanel;
 
   /** @type {Map<string, MacroFunction>} */
-  #api = new Map(Object.entries({
+  #readApi = new Map(Object.entries({
     'Bottom=/0': () => this.#grid.bottom(),
+    'Col=/0': () => this.#grid.x,
+    'GetActiveDataType/0': () => this.#grid.dataFormat.name,
+    'GetCharCode/0': () => 'UTF-8',
+    'GetColWidth/0': () => this.#grid.getDefaultColWidth(),
+    'GetColWidth/1': a => this.#grid.getColWidth(Number(a)),
+    'GetDataTypes/0':
+        () => this.#options.dataFormats.map(f => f.name).join('\n'),
+    'GetFilePath/0': () => '',
+    'GetFileName/0': () => this.#grid.fileName,
+    'GetIniSetting/2': (a, b) => new Options().get(a + '/' + b),
+    'GetRowHeight/0': () => this.#grid.getDefaultRowHeight(),
+    'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
+    'Left:=/0': () => this.#grid.getFixedCols() + 1,
+    'Right=/0': () => this.#grid.right(),
+    'Row=/0': () => this.#grid.y,
+    'SelBottom=/0': () => this.#grid.selBottom(),
+    'SelLeft=/0': () => this.#grid.selLeft(),
+    'SelRight=/0': () => this.#grid.selRight(),
+    'SelTop=/0': () => this.#grid.selTop(),
+    'Top:=/0': () => this.#grid.getFixedRows() + 1,
+    'avr/4': async (a, b, c, d) => (await this.#sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d)))).avr,
+    'cell/2': async (a, b) => {
+      const value = (await this.#calculateCell(Number(a), Number(b))).text;
+      if (String(Number(value)) == value) {
+        return Number(value);
+      }
+      return value;
+    },
+    'sum/4': async (a, b, c, d) => (await this.#sumAndAvr(
+        new Range(Number(a), Number(b), Number(c), Number(d)))).sum,
+  }));
+
+  /** @type {Map<string, MacroFunction>} */
+  #api = new Map([...this.#readApi.entries(),
+      ...Object.entries(/** @type {Object<string, MacroFunction>} */({
     'Bottom=/1': a => this.#grid.setBottom(Number(a)),
     'CalcExpression/0': () => {
       this.#calculateCellExpressions = !this.#calculateCellExpressions;
     },
     'Clear/0': () => this.#grid.clear(),
-    'Col=/0': () => this.#grid.x,
     'Col=/1': a => this.#grid.moveTo(Number(a), this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
     'Copy/0': () => copy(this.#grid, /* cut= */ false),
@@ -2035,17 +2070,6 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.setFixedCols(this.#grid.x - 1);
       this.#grid.setFixedRows(this.#grid.y - 1);
     },
-    'GetActiveDataType/0': () => this.#grid.dataFormat.name,
-    'GetCharCode/0': () => 'UTF-8',
-    'GetColWidth/0': () => this.#grid.getDefaultColWidth(),
-    'GetColWidth/1': a => this.#grid.getColWidth(Number(a)),
-    'GetDataTypes/0':
-        () => this.#options.dataFormats.map(f => f.name).join('\n'),
-    'GetFilePath/0': () => '',
-    'GetFileName/0': () => this.#grid.fileName,
-    'GetIniSetting/2': (a, b) => new Options().get(a + '/' + b),
-    'GetRowHeight/0': () => this.#grid.getDefaultRowHeight(),
-    'GetRowHeight/1': a => this.#grid.getRowHeight(Number(a)),
     'InputBox/1': a => {
       this.#grid.render(/* force= */ true);
       return prompt(String(a));
@@ -2078,7 +2102,6 @@ class CassavaGridElement extends HTMLElement {
     'InsertCol/2': (a, b) => this.#grid.insertCol(Number(a), Number(b), false),
     'InsertRow/1': a => this.#grid.insertRow(Number(a), Number(a), false),
     'InsertRow/2': (a, b) => this.#grid.insertRow(Number(a), Number(b), false),
-    'Left:=/0': () => this.#grid.getFixedCols() + 1,
     'LoadIniSetting/0': () => this.#options.load(),
     'MacroExecute/0': () => this.#macroExecuteDialog.show(),
     'MacroTerminate/0': () => {
@@ -2130,9 +2153,7 @@ class CassavaGridElement extends HTMLElement {
     'ReplaceAll/9': (a, b, c, d, e, f, g, h, i) => this.#grid.replaceAll(
         (a instanceof RegExp) ? a.source : String(a), String(b),
         !!c, !!d, !!e, new Range(Number(f), Number(g), Number(h), Number(i))),
-    'Right=/0': () => this.#grid.right(),
     'Right=/1': a => this.#grid.setRight(Number(a)),
-    'Row=/0': () => this.#grid.y,
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, Number(a)),
     'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
     'SaveAs/0': () => {
@@ -2143,18 +2164,14 @@ class CassavaGridElement extends HTMLElement {
     },
     'SaveAs/1': a => saveAs(String(a), this.#grid),
     'SaveIniSetting/0': () => this.#options.save(),
-    'SelBottom=/0': () => this.#grid.selBottom(),
     'SelBottom=/1': a => this.#grid.select(
         this.#grid.selLeft(), Math.min(Number(a), this.#grid.selTop()),
         this.#grid.selRight(), Number(a)),
-    'SelLeft=/0': () => this.#grid.selLeft(),
     'SelLeft=/1': a => this.#grid.select(Number(a), this.#grid.selTop(),
         Math.max(Number(a), this.#grid.selRight()), this.#grid.selBottom()),
-    'SelRight=/0': () => this.#grid.selRight(),
     'SelRight=/1': a => this.#grid.select(
         Math.min(Number(a), this.#grid.selLeft()), this.#grid.selTop(),
         Number(a), this.#grid.selBottom()),
-    'SelTop=/0': () => this.#grid.selTop(),
     'SelTop=/1': a => this.#grid.select(this.#grid.selLeft(), Number(a),
         this.#grid.selRight(), Math.max(Number(a), this.#grid.selBottom())),
     'Select/4': (a, b, c, d) =>
@@ -2208,7 +2225,6 @@ class CassavaGridElement extends HTMLElement {
     'Sort/9': (a, b, c, d, e, f, g, h, i) => this.#grid.sort(
         new Range(Number(a), Number(b), Number(c), Number(d)),
         Number(e), !!f, !!g, !!h, !!i),
-    'Top:=/0': () => this.#grid.getFixedRows() + 1,
     'TransChar0/0': () => this.#grid.updateSelectedCells(toHankakuAlphabet),
     'TransChar1/0': () => this.#grid.updateSelectedCells(toZenkakuAlphabet),
     'TransChar2/0':
@@ -2222,21 +2238,10 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.setFixedCols(0);
       this.#grid.setFixedRows(0);
     },
-    'avr/4': async (a, b, c, d) => (await this.#sumAndAvr(
-        new Range(Number(a), Number(b), Number(c), Number(d)))).avr,
-    'cell/2': async (a, b) => {
-      const value = (await this.#calculateCell(Number(a), Number(b))).text;
-      if (String(Number(value)) == value) {
-        return Number(value);
-      }
-      return value;
-    },
     'cell=/3': (a, b, c) => this.#grid.setCell(Number(a), Number(b), c),
     'move/2': (a, b) =>
         this.#grid.moveTo(this.#grid.x + Number(a), this.#grid.y + Number(b)),
     'moveto/2': (a, b) => this.#grid.moveTo(Number(a), Number(b)),
-    'sum/4': async (a, b, c, d) => (await this.#sumAndAvr(
-        new Range(Number(a), Number(b), Number(c), Number(d)))).sum,
     'write/1': a => {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(this.#grid.x + 1, this.#grid.y);
@@ -2245,7 +2250,7 @@ class CassavaGridElement extends HTMLElement {
       this.#grid.setCell(this.#grid.x, this.#grid.y, a);
       this.#grid.moveTo(1, this.#grid.y + 1);
     }
-  }));
+  }))]);
 
   constructor() {
     super();
@@ -2254,7 +2259,8 @@ class CassavaGridElement extends HTMLElement {
     this.#grid = new Grid(new UndoGrid(new GridData(),
             /* onChange= */ () => this.#clearCalculatedCellCache()),
         this.#options,
-        /* onRender= */ () => this.runNamedMacro('!statusbar.cms'),
+        /* onRender= */ () => this.#runMacro(
+            this.#macroMap.get('!statusbar.cms'), /* ignoreErrors= */ true),
         /* formatCell= */ (x, y) => this.#formatCell(x, y));
     this.#findDialog = new FindDialog(this.#grid);
     this.#findPanel = new FindPanel(this.#grid, this.#findDialog);
@@ -2350,7 +2356,8 @@ class CassavaGridElement extends HTMLElement {
 
     this.#calculatingCells.set(key, cell);
     const result = await this.#runMacro(
-        `x=${x};y=${y};return ${cell.substring(1)};`, /* ignoreErrors= */ true);
+        `x=${x};y=${y};return ${cell.substring(1)};`, /* ignoreErrors= */ true,
+        /* readOnly= */ true);
     if (result == null) {
       this.#setCalculatedCellCacheErrors();
     }
@@ -2411,8 +2418,8 @@ class CassavaGridElement extends HTMLElement {
     if (!macro) {
       return result;
     }
-    return result.merge(await this.#runMacro(
-        `x=${x};y=${y};${macro}`, /* ignoreErrors= */ true));
+    return result.merge(await this.#runMacro(`x=${x};y=${y};${macro}`,
+        /* ignoreErrors= */ true, /* readOnly= */ true));
   }
 
   /**
@@ -2453,18 +2460,20 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /**
-   * @param {string} macro
+   * @param {string?} macro
    * @param {boolean=} ignoreErrors
+   * @param {boolean=} readOnly
    * @returns {Promise<ValueType?>}
    */
-  async #runMacro(macro, ignoreErrors) {
+  async #runMacro(macro, ignoreErrors, readOnly) {
     if (!macro) {
       return null;
     }
     this.#grid.beginMacro();
     let result = null;
     try {
-      const env = new Environment(/* parent= */ null, this.#api);
+      const env = new Environment(
+          /* parent= */ null, readOnly ? this.#readApi : this.#api);
       result = await run(macro, env, this.#macroMap);
     } catch(e) {
       if (e != macroTerminated && !ignoreErrors) {
