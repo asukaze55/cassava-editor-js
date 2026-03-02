@@ -1637,20 +1637,6 @@ function showPasteDialog(grid, clipText, clipData) {
 
 /**
  * @param {Grid} grid
- * @param {boolean} cut
- */
-async function copy(grid, cut) {
-  const range = grid.selection();
-  await clipboard.writeText(grid.dataFormat.stringify(
-      grid.gridData(), range, /* endingLineBreak= */ false));
-  if (cut) {
-    grid.clearCells(range);
-    grid.render();
-  }
-}
-
-/**
- * @param {Grid} grid
  * @param {number} option
  */
 async function paste(grid, option) {
@@ -1783,12 +1769,12 @@ class CassavaGridElement extends HTMLElement {
     'Clear/0': () => this.#grid.clear(),
     'Col=/1': a => this.#grid.moveTo(Number(a), this.#grid.y),
     'ConnectCell/0': () => this.#grid.connectCells(this.#grid.selection()),
-    'Copy/0': () => copy(this.#grid, /* cut= */ false),
+    'Copy/0': () => this.#copy(),
     'CopyAvr/0': async () => clipboard.writeText(
         String((await this.#sumAndAvr(this.#grid.selection())).avr)),
     'CopySum/0': async () => clipboard.writeText(
         String((await this.#sumAndAvr(this.#grid.selection())).sum)),
-    'Cut/0': () => copy(this.#grid, /* cut= */ true),
+    'Cut/0': () => this.#cut(),
     'CutCol/0': () =>
         this.#grid.deleteCol(this.#grid.selLeft(), this.#grid.selRight()),
     'CutRow/0': () =>
@@ -2140,6 +2126,18 @@ class CassavaGridElement extends HTMLElement {
     this.#calculatedCellCache.clear();
   }
 
+  #copy() {
+    return clipboard.writeText(this.#grid.dataFormat.stringify(
+        this.#grid.gridData(), this.#grid.selection(),
+        /* endingLineBreak= */ false));
+  }
+
+  async #cut() {
+    await this.#copy();
+    this.#grid.clearCells(this.#grid.selection());
+    this.#grid.render();
+  }
+
   /**
    * @param {number} x
    * @param {number} y
@@ -2218,7 +2216,7 @@ class CassavaGridElement extends HTMLElement {
         if (event.ctrlKey) {
           if (!grid.isEditing) {
             event.preventDefault();
-            copy(grid, /* cut= */ false);
+            this.#copy();
           }
         }
         return;
@@ -2245,7 +2243,7 @@ class CassavaGridElement extends HTMLElement {
         if (event.ctrlKey) {
           if (!grid.isEditing) {
             event.preventDefault();
-            copy(grid, /* cut= */ true);
+            this.#cut();
           }
         }
         return;
