@@ -56,6 +56,7 @@ class Options {
           this.get(section + '/Name'),
           this.get(section + '/SepChars'),
           Number(this.get(section + '/Quote')),
+          this.get(section + '/QuoteExpression'),
           this.get(section + '/Exts').split(';')));
     }
   }
@@ -91,6 +92,7 @@ class Options {
       this.#values[section + '/Exts'] = dataFormats[i].extensions.join(';');
       this.#values[section + '/Name'] = dataFormats[i].name;
       this.#values[section + '/Quote'] = String(dataFormats[i].quoteType);
+      this.#values[section + '/QuoteExpression'] = dataFormats[i].quoteExpression;
       this.#values[section + '/SepChars'] = dataFormats[i].separators;
     }
     this.#saveToLocalStorage(this.#values);

@@ -1,12 +1,14 @@
 net.asukaze.module((module, require) => {
 const { GridData, Range, isNumber } = require('./cassava_grid_data.js');
+/** @typedef {import("./cassava_macro.js").ValueType} ValueType */
 
 /** @enum {number} */
 const QuoteType = {
   NONE: 0,
   ONLY_IF_NEEDED: 1,
   ONLY_IF_STRING: 2,
-  ALWAYS: 3
+  ALWAYS: 3,
+  EXPRESSION: 4,
 }
 
 class DataFormat {
@@ -17,13 +19,15 @@ class DataFormat {
    * @param {Array<string>=} extensions
    */
   constructor(name = '', separators =',', quoteType = QuoteType.ONLY_IF_NEEDED,
-      extensions = []) {
+      quoteExpression = '', extensions = []) {
     /** @type {string} */
     this.name = name;
     /** @type {string} */
     this.separators = separators;
     /** @type {QuoteType} */
     this.quoteType = quoteType;
+    /** @type {string} */
+    this.quoteExpression = quoteExpression;
     /** @type {Array<string>} */
     this.extensions = extensions;
   }
@@ -84,16 +88,17 @@ class DataFormat {
    * @param {GridData} gridData
    * @param {Range} range
    * @param {boolean} endingLineBreak
-   * @returns {string}
+   * @param {(script: string) => Promise<ValueType?>} runMacro
+   * @returns {Promise<string>}
    */
-  stringify(gridData, range, endingLineBreak) {
+  async stringify(gridData, range, endingLineBreak, runMacro) {
     let result = '';
     for (let y = range.top; y <= range.bottom; y++) {
       for (let x = range.left; x <= range.right; x++) {
         if (x > range.left) {
           result += this.separators[0];
         }
-        result += this.#maybeQuote(gridData.cell(x, y));
+        result += await this.#maybeQuote(gridData.cell(x, y), x, y, runMacro);
       }
       if (endingLineBreak || y < range.bottom) {
         result += '\n';
@@ -104,15 +109,17 @@ class DataFormat {
 
   /**
    * @param {string} cell
-   * @returns {string}
+   * @param {number} x
+   * @param {number} y
+   * @param {(script: string) => Promise<ValueType?>} runMacro
+   * @returns {Promise<string>}
    */
-  #maybeQuote(cell) {
+  async #maybeQuote(cell, x, y, runMacro) {
     switch (this.quoteType) {
       case QuoteType.NONE:
         return cell;
       case QuoteType.ONLY_IF_NEEDED:
-        if (Array.from(this.separators + '"\r\n')
-            .some(c => cell.includes(c))) {
+        if (Array.from(this.separators + '"\r\n').some(c => cell.includes(c))) {
           return this.#quote(cell);
         } else {
           return cell;
@@ -123,7 +130,18 @@ class DataFormat {
         } else {
           return this.#quote(cell);
         }
-      case QuoteType.ALWAYS:
+      case QuoteType.EXPRESSION:
+        if (Array.from(this.separators + '"\r\n').some(c => cell.includes(c))) {
+          return this.#quote(cell);
+        }
+        const expressionResult =
+            await runMacro(`x=${x};y=${y};return ${this.quoteExpression};`);
+        if (expressionResult && String(expressionResult) != "0") {
+          return this.#quote(cell);
+        } else {
+          return cell;
+        }
+      default:
         return this.#quote(cell);
     }
   }

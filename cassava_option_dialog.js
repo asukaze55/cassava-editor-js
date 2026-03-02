@@ -187,7 +187,15 @@ class OptionDialog {
         dataFormat.quoteType = value;
         this.#options.save();
       }
-    })
+    });
+    const quoteExpression = createElement('input', {
+      style: 'width: 8em;',
+      value: dataFormat.quoteExpression,
+      oninput: () => {
+        dataFormat.quoteExpression = quoteExpression.value;
+        this.#options.save();
+      }
+    });
 
     this.#page.innerHTML = '';
     this.#page.append(
@@ -218,7 +226,10 @@ class OptionDialog {
           createDiv(createLabel(
               quoteInput(QuoteType.ONLY_IF_STRING), '文字列は "" で囲む')),
           createDiv(createLabel(
-              quoteInput(QuoteType.ALWAYS), 'すべてのセルを "" で囲む'))
+              quoteInput(QuoteType.ALWAYS), 'すべてのセルを "" で囲む')),
+          createDiv(createLabel(
+              quoteInput(QuoteType.EXPRESSION), '"" で囲む条件のマクロ式：',
+              quoteExpression))
         ])
     );
   }

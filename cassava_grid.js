@@ -2107,10 +2107,13 @@ class CassavaGridElement extends HTMLElement {
     this.#calculatedCellCache.clear();
   }
 
-  #copy() {
-    return clipboard.writeText(this.#grid.dataFormat.stringify(
+  async #copy() {
+    const text = await this.#grid.dataFormat.stringify(
         this.#grid.gridData(), this.#grid.selection(),
-        /* endingLineBreak= */ false));
+        /* endingLineBreak= */ false,
+        script => this.#runMacro(
+            script, /* ignoreErrors= */ true, /* readOnly= */ true));
+    await clipboard.writeText(text);
   }
 
   async #cut() {
@@ -2467,12 +2470,14 @@ class CassavaGridElement extends HTMLElement {
   }
 
   /** @param {string} fileName */
-  #saveAs(fileName) {
+  async #saveAs(fileName) {
     this.#grid.fileName = fileName;
     const gridData = this.#grid.gridData();
     const blob = new Blob(
-        [this.#grid.dataFormat.stringify(
-            gridData, gridData.range(), /* endingLineBreak= */ true)],
+        [await this.#grid.dataFormat.stringify(
+            gridData, gridData.range(), /* endingLineBreak= */ true,
+            script => this.#runMacro(
+                script, /* ignoreErrors= */ true, /* readOnly= */ true))],
         {type: "text/csv"});
     const url = URL.createObjectURL(blob);
     const a = createElement("a", {
