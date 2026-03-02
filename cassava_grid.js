@@ -1567,28 +1567,6 @@ class OpenDialog {
 }
 
 /**
- * @param {string} fileName
- * @param {Grid} grid
- */
-function saveAs(fileName, grid) {
-  grid.fileName = fileName;
-  const gridData = grid.gridData();
-  const blob = new Blob(
-      [grid.dataFormat.stringify(
-          gridData, gridData.range(), /* endingLineBreak= */ true)],
-      {type: "text/csv"});
-  const url = URL.createObjectURL(blob);
-  const a = createElement("a", {
-    download: fileName,
-    href: url
-  });
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
-/**
  * @param {Grid} grid
  * @param {string} clipText
  * @param {GridData} clipData
@@ -1921,14 +1899,14 @@ class CassavaGridElement extends HTMLElement {
         !!c, !!d, !!e, new Range(Number(f), Number(g), Number(h), Number(i))),
     'Right=/1': a => this.#grid.setRight(Number(a)),
     'Row=/1': a => this.#grid.moveTo(this.#grid.x, Number(a)),
-    'Save/0': () => saveAs(this.#grid.fileName || '無題.csv', this.#grid),
+    'Save/0': () => this.#saveAs(this.#grid.fileName || '無題.csv'),
     'SaveAs/0': () => {
       const fileName = prompt("ファイル名を入力してください。");
       if (fileName) {
-        saveAs(fileName, this.#grid);
+        this.#saveAs(fileName);
       }
     },
-    'SaveAs/1': a => saveAs(String(a), this.#grid),
+    'SaveAs/1': a => this.#saveAs(String(a)),
     'SaveIniSetting/0': () => this.#options.save(),
     'SelBottom=/1': a => this.#grid.select(
         this.#grid.selLeft(), Math.min(Number(a), this.#grid.selTop()),
@@ -2253,7 +2231,7 @@ class CassavaGridElement extends HTMLElement {
       case 's':
         if (event.ctrlKey) {
           event.preventDefault();
-          saveAs(grid.fileName || '無題.csv', grid);
+          this.#saveAs(grid.fileName || '無題.csv');
         }
       case 'v':
         if (event.ctrlKey) {
@@ -2491,6 +2469,25 @@ class CassavaGridElement extends HTMLElement {
    */
   right() {
     return this.#grid.right();
+  }
+
+  /** @param {string} fileName */
+  #saveAs(fileName) {
+    this.#grid.fileName = fileName;
+    const gridData = this.#grid.gridData();
+    const blob = new Blob(
+        [this.#grid.dataFormat.stringify(
+            gridData, gridData.range(), /* endingLineBreak= */ true)],
+        {type: "text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = createElement("a", {
+      download: fileName,
+      href: url
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   /**
