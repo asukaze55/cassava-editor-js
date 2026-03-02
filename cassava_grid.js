@@ -1342,242 +1342,6 @@ function containsLastPosition(staticRange, cellNode) {
   }
 }
 
-/**
- * @param {KeyboardEvent} event
- * @param {Grid} grid
- * @param {FindDialog} findDialog
- * @param {FindPanel} findPanel
- * @param {ShadowRoot} shadow
- */
-async function gridKeyDown(event, grid, findDialog, findPanel, shadow) {
-  const staticRange = getComposedRange(shadow);
-  let cellNode = grid.isEditing ? getCellNode(staticRange.endContainer) : null;
-  let x = grid.x;
-  let y = grid.y;
-  if (cellNode != null && cellNode.dataset != null &&
-      cellNode.dataset.x != null && cellNode.dataset.y != null) {
-    x = Number(cellNode.dataset.x);
-    y = Number(cellNode.dataset.y);
-  }
-
-  switch (event.key) {
-    case ' ':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        grid.selectCol(grid.selLeft(), grid.selRight());
-      } else if (event.shiftKey) {
-        event.preventDefault();
-        grid.selectRow(grid.selTop(), grid.selBottom());
-      }
-      return;
-    case 'a':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        grid.selectAll()
-      }
-      return;
-    case 'c':
-      if (event.ctrlKey) {
-        if (!grid.isEditing) {
-          event.preventDefault();
-          copy(grid, /* cut= */ false);
-        }
-      }
-      return;
-    case 'f':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        findPanel.show();
-      }
-      return;
-    case 's':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        saveAs(grid.fileName || '無題.csv', grid);
-      }
-    case 'v':
-      if (event.ctrlKey) {
-        if (!grid.isEditing) {
-          event.preventDefault();
-          paste(grid, -1);
-        }
-      }
-      return;
-    case 'x':
-      if (event.ctrlKey) {
-        if (!grid.isEditing) {
-          event.preventDefault();
-          copy(grid, /* cut= */ true);
-        }
-      }
-      return;
-    case 'y':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        grid.redo();
-      }
-      return;
-    case 'z':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        grid.undo();
-      }
-      return;
-    case 'ArrowDown':
-      if (cellNode == null || containsLastLine(staticRange, cellNode)) {
-        event.preventDefault();
-        if (event.shiftKey) {
-          grid.select(grid.anchorX, grid.anchorY, x, y + 1);
-        } else {
-          grid.moveTo(x, y + 1);
-        }
-      }
-      return;
-    case 'ArrowLeft':
-      if (x > grid.getFixedCols() + 1 &&
-          (cellNode == null || containsFirstPosition(staticRange, cellNode))) {
-        event.preventDefault();
-        if (event.shiftKey) {
-          grid.select(grid.anchorX, grid.anchorY, x - 1, y);
-        } else {
-          grid.moveTo(x - 1, y);
-        }
-      }
-      return;
-    case 'ArrowRight':
-      if (cellNode == null || containsLastPosition(staticRange, cellNode)) {
-        event.preventDefault();
-        if (event.shiftKey) {
-          grid.select(grid.anchorX, grid.anchorY, x + 1, y);
-        } else {
-          grid.moveTo(x + 1, y);
-        }
-      }
-      return;
-    case 'ArrowUp':
-      if (y > grid.getFixedRows() + 1 &&
-          (cellNode == null || containsFirstLine(staticRange, cellNode))) {
-        event.preventDefault();
-        if (event.shiftKey) {
-          grid.select(grid.anchorX, grid.anchorY, x, y - 1);
-        } else {
-          grid.moveTo(x, y - 1);
-        }
-      }
-      return;
-    case 'Backspace':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        grid.connectCells(grid.selection());
-      }
-      return;
-    case 'Delete':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        const isEditing = grid.isEditing;
-        if (isEditing) {
-          await grid.endEditing();
-        }
-        if (event.shiftKey) {
-          grid.deleteCellUp(grid.selection());
-        } else {
-          grid.deleteCellLeft(grid.selection());
-        }
-        grid.render();
-        if (isEditing) {
-          grid.moveTo(grid.selLeft(), grid.selTop());
-        }
-      } else if (!grid.isEditing) {
-        event.preventDefault();
-        grid.clearCells(grid.selection());
-        grid.render();
-      }
-      return;
-    case 'Enter':
-      event.preventDefault();
-      if (event.ctrlKey) {
-        grid.insertRowAtCursor(staticRange);
-      } else if (event.shiftKey) {
-        grid.insertRow(grid.selTop(), grid.selBottom(), true);
-      } else if (event.altKey) {
-        if (cellNode == null) {
-          return;
-        }
-        const startOffset =
-            getInCellOffset(staticRange.startContainer, staticRange.startOffset);
-        const endOffset =
-            getInCellOffset(staticRange.endContainer, staticRange.endOffset);
-        const originalText = grid.cell(x, y);
-        await grid.setCell(x, y, originalText.substring(0, startOffset) + '\n' +
-            originalText.substring(endOffset));
-        await grid.selectText(x, y, startOffset + 1, startOffset + 1);
-      } else if (cellNode != null &&
-          containsFirstPosition(staticRange, cellNode) &&
-          containsLastPosition(staticRange, cellNode)) {
-        getSelection().collapseToEnd();
-      } else {
-        grid.moveTo(x, y);
-      }
-      return;
-    case 'F2':
-      if (cellNode != null) {
-        event.preventDefault();
-        const offset = childrenCountWithoutBr(cellNode);
-        setTimeout(() => getSelection()
-            .setBaseAndExtent(cellNode, offset, cellNode, offset));
-      }
-      return;
-    case 'F3':
-      event.preventDefault();
-      if (event.shiftKey) {
-        findDialog.findNext(-1);
-      } else {
-        findDialog.findNext(1);
-      }
-      return;
-    case 'Insert':
-      if (event.ctrlKey) {
-        event.preventDefault();
-        const isEditing = grid.isEditing;
-        if (isEditing) {
-          await grid.endEditing();
-        }
-        if (event.shiftKey) {
-          grid.insertCellDown(grid.selection());
-        } else {
-          grid.insertCellRight(grid.selection());
-        }
-        grid.render();
-        if (isEditing) {
-          grid.moveTo(grid.selLeft(), grid.selTop());
-        }
-      }
-      return;
-    case 'Tab':
-      event.preventDefault();
-      if (event.shiftKey) {
-        if (grid.x == 1) {
-          if (grid.y == 1) {
-            return;
-          }
-          grid.moveTo(grid.right() + 1, grid.y - 1);
-        } else {
-          grid.moveTo(grid.x - 1, grid.y);
-        }
-      } else {
-        if (grid.x > grid.right()) {
-          if (grid.y > grid.bottom()) {
-            return;
-          }
-          grid.moveTo(1, grid.y + 1);
-        } else {
-          grid.moveTo(grid.x + 1, grid.y);
-        }
-      }
-      return;
-  }
-}
-
 const macroTerminated = {};
 
 /**
@@ -1990,6 +1754,8 @@ class CassavaGridElement extends HTMLElement {
   #options;
   /** @type {OpenDialog} */
   #macroExecuteDialog;
+  /** @type {ShadowRoot} */
+  #shadow;
   /** @type {CassavaStatusBarElement} */
   #statusBarPanel;
 
@@ -2281,17 +2047,16 @@ class CassavaGridElement extends HTMLElement {
         createElement('cassava-status-bar', {style: 'display: none;'}));
 
     const table = this.#grid.element;
-    const shadow = this.attachShadow({mode: 'open'});
-    shadow.innerHTML = '';
-    shadow.append(
+    this.#shadow = this.attachShadow({mode: 'open'});
+    this.#shadow.innerHTML = '';
+    this.#shadow.append(
         createElement('style', {textContent: styleContent}),
         table,
         this.#findPanel.element,
         this.#findDialog.element,
         this.#statusBarPanel);
 
-    table.addEventListener('keydown', event => gridKeyDown(event, this.#grid,
-        this.#findDialog, this.#findPanel, shadow));
+    table.addEventListener('keydown', event => this.#keyDown(event));
     this.#grid.render();
   }
 
@@ -2439,6 +2204,238 @@ class CassavaGridElement extends HTMLElement {
    */
   getMacroNames() {
     return Array.from(this.#macroMap.keys());
+  }
+
+  /** @param {KeyboardEvent} event */
+  async #keyDown(event) {
+    const grid = this.#grid;
+    const staticRange = getComposedRange(this.#shadow);
+    let cellNode =
+        grid.isEditing ? getCellNode(staticRange.endContainer) : null;
+    let x = grid.x;
+    let y = grid.y;
+    if (cellNode != null && cellNode.dataset != null &&
+        cellNode.dataset.x != null && cellNode.dataset.y != null) {
+      x = Number(cellNode.dataset.x);
+      y = Number(cellNode.dataset.y);
+    }
+
+    switch (event.key) {
+      case ' ':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          grid.selectCol(grid.selLeft(), grid.selRight());
+        } else if (event.shiftKey) {
+          event.preventDefault();
+          grid.selectRow(grid.selTop(), grid.selBottom());
+        }
+        return;
+      case 'a':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          grid.selectAll()
+        }
+        return;
+      case 'c':
+        if (event.ctrlKey) {
+          if (!grid.isEditing) {
+            event.preventDefault();
+            copy(grid, /* cut= */ false);
+          }
+        }
+        return;
+      case 'f':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.#findPanel.show();
+        }
+        return;
+      case 's':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          saveAs(grid.fileName || '無題.csv', grid);
+        }
+      case 'v':
+        if (event.ctrlKey) {
+          if (!grid.isEditing) {
+            event.preventDefault();
+            paste(grid, -1);
+          }
+        }
+        return;
+      case 'x':
+        if (event.ctrlKey) {
+          if (!grid.isEditing) {
+            event.preventDefault();
+            copy(grid, /* cut= */ true);
+          }
+        }
+        return;
+      case 'y':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          grid.redo();
+        }
+        return;
+      case 'z':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          grid.undo();
+        }
+        return;
+      case 'ArrowDown':
+        if (cellNode == null || containsLastLine(staticRange, cellNode)) {
+          event.preventDefault();
+          if (event.shiftKey) {
+            grid.select(grid.anchorX, grid.anchorY, x, y + 1);
+          } else {
+            grid.moveTo(x, y + 1);
+          }
+        }
+        return;
+      case 'ArrowLeft':
+        if (x > grid.getFixedCols() + 1 && (cellNode == null ||
+            containsFirstPosition(staticRange, cellNode))) {
+          event.preventDefault();
+          if (event.shiftKey) {
+            grid.select(grid.anchorX, grid.anchorY, x - 1, y);
+          } else {
+            grid.moveTo(x - 1, y);
+          }
+        }
+        return;
+      case 'ArrowRight':
+        if (cellNode == null || containsLastPosition(staticRange, cellNode)) {
+          event.preventDefault();
+          if (event.shiftKey) {
+            grid.select(grid.anchorX, grid.anchorY, x + 1, y);
+          } else {
+            grid.moveTo(x + 1, y);
+          }
+        }
+        return;
+      case 'ArrowUp':
+        if (y > grid.getFixedRows() + 1 &&
+            (cellNode == null || containsFirstLine(staticRange, cellNode))) {
+          event.preventDefault();
+          if (event.shiftKey) {
+            grid.select(grid.anchorX, grid.anchorY, x, y - 1);
+          } else {
+            grid.moveTo(x, y - 1);
+          }
+        }
+        return;
+      case 'Backspace':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          grid.connectCells(grid.selection());
+        }
+        return;
+      case 'Delete':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          const isEditing = grid.isEditing;
+          if (isEditing) {
+            await grid.endEditing();
+          }
+          if (event.shiftKey) {
+            grid.deleteCellUp(grid.selection());
+          } else {
+            grid.deleteCellLeft(grid.selection());
+          }
+          grid.render();
+          if (isEditing) {
+            grid.moveTo(grid.selLeft(), grid.selTop());
+          }
+        } else if (!grid.isEditing) {
+          event.preventDefault();
+          grid.clearCells(grid.selection());
+          grid.render();
+        }
+        return;
+      case 'Enter':
+        event.preventDefault();
+        if (event.ctrlKey) {
+          grid.insertRowAtCursor(staticRange);
+        } else if (event.shiftKey) {
+          grid.insertRow(grid.selTop(), grid.selBottom(), true);
+        } else if (event.altKey) {
+          if (cellNode == null) {
+            return;
+          }
+          const startOffset = getInCellOffset(
+              staticRange.startContainer, staticRange.startOffset);
+          const endOffset = getInCellOffset(
+              staticRange.endContainer, staticRange.endOffset);
+          const originalText = grid.cell(x, y);
+          await grid.setCell(x, y, originalText.substring(0, startOffset) +
+              '\n' + originalText.substring(endOffset));
+          await grid.selectText(x, y, startOffset + 1, startOffset + 1);
+        } else if (cellNode != null &&
+            containsFirstPosition(staticRange, cellNode) &&
+            containsLastPosition(staticRange, cellNode)) {
+          getSelection().collapseToEnd();
+        } else {
+          grid.moveTo(x, y);
+        }
+        return;
+      case 'F2':
+        if (cellNode != null) {
+          event.preventDefault();
+          const offset = childrenCountWithoutBr(cellNode);
+          setTimeout(() => getSelection()
+              .setBaseAndExtent(cellNode, offset, cellNode, offset));
+        }
+        return;
+      case 'F3':
+        event.preventDefault();
+        if (event.shiftKey) {
+          this.#findDialog.findNext(-1);
+        } else {
+          this.#findDialog.findNext(1);
+        }
+        return;
+      case 'Insert':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          const isEditing = grid.isEditing;
+          if (isEditing) {
+            await grid.endEditing();
+          }
+          if (event.shiftKey) {
+            grid.insertCellDown(grid.selection());
+          } else {
+            grid.insertCellRight(grid.selection());
+          }
+          grid.render();
+          if (isEditing) {
+            grid.moveTo(grid.selLeft(), grid.selTop());
+          }
+        }
+        return;
+      case 'Tab':
+        event.preventDefault();
+        if (event.shiftKey) {
+          if (grid.x == 1) {
+            if (grid.y == 1) {
+              return;
+            }
+            grid.moveTo(grid.right() + 1, grid.y - 1);
+          } else {
+            grid.moveTo(grid.x - 1, grid.y);
+          }
+        } else {
+          if (grid.x > grid.right()) {
+            if (grid.y > grid.bottom()) {
+              return;
+            }
+            grid.moveTo(1, grid.y + 1);
+          } else {
+            grid.moveTo(grid.x + 1, grid.y);
+          }
+        }
+        return;
+    }
   }
 
   /**
