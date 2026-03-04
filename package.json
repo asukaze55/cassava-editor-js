@@ -9,9 +9,9 @@
   "license": "MIT",
   "author": "asukaze55",
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "webpack": "^5.104.1",
-    "webpack-cli": "^6.0.1"
+    "typescript": "^6.0.2",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2"
   },
   "scripts": {
     "build": "npm --prefix pack run build",
