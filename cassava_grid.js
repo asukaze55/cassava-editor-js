@@ -1635,25 +1635,6 @@ function showPasteDialog(grid, clipText, clipData) {
   });
 }
 
-/**
- * @param {Grid} grid
- * @param {number} option
- */
-async function paste(grid, option) {
-  const clipText = await clipboard.readText();
-  const clipData = grid.dataFormat.parse(clipText);
-  const selection = grid.selection();
-  if (option >= 0) {
-    grid.paste(clipText, clipData, selection, option);
-  } else if (selection.right - selection.left + 1 == clipData.right() &&
-             selection.bottom - selection.top + 1 == clipData.bottom()) {
-    grid.paste(clipText, clipData, selection, 2);
-  } else {
-    await showPasteDialog(grid, clipText, clipData);
-  }
-  grid.render();
-}
-
 const styleContent = `
 :host {
   display: flex;
@@ -1861,8 +1842,8 @@ class CassavaGridElement extends HTMLElement {
       await this.#optionDialog.show();
       this.#clearCalculatedCellCache();
     },
-    'Paste/0': () => paste(this.#grid, -1),
-    'Paste/1': a => paste(this.#grid, Number(a)),
+    'Paste/0': () => this.#paste(/* option= */ -1),
+    'Paste/1': a => this.#paste(Number(a)),
     'QuickFind/0': () => this.#findPanel.show(),
     'QuickFind/1': a => {
       this.#findDialog.setFindText(String(a));
@@ -2235,7 +2216,7 @@ class CassavaGridElement extends HTMLElement {
         if (event.ctrlKey) {
           if (!grid.isEditing) {
             event.preventDefault();
-            paste(grid, -1);
+            this.#paste(/* option= */ -1);
           }
         }
         return;
@@ -2412,6 +2393,22 @@ class CassavaGridElement extends HTMLElement {
         }
         return;
     }
+  }
+
+  /** @param {number} option */
+  async #paste(option) {
+    const clipText = await clipboard.readText();
+    const clipData = this.#grid.dataFormat.parse(clipText);
+    const selection = this.#grid.selection();
+    if (option >= 0) {
+      this.#grid.paste(clipText, clipData, selection, option);
+    } else if (selection.right - selection.left + 1 == clipData.right() &&
+               selection.bottom - selection.top + 1 == clipData.bottom()) {
+      this.#grid.paste(clipText, clipData, selection, 2);
+    } else {
+      await showPasteDialog(this.#grid, clipText, clipData);
+    }
+    this.#grid.render();
   }
 
   /**
