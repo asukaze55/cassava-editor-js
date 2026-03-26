@@ -62,10 +62,10 @@ class AsukazePluginHelper {
     const emitParams = (declDirName != null)
         ? `--declaration --emitDeclarationOnly --outDir ${declDirName}`
         : '--noEmit'
-    const strictParam = this.#strict ? '--strict' : '--noImplicitAny';
+    const strictParam = this.#strict ? '' : '--strictNullChecks false';
     const tscResult = spawnSync(
         `npx tsc ${path.resolve(srcDirName, this.#entryBaseName)} \
-        --target es2022 --checkJs ${emitParams} ${strictParam} \
+        --target es2022 --checkJs ${emitParams} --strict ${strictParam} \
         --module NodeNext --moduleResolution NodeNext`, {shell: true});
     if (tscResult.error && tscResult.error.toString()) {
       logger.error(tscResult.error.toString());
