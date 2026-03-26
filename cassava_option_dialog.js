@@ -73,15 +73,14 @@ class OptionDialog {
     ], {style: 'width: min(100%, 500px);'});
   }
 
+  /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
-      const onClose = () => {
-        this.element.removeEventListener('close', onClose);
+      this.#render();
+      this.element.addEventListener('close', () => {
         document.body.removeChild(this.element);
         resolve();
-      }
-      this.#render();
-      this.element.addEventListener('close', onClose);
+      }, {once: true});
       document.body.append(this.element);
       this.element.showModal();
     });

@@ -1401,20 +1401,25 @@ function convertDialogContent(content) {
  * @returns {Promise<string>}
  */
 function showUserDialog(content, title) {
+  let canceled = false;
   return new Promise((resolve, reject) => {
     const dialog = createDialog([
-      createTitleBar(title || 'Cassava Macro', () => {
-        document.body.removeChild(dialog);
-        reject(macroTerminated);
-      }),
+      createTitleBar(title || 'Cassava Macro', () => dialog.requestClose()),
       createElement('form', {method: 'dialog'}, [
         convertDialogContent(content)
       ])
     ]);
+    const onCancel = () => canceled = true;
+    dialog.addEventListener('cancel', onCancel);
     dialog.addEventListener('close', () => {
+      dialog.removeEventListener('cancel', onCancel);
       document.body.removeChild(dialog);
-      resolve(dialog.returnValue);
-    });
+      if (canceled) {
+        reject(macroTerminated);
+      } else {
+        resolve(dialog.returnValue);
+      }
+    }, {once: true});
     document.body.append(dialog);
     dialog.showModal();
   });
@@ -1427,7 +1432,8 @@ function showUserDialog(content, title) {
  * @returns {Promise<number>}
  */
 function messageBox(message, title, flag = 0) {
-  return new Promise(resolve => {
+  let returnValue = 0;
+  return new Promise((resolve, reject) => {
     const buttons = createDiv();
     const dialog = createDialog([
       createTitleBar(title || 'Cassava Macro', () => {
@@ -1435,8 +1441,6 @@ function messageBox(message, title, flag = 0) {
           return;
         }
         dialog.close();
-        document.body.removeChild(dialog);
-        resolve(flag == 0 ? 1 : 2);
       }),
       createElement('div', {innerText: message}),
       buttons
@@ -1452,12 +1456,19 @@ function messageBox(message, title, flag = 0) {
     ]) {
       if (button.f.includes(flag)) {
         buttons.append(createButton(button.l, () => {
+          returnValue = button.v;
           dialog.close();
-          document.body.removeChild(dialog);
-          resolve(button.v);
         }));
       }
     }
+    dialog.addEventListener('close', () => {
+      document.body.removeChild(dialog);
+      if (returnValue > 0) {
+        resolve(returnValue);
+      } else {
+        resolve(flag == 0 ? 1 : 2);
+      }
+    }, {once: true});
     document.body.append(dialog);
     dialog.showModal();
   });
@@ -1476,25 +1487,26 @@ function inputBoxMultiLine(message, title, defaultValue) {
       rows: 10,
       value: defaultValue || ''
     });
+    let canceled = false;
     const dialog = createDialog([
-      createTitleBar(title || 'Cassava Macro', () => {
-        dialog.close();
-        document.body.removeChild(dialog);
-        reject(macroTerminated);
-      }),
+      createTitleBar(title || 'Cassava Macro', () => dialog.requestClose()),
       createElement('div', {innerText: message}),
       createDiv(textarea),
-      createDiv(createButton('OK', () => {
-            dialog.close();
-            document.body.removeChild(dialog);
-            resolve(textarea.value);
-          }),
-          createButton('Cancel', () => {
-            dialog.close();
-            document.body.removeChild(dialog);
-            reject(macroTerminated);
-          }))
+      createDiv(
+          createButton('OK', () => dialog.close()),
+          createButton('Cancel', () => dialog.requestClose()))
     ]);
+    const onCancel = () => canceled = true;
+    dialog.addEventListener('cancel', onCancel);
+    dialog.addEventListener('close', () => {
+      dialog.removeEventListener('cancel', onCancel);
+      document.body.removeChild(dialog);
+      if (canceled) {
+        reject(macroTerminated);
+      } else {
+        resolve(textarea.value);
+      }
+    }, {once: true});
     document.body.append(dialog);
     dialog.showModal();
   });
@@ -1594,11 +1606,7 @@ function showPasteDialog(grid, clipText, clipData) {
     const option4Input = radioInput();
     const option5Input = radioInput();
     const dialog = createDialog([
-      createTitleBar('貼り付けオプション', () => {
-        dialog.close();
-        document.body.removeChild(dialog);
-        resolve();
-      }),
+      createTitleBar('貼り付けオプション', () => dialog.close()),
       createDiv('選択サイズ： ' + (selection.right - selection.left + 1) +
           ' × ' + (selection.bottom - selection.top + 1)),
       createDiv(createElement('details', {}, [
@@ -1626,10 +1634,12 @@ function showPasteDialog(grid, clipText, clipData) {
                      : 0;
         grid.paste(text, data, grid.selection(), option);
         dialog.close();
-        document.body.removeChild(dialog);
-        resolve();
       }))
     ]);
+    dialog.addEventListener('close', () => {
+      document.body.removeChild(dialog);
+      resolve();
+    }, {once: true});
     document.body.append(dialog);
     dialog.showModal();
   });

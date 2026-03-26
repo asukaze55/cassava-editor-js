@@ -131,7 +131,7 @@ function showRenameDialog(defaultName, manager) {
       } else {
         resolve(null);
       }
-    });
+    }, {once: true});
     document.body.append(renameDialog);
     renameDialog.showModal();
   });
