@@ -3,13 +3,9 @@ net.asukaze.module((module, require) => {
 /**
  * @template {string} K
  * @param {K} name
- * @param {Omit<Partial<HTMLElementTagNameMap[K]>, 'style'> & {
- *         onclick?: (event: PointerEvent) => void,
- *         onmousedown?: (event: MouseEvent) => void,
- *         onmousemove?: (event: MouseEvent) => void,
- *         style?: string}=} attributes
+ * @param {Omit<Partial<HTMLElementTagNameMap[K]>, 'style'> & {style?: string}=} attributes
  * @param {Array<Node|string>=} children
- * @returns {HTMLElementTagNameMap[K]}
+ * @returns {K extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[K] : HTMLUnknownElement}
  */
 function createElement(name, attributes, children) {
   const element = /** @type {any} */(document.createElement(name));
@@ -35,11 +31,7 @@ function createDiv(...children) {
 /**
  * @param {Node|string} content
  * @param {(this: HTMLButtonElement, event: MouseEvent) => void} onclick
- * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {
- *         onclick?: (event: PointerEvent) => void,
- *         onmousedown?: (event: MouseEvent) => void,
- *         onmousemove?: (event: MouseEvent) => void,
- *         style?: string}=} attributes
+ * @param {Omit<Partial<HTMLButtonElement>, 'style'> & {style?: string}=} attributes
  * @returns {HTMLButtonElement}
  */
 function createButton(content, onclick, attributes) {
@@ -74,11 +66,7 @@ function isInputElement(element, root) {
 
 /**
  * @param {Array<Node|string>} children
- * @param {Omit<Partial<HTMLDialogElement>, 'style'> & {
- *         onclick?: (event: PointerEvent) => void,
- *         onmousedown?: (event: MouseEvent) => void,
- *         onmousemove?: (event: MouseEvent) => void,
- *         style?: string}=} attributes
+ * @param {Omit<Partial<HTMLDialogElement>, 'style'> & {style?: string}=} attributes
  * @returns {HTMLDialogElement}
  */
 function createDialog(children, attributes = {}) {
