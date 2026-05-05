@@ -125,7 +125,7 @@ class CanvasDrawer {
   constructor(canvas, axisX, axisY) {
     const context = canvas.getContext('2d');
     if (context == null) {
-      throw 'Failed to get canvas context.'
+      throw new Error('Failed to get canvas context.');
     }
     this.#context = context;
     this.#axisX = axisX;

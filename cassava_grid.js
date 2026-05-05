@@ -1342,7 +1342,7 @@ function containsLastPosition(staticRange, cellNode) {
   }
 }
 
-const macroTerminated = {};
+const macroTerminated = new Error();
 
 /**
  * @param {ValueType} content
@@ -1907,14 +1907,14 @@ class CassavaGridElement extends HTMLElement {
     'SetActiveDataType/1': dataType => {
       const format = this.#options.dataFormats.find(f => f.name == dataType);
       if (format == null) {
-        throw 'Unsupported data type: ' + dataType;
+        throw new Error('Unsupported data type: ' + dataType);
       }
       this.#grid.dataFormat = format;
       this.#grid.render();
     },
     'SetCharCode/1': charCode => {
       if (charCode != 'UTF-8') {
-        throw 'Unsupported encoding: ' + charCode;
+        throw new Error('Unsupported encoding: ' + charCode);
       }
     },
     'SetColWidth/1': a => this.#grid.setDefaultColWidth(Number(a)),
@@ -1926,7 +1926,7 @@ class CassavaGridElement extends HTMLElement {
     'SetStatusBarCount/1': a => this.#statusBarPanel.setCount(Number(a)),
     'SetStatusBarPopUp/3': (a, b, c) => {
       if (!(c instanceof FunctionValue)) {
-        throw 'Not a function: ' + c;
+        throw new Error('Not a function: ' + c);
       }
       this.#statusBarPanel.setPopUp(
           Number(a), String(b), item => c.run([item]));
@@ -2459,7 +2459,7 @@ class CassavaGridElement extends HTMLElement {
           /* parent= */ null, readOnly ? this.#readApi : this.#api);
       result = await run(macro, env, this.#macroMap);
     } catch(e) {
-      if (e != macroTerminated && !ignoreErrors) {
+      if (e !== macroTerminated && !ignoreErrors) {
         alert(e);
         throw e;
       }

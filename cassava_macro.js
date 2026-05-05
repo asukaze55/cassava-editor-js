@@ -98,7 +98,7 @@ class Environment {
     this.#functions = parent ? parent.#functions : new Map();
     this.#loop = parent ? parent.#loop - 1: 1000000;
     if (this.#loop <= 0) {
-      throw 'Too deep recursion.';
+      throw new Error('Too deep recursion.');
     }
   }
 
@@ -121,7 +121,7 @@ class Environment {
     if (typeof getter == 'function') {
       return getter();
     }
-    throw 'Undefined variable: ' + name;
+    throw new Error('Undefined variable: ' + name);
   }
 
   /**
@@ -155,7 +155,7 @@ class Environment {
     if (builtIn) {
       return builtIn;
     }
-    throw 'Cannot find a function: ' + functionId(name, arity);
+    throw new Error('Cannot find a function: ' + functionId(name, arity));
   }
 
   /**
@@ -187,7 +187,7 @@ class Environment {
   countLoop() {
     this.#loop--;
     if (this.#loop <= 0) {
-      throw 'Too many loops.';
+      throw new Error('Too many loops.');
     }
   }
 }
@@ -312,7 +312,7 @@ class Tokenizer {
         i++;
         while (data[i] != c) {
           if (i >= data.length) {
-            throw 'unterminated string literal.';
+            throw new Error('unterminated string literal.');
           } else if (data[i] == '\\') {
             i++;
           }
@@ -465,7 +465,7 @@ class FunctionValue {
       } else if (params.length > i) {
         newEnv.set(this.#params[i].name, params[i]);
       } else if (this.#params[i].defaultValueNode == null) {
-        throw 'Not enough parameters to call function.';
+        throw new Error('Not enough parameters to call function.');
       } else {
         newEnv.set(this.#params[i].name,
             await this.#params[i].defaultValueNode.run(newEnv));
@@ -589,7 +589,7 @@ class Node {
    */
   async assign(env, value) {
     if (this.#assigner == null) {
-      throw 'Cannot assign values to ' + await this.run(env);
+      throw new Error('Cannot assign values to ' + await this.run(env));
     }
     await this.#assigner(env, value);
   }
@@ -714,7 +714,7 @@ class ExpressionBuilder {
     } else {
       const current = this.#currentNode(18);
       if (current.right != null) {
-        throw 'Missing an operator or semicolon.';
+        throw new Error('Missing an operator or semicolon.');
       }
       current.right = node;
       this.hasValueNode = true;
@@ -781,7 +781,8 @@ class Scope {
   addVariable(variable, mutate) {
     if (mutate) {
       if (this.#constants.has(variable)) {
-        throw 'Cannot modify constant or captured variable: ' + variable;
+        throw new Error(
+            'Cannot modify constant or captured variable: ' + variable);
       }
     } else {
       this.#constants.delete(variable);
@@ -807,7 +808,7 @@ class Scope {
   /** @param {string} variable */
   checkInitialized(variable) {
     if (!this.#variables.has(variable)) {
-      throw 'Uninitialized variable: ' + variable;
+      throw new Error('Uninitialized variable: ' + variable);
     }
   }
 
@@ -910,7 +911,7 @@ class TreeBuilder {
   #nextExpected(expected) {
     const token = this.#tokens.next();
     if (token != expected) {
-      throw 'Expected ' + expected + ' but got: ' + token;
+      throw new Error(`Expected ${expected} but got: ${token}`);
     }
   }
 
@@ -930,10 +931,11 @@ class TreeBuilder {
       if (this.#tokens.peek() == ',') {
         this.#tokens.next();
       } else if (this.#tokens.peek() != endToken) {
-        throw 'Expected , or ' + endToken +' but got: ' + this.#tokens.next();
+        throw new Error(
+            `Expected , or ${endToken} but got: ${this.#tokens.next()}`);
       }
     }
-    throw 'Missing ' + endToken;
+    throw new Error('Missing ' + endToken);
   }
 
   /**
@@ -968,13 +970,13 @@ class TreeBuilder {
             await params[0].assign(env, paramResults[1]);
             await params[1].assign(env, paramResults[0]);
           } else {
-            throw 'Not a function: ' + func;
+            throw new Error('Not a function: ' + func);
           }
         },
         async (env, value) => {
           if (!(left instanceof VariableNode)) {
-            throw 'Cannot assign values to function result: ' +
-                await node.run(env);
+            throw new Error('Cannot assign values to function result: ' +
+                await node.run(env));
           } else if (left.name == 'cell') {
             const x = await params[0].run(env);
             const y = await params[1].run(env);
@@ -987,7 +989,8 @@ class TreeBuilder {
             await params[0].assign(env, str.substring(0, start) + value
                 + str.substring(start + len));
           } else {
-            throw 'Cannot assign values to function result: ' + left.name;
+            throw new Error(
+                'Cannot assign values to function result: ' + left.name);
           }
         });
     return node;
@@ -1006,7 +1009,8 @@ class TreeBuilder {
           if (obj instanceof ObjectValue) {
             const result = obj.get(name);
             if (result == null) {
-              throw 'Undefined member: ' + name + '\nObject: ' + String(obj);
+              throw new Error('Undefined member: ' + name + '\n' +
+                  'Object: ' + String(obj));
             }
             if (result instanceof FunctionValue) {
               return result.withThis(obj);
@@ -1057,7 +1061,8 @@ class TreeBuilder {
           } else if (!isNaN(Number(name))) {
             return str[Number(name)] || '';
           } else {
-            throw 'Undefined member: ' + name + '\nString: ' + String(obj);
+            throw new Error('Undefined member: ' + name + '\n' +
+                'String: ' + String(obj));
           }
         },
         async (env, value) => {
@@ -1066,7 +1071,7 @@ class TreeBuilder {
           if (obj instanceof ObjectValue) {
             obj.set(name, value);
           } else {
-            throw obj + ' is not an object. Setting: ' + name;
+            throw new Error(obj + ' is not an object. Setting: ' + name);
           }
         });
   }
@@ -1093,7 +1098,7 @@ class TreeBuilder {
         if (this.#tokens.peek() == ',') {
           this.#tokens.next();
         } else if (this.#tokens.peek() != '}') {
-          throw 'Expected , or } but got: ' + this.#tokens.next();
+          throw new Error('Expected , or } but got: ' + this.#tokens.next());
         }
       } else if (token == '(') {
         const methodScope = new Scope(scope).addVariable('this');
@@ -1105,7 +1110,7 @@ class TreeBuilder {
           this.#tokens.next();
         }
       } else {
-        throw 'Expected : or ( but got: ' + token;
+        throw new Error('Expected : or ( but got: ' + token);
       }
     }
     return new Node(async env => {
@@ -1161,7 +1166,7 @@ class TreeBuilder {
       }
       const name = this.#tokens.next();
       if (!isAlphaChar(name[0])) {
-        throw 'Expected parameter name but got: ' + name;
+        throw new Error('Expected parameter name but got: ' + name);
       }
       let defaultValueNode = null;
       let token = this.#tokens.next();
@@ -1174,10 +1179,10 @@ class TreeBuilder {
       if (token == ')') {
         return params;
       } else if (token != ',') {
-        throw 'Expected ) or , but got: ' + token;
+        throw new Error('Expected ) or , but got: ' + token);
       }
     }
-    throw 'Missing )';
+    throw new Error('Missing )');
   }
 
   #isLambda() {
@@ -1215,7 +1220,7 @@ class TreeBuilder {
       if (next == '}') {
         break;
       } else if (next != ',') {
-        throw 'Expected } or , but got: ' + next;
+        throw new Error('Expected } or , but got: ' + next);
       }
     }
     this.#nextExpected('from');
@@ -1248,7 +1253,8 @@ class TreeBuilder {
           if (b instanceof ObjectValue) {
             return b.has(String(a)) ? 1 : 0;
           } else {
-            throw 'right-hand side of "in" should be an object. Found: ' + b;
+            throw new Error('right-hand side of "in" should be an object. ' +
+                'Found: ' + b);
           }
         }));
       } else if (token[0] == '"' || token[0] == "'") {
@@ -1272,7 +1278,8 @@ class TreeBuilder {
         }
       } else if (token == '.') {
         if (!expr.hasValueNode) {
-          throw 'Unexpected token: ' + token + (this.#tokens.peek() || '');
+          throw new Error('Unexpected token: ' + token +
+              (this.#tokens.peek() || ''));
         }
         expr.add(this.#buildMemberAccessNode(
             expr.pop(), valueNode(this.#tokens.next())));
@@ -1280,14 +1287,14 @@ class TreeBuilder {
         const params = this.#buildTuple(scope, ']');
         if (expr.hasValueNode) {
           if (params.length != 1) {
-            throw 'obj[x] format should have exactly 1 parameter. Found: '
-                + params.length;
+            throw new Error('obj[x] format should have exactly 1 parameter. ' +
+                'Found: ' + params.length);
           }
           expr.add(this.#buildMemberAccessNode(expr.pop(), params[0]));
         } else {
           if (params.length != 2) {
-            throw '[x,y] format should have exactly 2 parameters. Found: '
-                + params.length;
+            throw new Error('[x,y] format should have exactly 2 parameters. ' +
+                'Found: ' + params.length);
           }
           expr.add(cellNode(params[0], params[1]));
         }
@@ -1374,11 +1381,11 @@ class TreeBuilder {
         }));
       } else if (token == '=') {
         if (!expr.hasValueNode) {
-          throw 'Unexpected token: =';
+          throw new Error('Unexpected token: =');
         }
         expr.add(new BinaryNode(2, async (env, left, right) => {
           if (left == null || right == null) {
-            throw 'Operand is missing: =';
+            throw new Error('Operand is missing: =');
           }
           const value = await right.run(env);
           await left.assign(env, value);
@@ -1413,7 +1420,7 @@ class TreeBuilder {
           return value;
         }));
       } else {
-        throw "Invalid token: " + token;
+        throw new Error("Invalid token: " + token);
       }
     }
     return expr.build();
@@ -1437,7 +1444,7 @@ class TreeBuilder {
         }
         statements.push(this.#buildStatement(scope));
       }
-      throw 'Missing }';
+      throw new Error('Missing }');
     } else if (token0 == 'if' && token1 == '(') {
       this.#tokens.next();
       this.#tokens.next();
@@ -1597,13 +1604,14 @@ class TreeBuilder {
  */
 function load(fileName, env, macroMap) {
   if (macroMap == null || !macroMap.has(fileName)) {
-    throw 'Imported library not found: ' + fileName;
+    throw new Error('Imported library not found: ' + fileName);
   }
   const treeBuilder = new TreeBuilder(fileName, macroMap.get(fileName), env);
   try {
     treeBuilder.build();
   } catch (e) {
-    throw e + '\n' + fileName + '\n' + treeBuilder.positionString();
+    throw new Error(/** @type {Error} */(e).message + '\n' + fileName + '\n' +
+        treeBuilder.positionString(), {cause: e});
   }
   return treeBuilder.dependencies;
 }
@@ -1620,7 +1628,8 @@ async function run(script, env, macroMap) {
   try {
     tree = treeBuilder.build();
   } catch (e) {
-    throw e + '\n' + treeBuilder.positionString();
+    throw new Error(/** @type {Error} */(e).message + '\n' +
+        treeBuilder.positionString(), {cause: e});
   }
   let dependencies = treeBuilder.dependencies;
   const loaded = new Set();
