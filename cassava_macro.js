@@ -1428,7 +1428,7 @@ class TreeBuilder {
 
   /**
    * @param {Scope} scope
-   * @returns {Node?}
+   * @returns {Node}
    */
   #buildStatement(scope) {
     const token0 = this.#tokens.peek(0);
@@ -1531,16 +1531,6 @@ class TreeBuilder {
           await nextNode.run(env);
         }
       });
-    } else if (token0 == 'function') {
-      this.#tokens.next();
-      const name = this.#tokens.next();
-      this.#nextExpected('(');
-      const functionScope = new Scope(scope).addFunction(name);
-      const paramNodes = this.#buildParameters(functionScope);
-      const bodyNode = this.#buildStatement(functionScope);
-      const func = new FunctionValue(paramNodes, bodyNode, this.#globalEnv);
-      this.#globalEnv.setFunction(name, this.#fileName, func);
-      return null;
     } else if (token0 == 'return' || token0 == 'break' ||
         token0 == 'continue') {
       this.#tokens.next();
@@ -1548,16 +1538,6 @@ class TreeBuilder {
       this.#nextExpected(';');
       return new Node(async env =>
           new ReturnValue(await valueNode.run(env), token0));
-    } else if (token0 == 'class' && isAlphaChar(token1[0])) {
-      this.#tokens.next();
-      const name = this.#tokens.next();
-      this.#nextExpected('{');
-      const func = this.#buildClassValue(new Scope(scope).addFunction(name));
-      this.#globalEnv.setFunction(name, this.#fileName, func);
-      return null;
-    } else if (token0 == 'import') {
-      this.#readImport();
-      return null;
     } else if ((token0 == 'const' || token0 == 'let' || token0 == 'var') &&
         isAlphaChar(token1[0])) {
       this.#tokens.next();
@@ -1582,9 +1562,27 @@ class TreeBuilder {
     const statements = [];
     const scope = new Scope();
     while (this.#tokens.hasNext()) {
-      const statement = this.#buildStatement(scope);
-      if (statement) {
-        statements.push(statement);
+      const token0 = this.#tokens.peek(0);
+      const token1 = this.#tokens.peek(1);
+      if (token0 == 'import') {
+        this.#readImport();
+      } else if (token0 == 'class' && isAlphaChar(token1[0])) {
+        this.#tokens.next();
+        const name = this.#tokens.next();
+        this.#nextExpected('{');
+        const func = this.#buildClassValue(new Scope(scope).addFunction(name));
+        this.#globalEnv.setFunction(name, this.#fileName, func);
+      } else if (token0 == 'function') {
+        this.#tokens.next();
+        const name = this.#tokens.next();
+        this.#nextExpected('(');
+        const functionScope = new Scope(scope).addFunction(name);
+        const paramNodes = this.#buildParameters(functionScope);
+        const bodyNode = this.#buildStatement(functionScope);
+        const func = new FunctionValue(paramNodes, bodyNode, this.#globalEnv);
+        this.#globalEnv.setFunction(name, this.#fileName, func);
+      } else {
+        statements.push(this.#buildStatement(scope));
       }
     }
     return blockNode(statements);
