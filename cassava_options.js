@@ -1,5 +1,5 @@
 net.asukaze.module((module, require) => {
-const { DataFormat } = require('./cassava_data_format.js');
+const { DataFormat, QuoteType } = require('./cassava_data_format.js');
 
 const itemName = 'Cassava.ini.json';
 
@@ -55,7 +55,7 @@ class Options {
       this.dataFormats.push(new DataFormat(
           this.get(section + '/Name'),
           this.get(section + '/SepChars'),
-          Number(this.get(section + '/Quote')),
+          /** @type {QuoteType} */(Number(this.get(section + '/Quote'))),
           this.get(section + '/QuoteExpression'),
           this.get(section + '/Exts').split(';')));
     }

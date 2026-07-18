@@ -2,14 +2,14 @@ net.asukaze.module((module, require) => {
 const { GridData, Range, isNumber } = require('./cassava_grid_data.js');
 /** @typedef {import("./cassava_macro.js").ValueType} ValueType */
 
-/** @enum {number} */
-const QuoteType = {
+const QuoteType = /** @type {const} */({
   NONE: 0,
   ONLY_IF_NEEDED: 1,
   ONLY_IF_STRING: 2,
   ALWAYS: 3,
   EXPRESSION: 4,
-}
+});
+/** @typedef {(typeof QuoteType)[keyof typeof QuoteType]} QuoteType */
 
 class DataFormat {
   /**

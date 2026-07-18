@@ -5,8 +5,7 @@ const { createButton, createElement, createDiv, createLabel } = require('./asuka
  * @typedef {import("./cassava_min_20260221.d.ts").CassavaGridElement} CassavaGridElement
  */
 
-/** @enum {number} */
-const Type = {
+const Type = /** @type {const} */({
   NULL: 0,
   STRING: 1,
   NUMBER: 2,
@@ -16,7 +15,8 @@ const Type = {
   INLINE_ARRAY: 6,
   EXPANDED_ARRAY: 7,
   TABULAR_ARRAY: 8
-}
+});
+/** @typedef {(typeof Type)[keyof typeof Type]} Type */
 
 const NUMERIC_LIKE = /^-?\d+(\.\d+)?(e[+-]?\d+)?$/i;
 
@@ -145,7 +145,7 @@ class Node {
 
     this.#select = createElement('select', {
       onchange: () => {
-        this.#type = Number(this.#select.value);
+        this.#type = /** @type {Type} */(Number(this.#select.value));
         this.render();
       }
     }, [
